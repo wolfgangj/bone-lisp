@@ -59,11 +59,11 @@ any int2any(int32_t n) { any r = t_num; ((int32_t *) &r)[1] = n; return r; }
 #define ALLOC_BLOCKS_AT_ONCE 16
 my size_t blocksize;  // in bytes
 my size_t blockwords; // words per block
-my any blockmask; // to get the block an obj belongs to
+my any blockmask; // to get the block an `any` belongs to
 my any **free_block;
-// A block begins with a pointer to the next block that belongs to the region.
+// A block begins with a pointer to the previous block that belongs to the region.
 // The metadata of a region (i.e. this struct) is stored in its first block.
-typedef struct { any **end, **allocp; } *reg;
+typedef struct { any **current_block, **allocp; } *reg;
 
 my any **block(any *x) { return (any **) (blockmask & (any) x); } // get ptr to start of block that x belongs to.
 my any **blocks_alloc(int n) { return mmap(NULL, blocksize*n, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); }
@@ -72,26 +72,26 @@ my void blocks_init(any **p, int n) { n--; for(int i = 0; i < n; i++) block_poin
 my any **fresh_blocks() { any **p = blocks_alloc(ALLOC_BLOCKS_AT_ONCE); blocks_init(p, ALLOC_BLOCKS_AT_ONCE); return p; }
 my void ensure_free_block() { if(!free_block) free_block = fresh_blocks(); }
 my any **block_new(any **next) { ensure_free_block(); any **r = free_block; free_block = (any **) r[0]; r[0] = (any *) next; return r; }
-my void reg_init(reg r, any **b) { r->end = b; r->allocp = (any **) &r[1]; }
+my void reg_init(reg r, any **b) { r->current_block = b; r->allocp = (any **) &r[1]; }
 reg reg_new() { any **b = block_new(NULL); reg r = (reg) &b[1]; reg_init(r, b); return r; }
-void reg_free(reg r) { block((any *) r)[0] = (any *) free_block; free_block = r->end; }
+void reg_free(reg r) { block((any *) r)[0] = (any *) free_block; free_block = r->current_block; }
 my void blocks_sysfree(any **b) { if(!b) return; any **next = (any **) b[0]; munmap(b, blocksize); blocks_sysfree(next); }
-my void reg_sysfree(reg r) { blocks_sysfree(r->end); }
+my void reg_sysfree(reg r) { blocks_sysfree(r->current_block); }
 
 my reg permanent_reg;
 my reg reg_stack[64];
 my reg *reg_sp = reg_stack; // points to tos!
-my any **allocp, **end; // from currently used reg.
-my void load_reg(reg r)  { allocp = r->allocp; end = r->end; }
-my void store_reg(reg r) { r->allocp = allocp; r->end = end; }
+my any **allocp, **current_block; // from currently used reg.
+my void load_reg(reg r)  { allocp = r->allocp; current_block = r->current_block; }
+my void store_reg(reg r) { r->allocp = allocp; r->current_block = current_block; }
 void reg_push(reg r) { store_reg(*reg_sp); reg_sp++; *reg_sp = r;     load_reg(*reg_sp); }
 reg reg_pop()        { store_reg(*reg_sp); reg r = *reg_sp; reg_sp--; load_reg(*reg_sp); return r; }
 
 any *reg_alloc(int n) {
   any *res = (any *) allocp;
   allocp += n;
-  if(block((any *) allocp) == end) return res;
-  end = block_new(end); allocp = (any **) &end[1]; return reg_alloc(n);
+  if(block((any *) allocp) == current_block) return res;
+  current_block = block_new(current_block); allocp = (any **) &current_block[1]; return reg_alloc(n);
 }
 
 my any reg2any(reg r) { return tag((any) r, t_reg); }
@@ -264,6 +264,8 @@ void init_bone() {
 // FIXME: doesn't belong here
 int main() {
   init_bone();
+  reg_push(reg_new());
+
   any test = NIL;
   print(test); putchar('\n');
   test = cons(int2any(1), cons(int2any(2), NIL));
@@ -278,6 +280,8 @@ int main() {
   print(test); putchar('\n');
   test = reg2any(permanent_reg);
   print(test); putchar('\n');
+
+  reg_free(reg_pop());
   return 0;
 }
 
