@@ -63,7 +63,7 @@ my any blockmask; // to get the block an obj belongs to
 my any **free_block;
 // A block begins with a pointer to the next block that belongs to the region.
 // The metadata of a region (i.e. this struct) is stored in its first block.
-typedef struct { any **start, **end, **allocp; } *reg;
+typedef struct { any **end, **allocp; } *reg;
 
 my any **block(any *x) { return (any **) (blockmask & (any) x); } // get ptr to start of block that x belongs to.
 my any **blocks_alloc(int n) { return mmap(NULL, blocksize*n, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); }
@@ -72,9 +72,9 @@ my void blocks_init(any **p, int n) { n--; for(int i = 0; i < n; i++) block_poin
 my any **fresh_blocks() { any **p = blocks_alloc(ALLOC_BLOCKS_AT_ONCE); blocks_init(p, ALLOC_BLOCKS_AT_ONCE); return p; }
 my void ensure_free_block() { if(!free_block) free_block = fresh_blocks(); }
 my any **block_new(any **next) { ensure_free_block(); any **r = free_block; free_block = (any **) r[0]; r[0] = (any *) next; return r; }
-my void reg_init(reg r, any **b) { r->start = r->end = b; r->allocp = (any **) &r[1]; }
+my void reg_init(reg r, any **b) { r->end = b; r->allocp = (any **) &r[1]; }
 reg reg_new() { any **b = block_new(NULL); reg r = (reg) &b[1]; reg_init(r, b); return r; }
-void reg_free(reg r) { r->start[0] = (any *) free_block; free_block = r->end; }
+void reg_free(reg r) { block((any *) r)[0] = (any *) free_block; free_block = r->end; }
 my void blocks_sysfree(any **b) { if(!b) return; any **next = (any **) b[0]; munmap(b, blocksize); blocks_sysfree(next); }
 my void reg_sysfree(reg r) { blocks_sysfree(r->end); }
 
