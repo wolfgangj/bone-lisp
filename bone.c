@@ -26,7 +26,7 @@
 
 #define my static
 
-typedef uint64_t any;
+typedef uint64_t any; // we only support 64 bit currently
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 
 #define UNIQ(n) (t_uniq | (010*(n)))
@@ -204,17 +204,22 @@ any intern(const char *name) {
   }
 }
 
+any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec;
+#define x(name) s_ ## name = intern(#name)
+my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
+  x(lambda);x(let);x(letrec); }
+#undef x
+
 //////////////// print ////////////////
 
 void print(any x) {
   switch(tag_of(x)) {
   case t_cons:
     if(is_tagged(far(x), t_sym) && is_tagged(fdr(x), t_cons) && fdr(fdr(x)) == NIL) {
-      // FIXME. don't call intern() each time
-      if(far(x) == intern("quote"))            { printf("'");  print(far(fdr(x))); break; }
-      if(far(x) == intern("quasiquote"))       { printf("`");  print(far(fdr(x))); break; }
-      if(far(x) == intern("unquote"))          { printf(",");  print(far(fdr(x))); break; }
-      if(far(x) == intern("unquote-splicing")) { printf(",@"); print(far(fdr(x))); break; }
+      if(far(x) == s_quote)            { printf("'");  print(far(fdr(x))); break; }
+      if(far(x) == s_quasiquote)       { printf("`");  print(far(fdr(x))); break; }
+      if(far(x) == s_unquote)          { printf(",");  print(far(fdr(x))); break; }
+      if(far(x) == s_unquote_splicing) { printf(",@"); print(far(fdr(x))); break; }
     }
     printf("(");
     bool first = true;
@@ -225,8 +230,8 @@ void print(any x) {
   case t_uniq:
     switch(x) {
     case NIL: printf("()"); break;
-    case BTRUE: printf("\\+"); break;
-    case BFALSE: printf("\\-"); break;
+    case BTRUE: printf("#t"); break;
+    case BFALSE: printf("#f"); break;
     default: abort(); }
     break;
   case t_str:
@@ -258,7 +263,7 @@ void init_bone() {
   free_block = NULL;
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
-  sym_ht = hash_new(199, 0);
+  sym_ht = hash_new(199, 0); init_syms();
 }
 
 // FIXME: doesn't belong here
