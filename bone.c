@@ -35,6 +35,7 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define BFALSE  UNIQ(2)
 #define HASH_SLOT_UNUSED  UNIQ(100)
 #define HASH_SLOT_DELETED UNIQ(101)
+bool is_nil(any x) { return x == NIL; }
 
 void type_error(any x, type_tag t) {
   puts("type error"); // FIXME: show more info
@@ -108,7 +109,8 @@ any fdr(any x) { return ((any *) x)[1]; } // likewise
 any car(any x) { check(x, t_cons); return far(x); }
 any cdr(any x) { check(x, t_cons); return fdr(x); }
 
-any is_cons(any x) { return is_tagged(x, t_cons); }
+bool is_cons(any x) { return is_tagged(x, t_cons); }
+bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 #define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
 
 //////////////// strs ////////////////
@@ -174,6 +176,7 @@ void hash_each(hash h, hash_iter fn, void *hook) {
 
 //////////////// syms ////////////////
 
+bool is_sym(any x) { return is_tagged(x, t_sym); }
 my hash sym_ht;
 my any string_hash(const char *s, size_t *len) {  // This is the djb2 algorithm.
   int32_t hash = 5381;
@@ -181,7 +184,6 @@ my any string_hash(const char *s, size_t *len) {  // This is the djb2 algorithm.
   while(*s) { (*len)++; hash = ((hash << 5) + hash) + *(s++); }
   return int2any(hash);
 }
-
 my int cells4charp(int len) { return (len+1)/sizeof(any) + 1; } // how much cells we need
 my char *symtext(any sym) { return (char *) untag(sym); }
 my any as_sym(char *name) { return tag((any) name, t_sym); } // `name` must be interned
@@ -215,7 +217,7 @@ my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=inter
 void print(any x) {
   switch(tag_of(x)) {
   case t_cons:
-    if(is_tagged(far(x), t_sym) && is_tagged(fdr(x), t_cons) && fdr(fdr(x)) == NIL) {
+    if(is_sym(far(x)) && is_single(fdr(x))) {
       if(far(x) == s_quote)            { printf("'");  print(far(fdr(x))); break; }
       if(far(x) == s_quasiquote)       { printf("`");  print(far(fdr(x))); break; }
       if(far(x) == s_unquote)          { printf(",");  print(far(fdr(x))); break; }
