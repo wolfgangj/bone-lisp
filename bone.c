@@ -298,9 +298,11 @@ my int find_token() {
     }
   }
 }
-my any chars_to_num_or_sym(any x) {
-  return intern_from_chars(x); // FIXME
+my any chars_to_num(any x) { int n = 0;
+  foreach(dig, x) { int d = any2int(dig); if(d<'0' || d>'9') return BFALSE; n*=10; n+=(d-'0'); }
+  return int2any(n);
 }
+my any chars_to_num_or_sym(any x) { any num = chars_to_num(x); return (is(num)) ? num : intern_from_chars(x); }
 my any read_sym_chars(int start_char) {
   any res = single(int2any(start_char)); any curr = res; int c;
   while(is_symchar(c = look())) { any next = single(int2any(nextc())); set_fdr(curr, next); curr = next; }
@@ -377,7 +379,7 @@ any bone_read() {
 any copy(any x) {
   switch(tag_of(x)) {
   case t_cons: return cons(copy(far(x)), copy(fdr(x)));
-  //FIXME:case t_str: return str(copy(unstr(x)));
+  case t_str: return str(copy(unstr(x)));
   case t_sym: case t_num: case t_uniq: return x;
   default: return x; } // FIXME: should be an error
 }
@@ -414,7 +416,8 @@ int main() {
   print(test); putchar('\n');
 
   printf("%s\n", list2charp(unstr(charp2str("foo bar"))));
-  print(bone_read()); putchar('\n');
+  any x; print(x=bone_read()); putchar('\n');
+  printf("%s\n", is_sym(x) ? "sym" : "not sym");
 
   reg_free(reg_pop());
   return 0;
