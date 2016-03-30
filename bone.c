@@ -254,6 +254,7 @@ void print(any x) {
     case NIL: printf("()"); break;
     case BTRUE: printf("#t"); break;
     case BFALSE: printf("#f"); break;
+    case ENDOFFILE: printf("#{eof}"); break; // FIXME: should we keep this?
     default: abort(); }
     break;
   case t_str:
@@ -279,9 +280,9 @@ my bool allowed_chars[] = { // these can be used for syms in s-exprs
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0
 }; // disallowed are the first 32 and " #'(),@;[]\`{}|~
-my bool is_symchar(int c) { return (c < 256) ? allowed_chars[c] : true; }
+my bool is_symchar(int c) { return (c >= 0 && c < 256) ? allowed_chars[c] : c!=EOF; }
 
-#define nextc getchar // FIXME:
+#define nextc getchar // FIXME: allow input from other sources
 my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
 my int find_token() {
   while(1) {
@@ -299,6 +300,7 @@ my any chars_to_num_or_sym(any x) {
 my any read_sym_chars(int start_char) {
   any res = single(int2any(start_char)); any curr = res; int c;
   while(is_symchar(c = nextc())) { any next = single(int2any(c)); set_fdr(curr, next); curr = next; }
+  ungetc(c, stdin); // FIXME
   return res;
 }
 any bone_read() {
@@ -311,16 +313,17 @@ any bone_read() {
   case '`': return cons(s_quasiquote, single(bone_read()));
   case ',':
   case '"':
-  case '#': c2 = nextc(); switch(c2) {
+  case '#': switch(c = nextc()) {
     case 'f': return BFALSE;
     case 't': return BTRUE;
     case '!': skip_until('\n'); return bone_read(); // ignore Unix-style script header
-    default: abort();
+    default: abort(); // FIXME: just a parse error
     }
   case EOF: return ENDOFFILE;
   default: return(chars_to_num_or_sym(read_sym_chars(c)));  
   }
 }
+
 //////////////// misc ////////////////
 
 any copy(any x) {
