@@ -316,12 +316,13 @@ my any read_str() {
       case 'n': c = '\n'; break;
       case 't': c = '\t'; break;
       case EOF: parse_error("end of file after backslash in str");
+      default: parse_error("invalid character after backslash in str");
       }
     any now = single(int2any(c));
     if(is_nil(res)) res = curr = now; else { set_fdr(curr, now); curr = now; } 
   }
 }
-my any reader(); // fwd decl
+my any reader(); // for mutual recursion
 my any read_list() {
   any x = reader();
   if(x == READER_LIST_END) return NIL;
@@ -340,6 +341,11 @@ my any read_lambda_short_form() {
   any body, args = lambda_parser(&body);
   return cons(s_lambda, cons(args, single(body)));
 }
+my any read_unquote() {
+  any q = s_unquote; int c = nextc();
+  if(c == '@') q = s_unquote_splicing; else ungetc(c, stdin); // FIXME: ungetc
+  return cons(q, single(reader()));
+}
 my any reader() {
   int c = find_token();
   switch(c) {
@@ -348,17 +354,15 @@ my any reader() {
   case '|': return read_lambda_short_form();
   case '\'': return cons(s_quote, single(reader()));
   case '`': return cons(s_quasiquote, single(reader()));
-  case ',': // FIXME
+  case ',': return read_unquote();
   case '"': return read_str();
   case '#': switch(c = nextc()) {
     case 'f': return BFALSE;
     case 't': return BTRUE;
     case '!': skip_until('\n'); return reader(); // ignore Unix-style script header
-    default: parse_error("invalid character after #");
-    }
+    default: parse_error("invalid character after #"); }
   case EOF: return ENDOFFILE;
-  default: return(chars_to_num_or_sym(read_sym_chars(c)));  
-  }
+  default: return(chars_to_num_or_sym(read_sym_chars(c))); }
 }
 
 any bone_read() {
