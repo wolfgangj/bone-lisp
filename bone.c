@@ -30,11 +30,13 @@ typedef uint64_t any; // we only support 64 bit currently
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 
 #define UNIQ(n) (t_uniq | (010*(n)))
-#define NIL     UNIQ(0)
-#define BTRUE   UNIQ(1)
-#define BFALSE  UNIQ(2)
+#define NIL       UNIQ(0)
+#define BTRUE     UNIQ(1)
+#define BFALSE    UNIQ(2)
+#define ENDOFFILE UNIQ(3)
 #define HASH_SLOT_UNUSED  UNIQ(100)
 #define HASH_SLOT_DELETED UNIQ(101)
+#define READER_LIST_END   UNIQ(102)
 bool is_nil(any x) { return x == NIL; }
 
 void type_error(any x, type_tag t) {
@@ -114,12 +116,19 @@ bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 any single(any x) { return cons(x, NIL); }
 #define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
 
+int len(any x) { int n = 0; foreach(e, x) n++; return n; }
+
 //////////////// strs ////////////////
 
 any str(any chrs) { any *p = reg_alloc(1); *p = chrs; return tag((any) p, t_str); }
 any unstr(any s) { return *(any *) untag_check(s, t_str); }
 my any charp2list(const char *p) { return !*p ? NIL : cons(int2any(*p), charp2list(p+1)); }
 any charp2str(const char *p) { return str(charp2list(p)); }
+char *list2charp(any x) {
+  char *res = malloc(len(x) + 1); // FIXME: longer for UTF-8
+  char *p = res; foreach(c, x) { *p = any2int(c); p++; }
+  *p = '\0'; return res;
+}
 
 //////////////// hash tables ////////////////
 
@@ -206,6 +215,7 @@ any intern(const char *name) {
     id++;
   }
 }
+my any intern_from_chars(any x) { char *s = list2charp(x); any res = intern(s); free(s); return res; }
 
 any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot;
 #define x(name) s_ ## name = intern(#name)
@@ -261,6 +271,39 @@ void print(any x) {
 
 //////////////// read ////////////////
 
+#define nextc getchar // FIXME:
+my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
+my int find_token() { int c;
+  while(1) {
+    c = nextc();
+    switch(c) {
+    case ';': skip_until('\n'); break;
+    case ' ': case '\t': case '\n': case '\f': case '\r': break;
+    default: return c;
+    }
+  }
+}
+my any chars_to_num_or_sym(any x) {
+  return intern_from_chars(x); // FIXME
+}
+my any read_sym_chars(int start_char) {
+  return NIL; // FIXME
+}
+any bone_read() {
+  int c = find_token();
+  switch(c) {
+  case ')': return READER_LIST_END;
+  case '(':
+  case '|':
+  case '\'': return cons(s_quote, single(bone_read()));
+  case '`': return cons(s_quasiquote, single(bone_read()));
+  case ',':
+  case '"':
+  case '#':
+  case EOF: return ENDOFFILE;
+  default: return(chars_to_num_or_sym(read_sym_chars(c)));  
+  }
+}
 //////////////// misc ////////////////
 
 any copy(any x) {
@@ -301,6 +344,8 @@ int main() {
   print(test); putchar('\n');
   test = cons(intern("lambda"), cons(intern("x"), cons(single(intern("x")), NIL)));
   print(test); putchar('\n');
+
+  printf("%s\n", list2charp(unstr(charp2str("foo bar"))));
 
   reg_free(reg_pop());
   return 0;
