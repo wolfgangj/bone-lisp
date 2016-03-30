@@ -110,6 +110,8 @@ any far(any x) { return ((any *) x)[0]; } // fast, no typecheck
 any fdr(any x) { return ((any *) x)[1]; } // likewise
 any car(any x) { check(x, t_cons); return far(x); }
 any cdr(any x) { check(x, t_cons); return fdr(x); }
+void set_far(any c, any x) { ((any *) c)[0] = x; }
+void set_fdr(any c, any x) { ((any *) c)[1] = x; }
 
 bool is_cons(any x) { return is_tagged(x, t_cons); }
 bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
@@ -271,11 +273,19 @@ void print(any x) {
 
 //////////////// read ////////////////
 
+my bool allowed_chars[] = { // these can be used for syms in s-exprs
+  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  0,1,0,0,1,1,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,
+  0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0
+}; // disallowed are the first 32 and " #'(),@;[]\`{}|~
+my bool is_symchar(int c) { return (c < 256) ? allowed_chars[c] : true; }
+
 #define nextc getchar // FIXME:
 my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
-my int find_token() { int c;
+my int find_token() {
   while(1) {
-    c = nextc();
+    int c = nextc();
     switch(c) {
     case ';': skip_until('\n'); break;
     case ' ': case '\t': case '\n': case '\f': case '\r': break;
@@ -287,7 +297,9 @@ my any chars_to_num_or_sym(any x) {
   return intern_from_chars(x); // FIXME
 }
 my any read_sym_chars(int start_char) {
-  return NIL; // FIXME
+  any res = single(int2any(start_char)); any curr = res; int c;
+  while(is_symchar(c = nextc())) { any next = single(int2any(c)); set_fdr(curr, next); curr = next; }
+  return res;
 }
 any bone_read() {
   int c2, c = find_token();
@@ -302,7 +314,7 @@ any bone_read() {
   case '#': c2 = nextc(); switch(c2) {
     case 'f': return BFALSE;
     case 't': return BTRUE;
-    case '!': skip_until('\n'); return bone_read(); // Unix-style script header
+    case '!': skip_until('\n'); return bone_read(); // ignore Unix-style script header
     default: abort();
     }
   case EOF: return ENDOFFILE;
