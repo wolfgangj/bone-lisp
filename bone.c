@@ -111,6 +111,7 @@ any cdr(any x) { check(x, t_cons); return fdr(x); }
 
 bool is_cons(any x) { return is_tagged(x, t_cons); }
 bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
+any single(any x) { return cons(x, NIL); }
 #define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
 
 //////////////// strs ////////////////
@@ -206,14 +207,19 @@ any intern(const char *name) {
   }
 }
 
-any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec;
+any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(let);x(letrec); }
+  x(lambda);x(let);x(letrec);s_dot=intern("."); }
 #undef x
 
 //////////////// print ////////////////
 
+void print(any x); // FIXME: to header?
+my void print_args(any x) {
+  if(!is_cons(x)) { if(!is_nil(x)) { printf(". "); print(x); printf(" "); } return; }
+  print(far(x)); printf(" "); print_args(fdr(x));
+}
 void print(any x) {
   switch(tag_of(x)) {
   case t_cons:
@@ -222,6 +228,8 @@ void print(any x) {
       if(far(x) == s_quasiquote)       { printf("`");  print(far(fdr(x))); break; }
       if(far(x) == s_unquote)          { printf(",");  print(far(fdr(x))); break; }
       if(far(x) == s_unquote_splicing) { printf(",@"); print(far(fdr(x))); break; }
+    } else if(far(x) == s_lambda && is_cons(fdr(x)) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
+      printf("| "); print_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
     }
     printf("(");
     bool first = true;
@@ -250,6 +258,8 @@ void print(any x) {
   case t_sub: printf("\\sub(%p)", (void *) x); break;
   case t_other: default: abort(); }
 }
+
+//////////////// read ////////////////
 
 //////////////// misc ////////////////
 
@@ -286,6 +296,10 @@ int main() {
   test = charp2str("\"Hello, world!\"\n");
   print(test); putchar('\n');
   test = reg2any(permanent_reg);
+  print(test); putchar('\n');
+  test = cons(intern("lambda"), cons(single(intern("x")), cons(single(intern("x")), NIL)));
+  print(test); putchar('\n');
+  test = cons(intern("lambda"), cons(intern("x"), cons(single(intern("x")), NIL)));
   print(test); putchar('\n');
 
   reg_free(reg_pop());
