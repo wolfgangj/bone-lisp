@@ -298,11 +298,23 @@ my int find_token() {
     }
   }
 }
-my any chars_to_num(any x) { int n = 0;
-  foreach(dig, x) { int d = any2int(dig); if(d<'0' || d>'9') return BFALSE; n*=10; n+=(d-'0'); }
-  return int2any(n);
+my int digit2int (any c) { int dig = any2int(c) - '0'; return (dig >= 0 && dig <= 9) ? dig : -1; }
+my any chars2num(any x) {
+  int res = 0, pos = 0;
+  bool is_positive = true, is_num = false; // to catch "", "+" and "-"
+  foreach(c, x) {
+    int dig = digit2int(c); pos++;
+    if(dig == -1) {
+      if(pos != 1) return BFALSE;
+      if(any2int(c) == '-') { is_positive = false; continue; }
+      if(any2int(c) == '+') continue;
+      return BFALSE;
+    }
+    is_num = true; res *= 10; res += dig;
+  }
+  return !is_num ? BFALSE : int2any(is_positive ? res : -res);
 }
-my any chars_to_num_or_sym(any x) { any num = chars_to_num(x); return (is(num)) ? num : intern_from_chars(x); }
+my any chars_to_num_or_sym(any x) { any num = chars2num(x); return is(num) ? num : intern_from_chars(x); }
 my any read_sym_chars(int start_char) {
   any res = single(int2any(start_char)); any curr = res; int c;
   while(is_symchar(c = look())) { any next = single(int2any(nextc())); set_fdr(curr, next); curr = next; }
