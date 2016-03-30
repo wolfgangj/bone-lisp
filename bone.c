@@ -285,6 +285,8 @@ my bool allowed_chars[] = { // these can be used for syms in s-exprs
 my bool is_symchar(int c) { return (c >= 0 && c < 256) ? allowed_chars[c] : c!=EOF; }
 
 #define nextc getchar // FIXME: allow input from other sources
+my int look() { int c = getchar(); ungetc(c, stdin); return c; }
+
 my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
 my int find_token() {
   while(1) {
@@ -301,8 +303,7 @@ my any chars_to_num_or_sym(any x) {
 }
 my any read_sym_chars(int start_char) {
   any res = single(int2any(start_char)); any curr = res; int c;
-  while(is_symchar(c = nextc())) { any next = single(int2any(c)); set_fdr(curr, next); curr = next; }
-  ungetc(c, stdin); // FIXME
+  while(is_symchar(c = look())) { any next = single(int2any(nextc())); set_fdr(curr, next); curr = next; }
   return res;
 }
 my any read_str() {
@@ -342,8 +343,8 @@ my any read_lambda_short_form() {
   return cons(s_lambda, cons(args, single(body)));
 }
 my any read_unquote() {
-  any q = s_unquote; int c = nextc();
-  if(c == '@') q = s_unquote_splicing; else ungetc(c, stdin); // FIXME: ungetc
+  any q = s_unquote; int c = look();
+  if(c == '@') { nextc(); q = s_unquote_splicing; }
   return cons(q, single(reader()));
 }
 my any reader() {
