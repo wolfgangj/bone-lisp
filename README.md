@@ -1,9 +1,9 @@
 The Bone Lisp dialect
 =====================
 
-> "They who would give up essential Freedom,
-> to purchase a little Type-Safety,
-> deserve neither Freedom nor Type-Safety."
+> "They who would give up essential Freedom,  
+> to purchase a little Type-Safety,  
+> deserve neither Freedom nor Type-Safety."  
 > (Benjamin Franklisp)
 
 What?
