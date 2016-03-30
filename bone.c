@@ -303,25 +303,39 @@ my any read_sym_chars(int start_char) {
   ungetc(c, stdin); // FIXME
   return res;
 }
-any bone_read() {
-  int c2, c = find_token();
+my any reader(); // fwd decl
+my any read_list() {
+  any x = reader();
+  if(x == READER_LIST_END) return NIL;
+  if(x == ENDOFFILE) abort(); // FIXME: parse error
+  if(x == s_dot) { x = reader(); if(reader() != READER_LIST_END) abort(); return x; } // FIXME: parse error
+  return cons(x, read_list());
+}
+my any reader() {
+  int c = find_token();
   switch(c) {
   case ')': return READER_LIST_END;
-  case '(':
+  case '(': return read_list();
   case '|':
-  case '\'': return cons(s_quote, single(bone_read()));
-  case '`': return cons(s_quasiquote, single(bone_read()));
+  case '\'': return cons(s_quote, single(reader()));
+  case '`': return cons(s_quasiquote, single(reader()));
   case ',':
   case '"':
   case '#': switch(c = nextc()) {
     case 'f': return BFALSE;
     case 't': return BTRUE;
-    case '!': skip_until('\n'); return bone_read(); // ignore Unix-style script header
+    case '!': skip_until('\n'); return reader(); // ignore Unix-style script header
     default: abort(); // FIXME: just a parse error
     }
   case EOF: return ENDOFFILE;
   default: return(chars_to_num_or_sym(read_sym_chars(c)));  
   }
+}
+
+any bone_read() {
+  any x = reader();
+  if(x == READER_LIST_END) abort(); // FIXME: parse error
+  return x;
 }
 
 //////////////// misc ////////////////
