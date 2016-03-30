@@ -260,7 +260,7 @@ void print(any x) {
   case t_str:
     printf("\"");
     foreach(c, unstr(x))
-      switch(any2int(c)) { // FIXME: add more
+      switch(any2int(c)) { // FIXME: add more (and add them to reader, too)
       case '"':  printf("\\\""); break;
       case '\\': printf("\\\\"); break;
       case '\n': printf("\\n");  break;
@@ -305,6 +305,22 @@ my any read_sym_chars(int start_char) {
   ungetc(c, stdin); // FIXME
   return res;
 }
+my any read_str() {
+  any curr, res = NIL;
+  while(1) {
+    int c = nextc();
+    if(c == '"') return str(res);
+    if(c == EOF) parse_error("end of file inside of a str");
+    if(c == '\\') switch(c = nextc()) {
+      case '\\': case '\'': break;
+      case 'n': c = '\n'; break;
+      case 't': c = '\t'; break;
+      case EOF: parse_error("end of file after backslash in str");
+      }
+    any now = single(int2any(c));
+    if(is_nil(res)) res = curr = now; else { set_fdr(curr, now); curr = now; } 
+  }
+}
 my any reader(); // fwd decl
 my any read_list() {
   any x = reader();
@@ -333,7 +349,7 @@ my any reader() {
   case '\'': return cons(s_quote, single(reader()));
   case '`': return cons(s_quasiquote, single(reader()));
   case ',': // FIXME
-  case '"': // FIXME
+  case '"': return read_str();
   case '#': switch(c = nextc()) {
     case 'f': return BFALSE;
     case 't': return BTRUE;
