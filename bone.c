@@ -290,7 +290,7 @@ my any read_sym_chars(int start_char) {
   return NIL; // FIXME
 }
 any bone_read() {
-  int c = find_token();
+  int c2, c = find_token();
   switch(c) {
   case ')': return READER_LIST_END;
   case '(':
@@ -299,7 +299,12 @@ any bone_read() {
   case '`': return cons(s_quasiquote, single(bone_read()));
   case ',':
   case '"':
-  case '#':
+  case '#': c2 = nextc(); switch(c2) {
+    case 'f': return BFALSE;
+    case 't': return BTRUE;
+    case '!': skip_until('\n'); return bone_read(); // Unix-style script header
+    default: abort();
+    }
   case EOF: return ENDOFFILE;
   default: return(chars_to_num_or_sym(read_sym_chars(c)));  
   }
@@ -346,6 +351,7 @@ int main() {
   print(test); putchar('\n');
 
   printf("%s\n", list2charp(unstr(charp2str("foo bar"))));
+  print(bone_read()); putchar('\n');
 
   reg_free(reg_pop());
   return 0;
