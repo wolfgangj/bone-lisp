@@ -274,6 +274,8 @@ void print(any x) {
 
 //////////////// read ////////////////
 
+void parse_error(const char *text) { printf("parse error: %s\n", text); abort(); } // FIXME
+
 my bool allowed_chars[] = { // these can be used for syms in s-exprs
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
   0,1,0,0,1,1,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,
@@ -307,25 +309,36 @@ my any reader(); // fwd decl
 my any read_list() {
   any x = reader();
   if(x == READER_LIST_END) return NIL;
-  if(x == ENDOFFILE) abort(); // FIXME: parse error
-  if(x == s_dot) { x = reader(); if(reader() != READER_LIST_END) abort(); return x; } // FIXME: parse error
+  if(x == ENDOFFILE) parse_error("end of file in list");
+  if(x == s_dot) { x = reader(); if(reader() != READER_LIST_END) parse_error("invalid improper list"); return x; }
   return cons(x, read_list());
+}
+my any lambda_parser(any *body) {
+  any x = reader();
+  if(is_cons(x)) { *body = x; return NIL; }
+  if(x == s_dot) { any rest = reader(); *body = reader(); return rest; }
+  if(is_nil(x)) { parse_error("empty body expression not allowed in lambda short form"); }
+  return cons(x, lambda_parser(body));
+}
+my any read_lambda_short_form() {
+  any body, args = lambda_parser(&body);
+  return cons(s_lambda, cons(args, single(body)));
 }
 my any reader() {
   int c = find_token();
   switch(c) {
   case ')': return READER_LIST_END;
   case '(': return read_list();
-  case '|':
+  case '|': return read_lambda_short_form();
   case '\'': return cons(s_quote, single(reader()));
   case '`': return cons(s_quasiquote, single(reader()));
-  case ',':
-  case '"':
+  case ',': // FIXME
+  case '"': // FIXME
   case '#': switch(c = nextc()) {
     case 'f': return BFALSE;
     case 't': return BTRUE;
     case '!': skip_until('\n'); return reader(); // ignore Unix-style script header
-    default: abort(); // FIXME: just a parse error
+    default: parse_error("invalid character after #");
     }
   case EOF: return ENDOFFILE;
   default: return(chars_to_num_or_sym(read_sym_chars(c)));  
@@ -334,7 +347,7 @@ my any reader() {
 
 any bone_read() {
   any x = reader();
-  if(x == READER_LIST_END) abort(); // FIXME: parse error
+  if(x == READER_LIST_END) parse_error("unexpected closing parenthesis");
   return x;
 }
 
