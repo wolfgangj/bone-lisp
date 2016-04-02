@@ -325,7 +325,7 @@ my any read_str() {
   any curr, res = NIL;
   while(1) {
     int c = nextc();
-    if(c == '"') return str(res);
+    if(c == '"') { if(!is_nil(res)) set_fdr(curr, NIL); return str(res); }
     if(c == EOF) parse_error("end of file inside of a str");
     if(c == '\\') switch(c = nextc()) {
       case '\\': case '\'': break;
@@ -334,7 +334,7 @@ my any read_str() {
       case EOF: parse_error("end of file after backslash in str");
       default: parse_error("invalid character after backslash in str");
       }
-    any now = single(int2any(c));
+    any now = precons(int2any(c));
     if(is_nil(res)) res = curr = now; else { set_fdr(curr, now); curr = now; } 
   }
 }
