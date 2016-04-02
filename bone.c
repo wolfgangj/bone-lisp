@@ -106,6 +106,7 @@ my any copy_back(any x) { reg_push(reg_sp[-1]); any y = copy(x); reg_pop(); retu
 //////////////// conses / lists ////////////////
 
 any cons(any a, any d) { any *p = reg_alloc(2); p[0] = a; p[1] = d; return (any) p; } // no tag() needed
+any precons(any a) { any *p = reg_alloc(2); p[0] = a; return (any) p; } // for faster list construction
 any far(any x) { return ((any *) x)[0]; } // fast, no typecheck
 any fdr(any x) { return ((any *) x)[1]; } // likewise
 any car(any x) { check(x, t_cons); return far(x); }
@@ -124,9 +125,9 @@ int len(any x) { int n = 0; foreach(e, x) n++; return n; }
 
 any str(any chrs) { any *p = reg_alloc(1); *p = chrs; return tag((any) p, t_str); }
 any unstr(any s) { return *(any *) untag_check(s, t_str); }
-my any charp2list(const char *p) { return !*p ? NIL : cons(int2any(*p), charp2list(p+1)); }
-any charp2str(const char *p) { return str(charp2list(p)); }
-char *list2charp(any x) {
+my any charp2list(const char *p) { return !*p ? NIL : cons(int2any(*p), charp2list(p+1)); } // FIXME: for short strings only
+my any charp2str(const char *p) { return str(charp2list(p)); }
+my char *list2charp(any x) {
   char *res = malloc(len(x) + 1); // FIXME: longer for UTF-8
   char *p = res; foreach(c, x) { *p = any2int(c); p++; }
   *p = '\0'; return res;
@@ -316,9 +317,9 @@ my any chars2num(any x) {
 }
 my any chars_to_num_or_sym(any x) { any num = chars2num(x); return is(num) ? num : intern_from_chars(x); }
 my any read_sym_chars(int start_char) {
-  any res = single(int2any(start_char)); any curr = res; int c;
-  while(is_symchar(c = look())) { any next = single(int2any(nextc())); set_fdr(curr, next); curr = next; }
-  return res;
+  any res = precons(int2any(start_char)); any curr = res; int c;
+  while(is_symchar(c = look())) { any next = precons(int2any(nextc())); set_fdr(curr, next); curr = next; }
+  set_fdr(curr, NIL); return res;
 }
 my any read_str() {
   any curr, res = NIL;
