@@ -27,6 +27,7 @@
 #define my static
 
 typedef uint64_t any; // we only support 64 bit currently
+my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; } // works for n=0.
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 
 #define UNIQ(n) (t_uniq | (010*(n)))
@@ -197,12 +198,11 @@ my any string_hash(const char *s, size_t *len) {  // This is the djb2 algorithm.
   while(*s) { (*len)++; hash = ((hash << 5) + hash) + *(s++); }
   return int2any(hash);
 }
-my int cells4charp(int len) { return (len+1)/sizeof(any) + 1; } // how much cells we need
 my char *symtext(any sym) { return (char *) untag(sym); }
 my any as_sym(char *name) { return tag((any) name, t_sym); } // `name` must be interned
 my any add_sym(const char *name, size_t len, any id) {
   reg_push(permanent_reg);
-  char *new = (char *) reg_alloc(cells4charp(len));
+  char *new = (char *) reg_alloc(bytes2words(len+1));
   reg_pop();
   memcpy(new, name, len);
   hash_set(sym_ht, id, (any) new);
@@ -225,6 +225,34 @@ any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_let
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
   x(lambda);x(let);x(letrec);s_dot=intern("."); }
 #undef x
+
+//////////////// subs ////////////////
+
+typedef struct sub_code { // fields are in the order in which we access them.
+  int argc; // number of required args
+  bool has_rest; // whether rest args are taken
+  int localc; // for `let` etc.; if it is -1, this is a primitive sub.
+  any name; // sym for backtraces
+  int size_of_env; // so that we can copy subs
+  any code[1]; // can be longer
+} *sub_code;
+#define sub_code_header_size (bytes2words(sizeof(struct sub_code))-1)
+my sub_code make_sub_code(any name, int argc, bool has_rest, int localc, int size_of_env, int code_size) {
+  sub_code code = (sub_code) reg_alloc(sub_code_header_size + code_size);
+#define x(f) code->f = f
+  x(name); x(argc); x(has_rest); x(localc); x(size_of_env);
+#undef x
+  return code;
+}
+
+typedef struct { sub_code code; any env[0]; } *sub;
+my bool is_sub(any x) { return is_tagged(x, t_sub); }
+my sub any2sub(any x) { return (sub) untag_check(x, t_sub); }
+any copy(any x);
+my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
+  any *p = reg_alloc(envsize+1); *p++ = (any) s->code; for(int i = 0; i != envsize; i++) *p++ = copy(s->env[i]);
+  return tag((any) p, t_sub);
+}
 
 //////////////// print ////////////////
 
@@ -268,8 +296,10 @@ void print(any x) {
       case '\t': printf("\\t");  break;
       default: putchar(any2int(c)); }
     printf("\""); break;
-  case t_reg: printf("\\reg(%p)", (void *) x); break;
-  case t_sub: printf("\\sub(%p)", (void *) x); break;
+  case t_reg: printf("#reg(%p)", (void *) x); break;
+  case t_sub: printf("#sub(id=%p name=", (void *) x); sub_code code = any2sub(x)->code; print(code->name);
+    printf(" argc="); print(code->name); printf(" take-rest?="); print(code->has_rest ? BTRUE : BFALSE); printf(")");
+    break;
   case t_other: default: abort(); }
 }
 
@@ -387,10 +417,6 @@ any bone_read() {
   return x;
 }
 
-//////////////// subs ////////////////
-
-
-
 //////////////// misc ////////////////
 
 any copy(any x) {
@@ -398,6 +424,7 @@ any copy(any x) {
   case t_cons: return cons(copy(far(x)), copy(fdr(x)));
   case t_str: return str(copy(unstr(x)));
   case t_sym: case t_num: case t_uniq: return x;
+  case t_sub: return copy_sub(x);
   default: return x; } // FIXME: should be an error
 }
 
