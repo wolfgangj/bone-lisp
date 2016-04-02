@@ -62,7 +62,7 @@ any int2any(int32_t n) { any r = t_num; ((int32_t *) &r)[1] = n; return r; }
 #define ALLOC_BLOCKS_AT_ONCE 16
 my size_t blocksize;  // in bytes
 my size_t blockwords; // words per block
-my any blockmask; // to get the block an `any` belongs to
+my any blockmask; // to get the block an `any` belongs to; is not actually an object!
 my any **free_block;
 // A block begins with a pointer to the previous block that belongs to the region.
 // The metadata of a region (i.e. this struct) is stored in its first block.
@@ -111,8 +111,8 @@ any far(any x) { return ((any *) x)[0]; } // fast, no typecheck
 any fdr(any x) { return ((any *) x)[1]; } // likewise
 any car(any x) { check(x, t_cons); return far(x); }
 any cdr(any x) { check(x, t_cons); return fdr(x); }
-void set_far(any c, any x) { ((any *) c)[0] = x; }
-void set_fdr(any c, any x) { ((any *) c)[1] = x; }
+void set_far(any cell, any x) { ((any *) cell)[0] = x; }
+void set_fdr(any cell, any x) { ((any *) cell)[1] = x; }
 
 bool is_cons(any x) { return is_tagged(x, t_cons); }
 bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
@@ -218,7 +218,7 @@ any intern(const char *name) {
     id++;
   }
 }
-my any intern_from_chars(any x) { char *s = list2charp(x); any res = intern(s); free(s); return res; }
+my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
 any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot;
 #define x(name) s_ ## name = intern(#name)
@@ -299,23 +299,23 @@ my int find_token() {
     }
   }
 }
-my int digit2int (any c) { int dig = any2int(c) - '0'; return (dig >= 0 && dig <= 9) ? dig : -1; }
-my any chars2num(any x) {
-  int res = 0, pos = 0;
+my int digit2int (any chr) { int dig = any2int(chr) - '0'; return (dig >= 0 && dig <= 9) ? dig : -1; }
+my any chars2num(any chrs) {
+  int ires = 0, pos = 0;
   bool is_positive = true, is_num = false; // to catch "", "+" and "-"
-  foreach(c, x) {
-    int dig = digit2int(c); pos++;
+  foreach(chr, chrs) {
+    int dig = digit2int(chr); pos++;
     if(dig == -1) {
       if(pos != 1) return BFALSE;
-      if(any2int(c) == '-') { is_positive = false; continue; }
-      if(any2int(c) == '+') continue;
+      if(any2int(chr) == '-') { is_positive = false; continue; }
+      if(any2int(chr) == '+') continue;
       return BFALSE;
     }
-    is_num = true; res *= 10; res += dig;
+    is_num = true; ires *= 10; ires += dig;
   }
-  return !is_num ? BFALSE : int2any(is_positive ? res : -res);
+  return !is_num ? BFALSE : int2any(is_positive ? ires : -ires);
 }
-my any chars_to_num_or_sym(any x) { any num = chars2num(x); return is(num) ? num : intern_from_chars(x); }
+my any chars_to_num_or_sym(any cs) { any num = chars2num(cs); return is(num) ? num : intern_from_chars(cs); }
 my any read_sym_chars(int start_char) {
   any res = precons(int2any(start_char)); any curr = res; int c;
   while(is_symchar(c = look())) { any next = precons(int2any(nextc())); set_fdr(curr, next); curr = next; }
@@ -386,6 +386,10 @@ any bone_read() {
   if(x == READER_LIST_END) parse_error("unexpected closing parenthesis");
   return x;
 }
+
+//////////////// subs ////////////////
+
+
 
 //////////////// misc ////////////////
 
