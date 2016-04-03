@@ -258,6 +258,7 @@ my sub_code make_sub_code(any name, int argc, bool has_rest, int localc, int siz
 
 typedef struct { sub_code code; any env[0]; } *sub;
 my bool is_sub(any x) { return is_tagged(x, t_sub); }
+my any sub2any(sub s) { return tag((any) s, t_sub); }
 my sub any2sub(any x) { return (sub) untag_check(x, t_sub); }
 any copy(any x);
 my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
@@ -434,16 +435,16 @@ start:;
     case OP_GET_ARG: last_value = args[any2int(*ip++)]; break; // args+locals
     case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
     case OP_WRAP: last_value = ((csub) *ip)(args); return;
-    case OP_PREPARE_CALL:; sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
+    case OP_PREPARE_CALL:; sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code; upcoming_calls_sp++;
        upcoming_calls_sp->to_be_called = to_be_called;
        upcoming_calls_sp->next_arg = upcoming_calls_sp->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
-       upcoming_calls_sp++; break;
+       break;
     case OP_CALL:; struct upcoming_call *the_call = upcoming_calls_sp--;
       call(the_call->to_be_called, the_call->the_args); break;
     case OP_TAILCALL:; struct upcoming_call *tail_call = upcoming_calls_sp--;
       subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start;
     case OP_ADD_ARG: *(upcoming_calls_sp->next_arg++) = last_value; break;
-    case OP_JMP_IF: if(is(last_value)) { ip++; break; } // else fall through
+    case OP_JMP_IF: if(!is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
     case OP_RET: return;
     default: printf("unknown vm instruction"); abort(); // FIXME
@@ -463,6 +464,7 @@ any copy(any x) {
 
 my void bone_init_thread() {
   call_stack_sp = call_stack; call_stack->subr = NULL; call_stack->tail_calls = 0; // FIXME: all needed?
+  upcoming_calls_sp = upcoming_calls;
 }
 
 void bone_init() {
@@ -505,7 +507,27 @@ int main() {
   foo_code->code[0] = OP_GET_ARG;
   foo_code->code[1] = int2any(0);
   foo_code->code[2] = OP_RET;
-  call((sub*)&foo_code, &x);
+  call((sub)&foo_code, &x);
+  print(last_value); putchar('\n');
+
+  any foo = sub2any((sub)&foo_code); 
+  sub_code bar_code = make_sub_code(intern("bar"), 0, false, 0, 0, 15);
+  bar_code->code[0] = OP_CONST;
+  bar_code->code[1] = foo;
+  bar_code->code[2] = OP_PREPARE_CALL;
+  bar_code->code[3] = OP_CONST;
+  bar_code->code[4] = BTRUE;
+  bar_code->code[5] = OP_ADD_ARG;
+  bar_code->code[6] = OP_CALL;
+  bar_code->code[7] = OP_JMP_IF;
+  bar_code->code[8] = int2any(4);
+  bar_code->code[9] = OP_CONST;
+  bar_code->code[10] = int2any(1);
+  bar_code->code[11] = OP_RET;
+  bar_code->code[12] = OP_CONST;
+  bar_code->code[13] = int2any(2);
+  bar_code->code[14] = OP_RET;
+  call((sub)&bar_code, &x);
   print(last_value); putchar('\n');
 
   reg_free(reg_pop());
