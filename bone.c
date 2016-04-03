@@ -444,11 +444,10 @@ start:;
       subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start;
     case OP_ADD_ARG: *(upcoming_calls_sp->next_arg++) = last_value; break;
     case OP_JMP_IF: if(is(last_value)) { ip++; break; } // else fall through
-    case OP_JMP: ip += *ip; break;
+    case OP_JMP: ip += any2int(*ip); break;
     case OP_RET: return;
-      
+    default: printf("unknown vm instruction"); abort(); // FIXME
   }
-
 }
 
 //////////////// misc ////////////////
@@ -501,6 +500,13 @@ int main() {
   printf("%s\n", list2charp(unstr(charp2str("foo bar"))));
   any x; print(x=bone_read()); putchar('\n');
   printf("%s\n", is_sym(x) ? "sym" : "not sym");
+
+  sub_code foo_code = make_sub_code(intern("foo"), 1, false, 0, 0, 3);
+  foo_code->code[0] = OP_GET_ARG;
+  foo_code->code[1] = int2any(0);
+  foo_code->code[2] = OP_RET;
+  call((sub*)&foo_code, &x);
+  print(last_value); putchar('\n');
 
   reg_free(reg_pop());
   return 0;
