@@ -59,7 +59,7 @@ any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
 void type_error(any x, type_tag t) {
   puts("type error"); // FIXME: show more info
-  exit(1);
+  abort(); exit(1);
 }
 type_tag tag_of(any x) { return x & 7; }
 bool is_tagged(any x, type_tag t) { return tag_of(x) == t; }
@@ -458,6 +458,12 @@ start:;
   }
 }
 
+//////////////// library ////////////////
+
+any CSUB_plus(any *args) { // FIXME: handle all args
+  return int2any(any2int(args[0]) + any2int(args[1]));
+}
+
 //////////////// misc ////////////////
 
 any copy(any x) {
@@ -487,28 +493,8 @@ int main() {
   bone_init();
   reg_push(reg_new());
 
-  any test = NIL;
-  print(test); putchar('\n');
-  test = cons(int2any(1), cons(int2any(2), NIL));
-  print(test); putchar('\n');
-  test = cons(int2any(1), cons(int2any(2), int2any(3)));
-  print(test); putchar('\n');
-  test = cons(intern("quote"), cons(int2any(2), NIL));
-  print(test); putchar('\n');
-  test = cons(intern("lalala"), cons(BFALSE, NIL));
-  print(test); putchar('\n');
-  test = charp2str("\"Hello, world!\"\n");
-  print(test); putchar('\n');
-  test = reg2any(permanent_reg);
-  print(test); putchar('\n');
-  test = cons(intern("lambda"), cons(single(intern("x")), cons(single(intern("x")), NIL)));
-  print(test); putchar('\n');
-  test = cons(intern("lambda"), cons(intern("x"), cons(single(intern("x")), NIL)));
-  print(test); putchar('\n');
-
-  printf("%s\n", list2charp(unstr(charp2str("foo bar"))));
+  printf("[bone] ");
   any x; print(x=bone_read()); putchar('\n');
-  printf("%s\n", is_sym(x) ? "sym" : "not sym");
 
   sub_code foo_code = make_sub_code(intern("foo"), 1, false, 0, 0, 3);
   foo_code->code[0] = OP_GET_ARG;
@@ -534,7 +520,46 @@ int main() {
   bar_code->code[12] = OP_CONST;
   bar_code->code[13] = int2any(2);
   bar_code->code[14] = OP_RET;
-  call((sub)&bar_code, &x);
+  call((sub)&bar_code, NULL);
+  print(last_value); putchar('\n');
+
+  printf("------------\n");
+  sub_code baz_code = make_sub_code(intern("baz"), 1, false, 0, 0, 2);
+  baz_code->code[0] = OP_WRAP;
+  baz_code->code[1] = (any) &CSUB_print;
+  call((sub)&baz_code, &x); putchar('\n');
+
+  printf("------------\n");
+  sub_code plus_code = make_sub_code(intern("+"), 2, false, 0, 0, 2);
+  plus_code->code[0] = OP_WRAP;
+  plus_code->code[1] = (any) &CSUB_plus;
+
+  sub_code quux_code = make_sub_code(intern("in:qux"), 1, false, 0, 1, 10);
+  quux_code->code[0] = OP_CONST;
+  quux_code->code[1] = sub2any((any) &plus_code);
+  quux_code->code[2] = OP_PREPARE_CALL;
+  quux_code->code[3] = OP_GET_ARG;
+  quux_code->code[4] = int2any(0);
+  quux_code->code[5] = OP_ADD_ARG;
+  quux_code->code[6] = OP_GET_ENV;
+  quux_code->code[7] = int2any(0);
+  quux_code->code[8] = OP_ADD_ARG;
+  quux_code->code[9] = OP_TAILCALL;
+
+  sub_code qux_code = make_sub_code(intern("qux"), 1, false, 0, 0, 11);
+  qux_code->code[0] = OP_PREPARE_SUB;
+  qux_code->code[1] = (any) quux_code;
+  qux_code->code[2] = OP_GET_ARG;
+  qux_code->code[3] = int2any(0);
+  qux_code->code[4] = OP_ADD_ENV;
+  qux_code->code[5] = OP_MAKE_SUB;
+  qux_code->code[6] = OP_PREPARE_CALL;
+  qux_code->code[7] = OP_CONST;
+  qux_code->code[8] = int2any(3);
+  qux_code->code[9] = OP_ADD_ARG;
+  qux_code->code[10] = OP_TAILCALL;
+
+  any arg = int2any(5); call((sub) &qux_code, &arg);
   print(last_value); putchar('\n');
 
   reg_free(reg_pop());
