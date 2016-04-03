@@ -38,6 +38,8 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define HASH_SLOT_UNUSED  UNIQ(100)
 #define HASH_SLOT_DELETED UNIQ(101)
 #define READER_LIST_END   UNIQ(102)
+#define BINDING_DEFINED   UNIQ(103)
+#define BINDING_DECLARED  UNIQ(104)
 #define OP_CONST        UNIQ(200)
 #define OP_GET_ENV      UNIQ(201)
 #define OP_GET_ARG      UNIQ(202)
@@ -104,6 +106,7 @@ my void load_reg(reg r)  { allocp = r->allocp; current_block = r->current_block;
 my void store_reg(reg r) { r->allocp = allocp; r->current_block = current_block; }
 void reg_push(reg r) { store_reg(*reg_sp); reg_sp++; *reg_sp = r;     load_reg(*reg_sp); }
 reg reg_pop()        { store_reg(*reg_sp); reg r = *reg_sp; reg_sp--; load_reg(*reg_sp); return r; }
+my void reg_permanent() { reg_push(permanent_reg); }
 
 any *reg_alloc(int n) {
   any *res = (any *) allocp;
@@ -215,12 +218,8 @@ my any string_hash(const char *s, size_t *len) {  // This is the djb2 algorithm.
 my char *symtext(any sym) { return (char *) untag(sym); }
 my any as_sym(char *name) { return tag((any) name, t_sym); } // `name` must be interned
 my any add_sym(const char *name, size_t len, any id) {
-  reg_push(permanent_reg);
-  char *new = (char *) reg_alloc(bytes2words(len+1));
-  reg_pop();
-  memcpy(new, name, len);
-  hash_set(sym_ht, id, (any) new);
-  return as_sym(new);
+  reg_permanent(); char *new = (char *) reg_alloc(bytes2words(len+1)); reg_pop();
+  memcpy(new, name, len); hash_set(sym_ht, id, (any) new); return as_sym(new);
 }
 any intern(const char *name) {
   size_t len;
@@ -458,10 +457,27 @@ start:;
   }
 }
 
+//////////////// bindings ////////////////
+
+my hash bindings; // FIXME: does it need mutex protection?
+void bind(any name, any subr) { reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); } // FIXME: reg-change?
+any get_binding(any name) { return hash_get(bindings, name); }
+
 //////////////// library ////////////////
 
 any CSUB_plus(any *args) { // FIXME: handle all args
   return int2any(any2int(args[0]) + any2int(args[1]));
+}
+
+my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
+  any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
+  code->code[0] = OP_WRAP; code->code[1] = (any) cptr;
+  sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
+}
+
+my void init_csubs() {
+  register_csub(CSUB_plus, "+", 2, 0); // FIXME
+  register_csub(CSUB_print, "print", 1, 0);
 }
 
 //////////////// misc ////////////////
@@ -481,10 +497,11 @@ my void bone_init_thread() {
 }
 
 void bone_init() {
-  free_block = NULL;
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
+  free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
-  sym_ht = hash_new(199, 0); init_syms();
+  sym_ht = hash_new(199, (any) NULL); init_syms();
+  bindings = hash_new(199, BFALSE); init_csubs();
   bone_init_thread();
 }
 
@@ -536,7 +553,7 @@ int main() {
 
   sub_code quux_code = make_sub_code(intern("in:qux"), 1, false, 0, 1, 10);
   quux_code->code[0] = OP_CONST;
-  quux_code->code[1] = sub2any((any) &plus_code);
+  quux_code->code[1] = sub2any((sub) &plus_code);
   quux_code->code[2] = OP_PREPARE_CALL;
   quux_code->code[3] = OP_GET_ARG;
   quux_code->code[4] = int2any(0);
