@@ -38,7 +38,14 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define HASH_SLOT_UNUSED  UNIQ(100)
 #define HASH_SLOT_DELETED UNIQ(101)
 #define READER_LIST_END   UNIQ(102)
+#define OP_CONST       UNIQ(200)
+#define OP_GET_ENV     UNIQ(201)
+#define OP_GET_ARG     UNIQ(202)
+#define OP_SET_LOCAL   UNIQ(203)
+#define OP_WRAP        UNIQ(204)
 bool is_nil(any x) { return x == NIL; }
+bool is(any x) { return x != BFALSE; }
+any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
 void type_error(any x, type_tag t) {
   puts("type error"); // FIXME: show more info
@@ -50,9 +57,6 @@ void check(any x, type_tag t) { if(!is_tagged(x, t)) type_error(x, t); }
 any tag(any x, type_tag t) { return x | t; }
 any untag(any x) { return x & ~7; }
 any untag_check(any x, type_tag t) { check(x, t); return untag(x); }
-
-any to_bool(int x) { return x ? BTRUE : BFALSE; }
-bool is(any x) { return x != BFALSE; }
 
 // FIXME: these assume little-endian
 int32_t any2int(any x) { check(x, t_num); return ((int32_t *) &x)[1]; }
@@ -220,10 +224,10 @@ any intern(const char *name) {
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
-any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot;
+any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot, s_toplevel;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(let);x(letrec);s_dot=intern("."); }
+  x(lambda);x(let);x(letrec);s_dot=intern(".");x(toplevel); }
 #undef x
 
 //////////////// subs ////////////////
@@ -231,7 +235,7 @@ my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=inter
 typedef struct sub_code { // fields are in the order in which we access them.
   int argc; // number of required args
   bool has_rest; // whether rest args are taken
-  int localc; // for `let` etc.; if it is -1, this is a primitive sub.
+  int localc; // for `let` etc.
   any name; // sym for backtraces
   int size_of_env; // so that we can copy subs
   any code[1]; // can be longer
@@ -250,9 +254,10 @@ my bool is_sub(any x) { return is_tagged(x, t_sub); }
 my sub any2sub(any x) { return (sub) untag_check(x, t_sub); }
 any copy(any x);
 my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
-  any *p = reg_alloc(envsize+1); *p++ = (any) s->code; for(int i = 0; i != envsize; i++) *p++ = copy(s->env[i]);
+  any *p = reg_alloc(1+envsize); *p++ = (any) s->code; for(int i = 0; i != envsize; i++) *p++ = copy(s->env[i]);
   return tag((any) p, t_sub);
 }
+typedef any(*csub)(any *);
 
 //////////////// print ////////////////
 
@@ -261,8 +266,7 @@ my void print_args(any x) {
   if(!is_cons(x)) { if(!is_nil(x)) { printf(". "); print(x); printf(" "); } return; }
   print(far(x)); printf(" "); print_args(fdr(x));
 }
-void print(any x) {
-  switch(tag_of(x)) {
+void print(any x) { switch(tag_of(x)) {
   case t_cons:
     if(is_sym(far(x)) && is_single(fdr(x))) {
       if(far(x) == s_quote)            { printf("'");  print(far(fdr(x))); break; }
@@ -272,8 +276,7 @@ void print(any x) {
     } else if(far(x) == s_lambda && is_cons(fdr(x)) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
       printf("| "); print_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
     }
-    printf("(");
-    bool first = true;
+    bool first = true; printf("(");
     do { if(first) first=false; else printf(" "); print(far(x)); x=fdr(x); } while(is_tagged(x, t_cons));
     if(x != NIL) { printf(" . "); print(x); } printf(")"); break;
   case t_sym: printf("%s", symtext(x)); break;
@@ -286,8 +289,7 @@ void print(any x) {
     case ENDOFFILE: printf("#{eof}"); break; // FIXME: should we keep this?
     default: abort(); }
     break;
-  case t_str:
-    printf("\"");
+  case t_str: printf("\"");
     foreach(c, unstr(x))
       switch(any2int(c)) { // FIXME: add more (and add them to reader, too)
       case '"':  printf("\\\""); break;
@@ -302,6 +304,7 @@ void print(any x) {
     break;
   case t_other: default: abort(); }
 }
+any CSUB_print(any *args) { print(*args); return *args; }
 
 //////////////// read ////////////////
 
@@ -320,8 +323,7 @@ my int look() { int c = getchar(); ungetc(c, stdin); return c; }
 
 my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
 my int find_token() {
-  while(1) {
-    int c = nextc();
+  while(1) { int c = nextc();
     switch(c) {
     case ';': skip_until('\n'); break;
     case ' ': case '\t': case '\n': case '\f': case '\r': break;
@@ -330,8 +332,7 @@ my int find_token() {
   }
 }
 my int digit2int (any chr) { int dig = any2int(chr) - '0'; return (dig >= 0 && dig <= 9) ? dig : -1; }
-my any chars2num(any chrs) {
-  int ires = 0, pos = 0;
+my any chars2num(any chrs) { int ires = 0, pos = 0;
   bool is_positive = true, is_num = false; // to catch "", "+" and "-"
   foreach(chr, chrs) {
     int dig = digit2int(chr); pos++;
@@ -351,10 +352,8 @@ my any read_sym_chars(int start_char) {
   while(is_symchar(c = look())) { any next = precons(int2any(nextc())); set_fdr(curr, next); curr = next; }
   set_fdr(curr, NIL); return res;
 }
-my any read_str() {
-  any curr, res = NIL;
-  while(1) {
-    int c = nextc();
+my any read_str() { any curr, res = NIL;
+  while(1) { int c = nextc();
     if(c == '"') { if(!is_nil(res)) set_fdr(curr, NIL); return str(res); }
     if(c == EOF) parse_error("end of file inside of a str");
     if(c == '\\') switch(c = nextc()) {
@@ -369,32 +368,24 @@ my any read_str() {
   }
 }
 my any reader(); // for mutual recursion
-my any read_list() {
-  any x = reader();
+my any read_list() { any x = reader();
   if(x == READER_LIST_END) return NIL;
   if(x == ENDOFFILE) parse_error("end of file in list");
   if(x == s_dot) { x = reader(); if(reader() != READER_LIST_END) parse_error("invalid improper list"); return x; }
   return cons(x, read_list());
 }
-my any lambda_parser(any *body) {
-  any x = reader();
+my any lambda_parser(any *body) { any x = reader();
   if(is_cons(x)) { *body = x; return NIL; }
   if(x == s_dot) { any rest = reader(); *body = reader(); return rest; }
   if(is_nil(x)) { parse_error("empty body expression not allowed in lambda short form"); }
   return cons(x, lambda_parser(body));
 }
-my any read_lambda_short_form() {
-  any body, args = lambda_parser(&body);
-  return cons(s_lambda, cons(args, single(body)));
-}
-my any read_unquote() {
-  any q = s_unquote; int c = look();
+my any read_lambda_short_form() { any body, args = lambda_parser(&body); return cons(s_lambda, cons(args, single(body))); }
+my any read_unquote() { any q = s_unquote; int c = look();
   if(c == '@') { nextc(); q = s_unquote_splicing; }
   return cons(q, single(reader()));
 }
-my any reader() {
-  int c = find_token();
-  switch(c) {
+my any reader() { int c = find_token(); switch(c) {
   case ')': return READER_LIST_END;
   case '(': return read_list();
   case '|': return read_lambda_short_form();
@@ -410,11 +401,34 @@ my any reader() {
   case EOF: return ENDOFFILE;
   default: return(chars_to_num_or_sym(read_sym_chars(c))); }
 }
-
 any bone_read() {
   any x = reader();
   if(x == READER_LIST_END) parse_error("unexpected closing parenthesis");
   return x;
+}
+
+//////////////// evaluator ////////////////
+
+my any last_value;
+struct call_stack_entry { sub subr; int tail_calls; } call_stack[256], *call_stack_sp;
+struct upcoming_call {
+  sub to_be_called;
+  int args_left;
+  any *the_args, *next_arg; // `next_arg` points into `the_args`.
+} upcoming_calls[256], *upcoming_calls_sp;
+
+void call(sub subr, any *args) {
+  call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr;
+start: 1; // gcc says: "a label can only be part of a statement and a declaration is not a statement"
+  sub_code code = subr->code; any *env = subr->env; any *ip = code->code;
+  while(1) switch(*ip++) {
+    case OP_CONST: last_value = *ip++; break;
+    case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
+    case OP_GET_ARG: last_value = args[any2int(*ip++)]; break; // args+locals
+    case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
+    case OP_WRAP: last_value = ((csub) *ip)(args); return;
+  }
+
 }
 
 //////////////// misc ////////////////
@@ -428,16 +442,21 @@ any copy(any x) {
   default: return x; } // FIXME: should be an error
 }
 
-void init_bone() {
+my void bone_init_thread() {
+  call_stack_sp = call_stack; call_stack->subr = NULL; call_stack->tail_calls = 0; // FIXME: all needed?
+}
+
+void bone_init() {
   free_block = NULL;
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
   sym_ht = hash_new(199, 0); init_syms();
+  bone_init_thread();
 }
 
 // FIXME: doesn't belong here
 int main() {
-  init_bone();
+  bone_init();
   reg_push(reg_new());
 
   any test = NIL;
