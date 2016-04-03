@@ -38,11 +38,18 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define HASH_SLOT_UNUSED  UNIQ(100)
 #define HASH_SLOT_DELETED UNIQ(101)
 #define READER_LIST_END   UNIQ(102)
-#define OP_CONST       UNIQ(200)
-#define OP_GET_ENV     UNIQ(201)
-#define OP_GET_ARG     UNIQ(202)
-#define OP_SET_LOCAL   UNIQ(203)
-#define OP_WRAP        UNIQ(204)
+#define OP_CONST        UNIQ(200)
+#define OP_GET_ENV      UNIQ(201)
+#define OP_GET_ARG      UNIQ(202)
+#define OP_SET_LOCAL    UNIQ(203)
+#define OP_WRAP         UNIQ(204)
+#define OP_PREPARE_CALL UNIQ(205)
+#define OP_CALL         UNIQ(206)
+#define OP_TAILCALL     UNIQ(207)
+#define OP_ADD_ARG      UNIQ(208)
+#define OP_JMP_IF       UNIQ(209)
+#define OP_JMP          UNIQ(210)
+#define OP_RET          UNIQ(211)
 bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
@@ -419,14 +426,27 @@ struct upcoming_call {
 
 void call(sub subr, any *args) {
   call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr;
-start: 1; // gcc says: "a label can only be part of a statement and a declaration is not a statement"
-  sub_code code = subr->code; any *env = subr->env; any *ip = code->code;
+start:;
+  any *env = subr->env; any *ip = subr->code->code;
   while(1) switch(*ip++) {
     case OP_CONST: last_value = *ip++; break;
     case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
     case OP_GET_ARG: last_value = args[any2int(*ip++)]; break; // args+locals
     case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
     case OP_WRAP: last_value = ((csub) *ip)(args); return;
+    case OP_PREPARE_CALL:; sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
+       upcoming_calls_sp->to_be_called = to_be_called;
+       upcoming_calls_sp->next_arg = upcoming_calls_sp->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
+       upcoming_calls_sp++; break;
+    case OP_CALL:; struct upcoming_call *the_call = upcoming_calls_sp--;
+      call(the_call->to_be_called, the_call->the_args); break;
+    case OP_TAILCALL:; struct upcoming_call *tail_call = upcoming_calls_sp--;
+      subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start;
+    case OP_ADD_ARG: *(upcoming_calls_sp->next_arg++) = last_value; break;
+    case OP_JMP_IF: if(is(last_value)) { ip++; break; } // else fall through
+    case OP_JMP: ip += *ip; break;
+    case OP_RET: return;
+      
   }
 
 }
