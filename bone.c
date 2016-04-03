@@ -50,6 +50,9 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define OP_JMP_IF       UNIQ(209)
 #define OP_JMP          UNIQ(210)
 #define OP_RET          UNIQ(211)
+#define OP_PREPARE_SUB  UNIQ(212)
+#define OP_ADD_ENV      UNIQ(213)
+#define OP_MAKE_SUB     UNIQ(214)
 bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
@@ -426,7 +429,7 @@ struct upcoming_call {
 } upcoming_calls[256], *upcoming_calls_sp;
 
 void call(sub subr, any *args) {
-  call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr;
+  call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr; sub lambda; any *lambda_envp;
 start:;
   any *env = subr->env; any *ip = subr->code->code;
   while(1) switch(*ip++) {
@@ -435,19 +438,23 @@ start:;
     case OP_GET_ARG: last_value = args[any2int(*ip++)]; break; // args+locals
     case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
     case OP_WRAP: last_value = ((csub) *ip)(args); return;
-    case OP_PREPARE_CALL:; sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code; upcoming_calls_sp++;
-       upcoming_calls_sp->to_be_called = to_be_called;
-       upcoming_calls_sp->next_arg = upcoming_calls_sp->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
-       break;
-    case OP_CALL:; struct upcoming_call *the_call = upcoming_calls_sp--;
-      call(the_call->to_be_called, the_call->the_args); break;
-    case OP_TAILCALL:; struct upcoming_call *tail_call = upcoming_calls_sp--;
-      subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start;
+    case OP_PREPARE_CALL: { sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
+	upcoming_calls_sp++; upcoming_calls_sp->to_be_called = to_be_called;
+	upcoming_calls_sp->next_arg = upcoming_calls_sp->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
+	break; }
+    case OP_CALL: { struct upcoming_call *the_call = upcoming_calls_sp--;
+	call(the_call->to_be_called, the_call->the_args); break; }
+    case OP_TAILCALL: { struct upcoming_call *tail_call = upcoming_calls_sp--;
+	subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start; }
     case OP_ADD_ARG: *(upcoming_calls_sp->next_arg++) = last_value; break;
     case OP_JMP_IF: if(!is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
     case OP_RET: return;
-    default: printf("unknown vm instruction"); abort(); // FIXME
+    case OP_PREPARE_SUB: { sub_code lc = (sub_code) *ip++; lambda = (sub) reg_alloc(1+lc->size_of_env);
+	lambda->code = lc; lambda_envp = lambda->env; break; }
+    case OP_ADD_ENV: *(lambda_envp++) = last_value; break;
+    case OP_MAKE_SUB: last_value = sub2any(lambda); break;
+    default: printf("unknown vm instruction\n"); abort(); // FIXME
   }
 }
 
