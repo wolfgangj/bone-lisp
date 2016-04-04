@@ -153,7 +153,7 @@ my char *list2charp(any x) {
 
 //////////////// hash tables ////////////////
 
-#define MAXLOAD 128 // Value between 0 and 255; 128 will cause an average of two probes.
+#define MAXLOAD 175 // Value between 0 and 255; 128 will cause an average of two probes.
 typedef struct { unsigned size, taken_slots; any *keys, *vals; any default_value; } *hash;
 
 hash hash_new(unsigned initsize, any default_val) {
@@ -271,7 +271,7 @@ typedef any(*csub)(any *);
 
 //////////////// print ////////////////
 
-void print(any x); // FIXME: to header?
+void print(any x);
 my void print_args(any x) {
   if(!is_cons(x)) { if(!is_nil(x)) { printf(". "); print(x); printf(" "); } return; }
   print(far(x)); printf(" "); print_args(fdr(x));
@@ -500,8 +500,8 @@ void bone_init() {
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
-  sym_ht = hash_new(199, (any) NULL); init_syms();
-  bindings = hash_new(199, BFALSE); init_csubs();
+  sym_ht = hash_new(997, (any) NULL); init_syms();
+  bindings = hash_new(997, BFALSE); init_csubs();
   bone_init_thread();
 }
 
