@@ -311,7 +311,7 @@ my void print(any x) { switch(tag_of(x)) {
     printf("\""); break;
   case t_reg: printf("#reg(%p)", (void *) x); break;
   case t_sub: printf("#sub(id=%p name=", (void *) x); sub_code code = any2sub(x)->code; print(code->name);
-    printf(" argc="); print(code->name); printf(" take-rest?="); print(code->has_rest ? BTRUE : BFALSE); printf(")");
+    printf(" argc=%d take-rest?=", code->argc); print(code->has_rest ? BTRUE : BFALSE); printf(")");
     break;
   case t_other: default: abort(); }
 }
