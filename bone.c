@@ -40,6 +40,8 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define READER_LIST_END   UNIQ(102)
 #define BINDING_DEFINED   UNIQ(103)
 #define BINDING_DECLARED  UNIQ(104)
+#define IN_ARGS           UNIQ(105)
+#define IN_ENV            UNIQ(106)
 #define OP_CONST        UNIQ(200)
 #define OP_GET_ENV      UNIQ(201)
 #define OP_GET_ARG      UNIQ(202)
@@ -59,10 +61,9 @@ bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
-void type_error(any x, type_tag t) {
-  puts("type error"); // FIXME: show more info
-  abort(); exit(1);
-}
+my void print(any x);
+my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); abort(); }
+my void type_error(any x, type_tag t) { generic_error("type error", x); } // FIXME: show more info
 type_tag tag_of(any x) { return x & 7; }
 bool is_tagged(any x, type_tag t) { return tag_of(x) == t; }
 void check(any x, type_tag t) { if(!is_tagged(x, t)) type_error(x, t); }
@@ -137,7 +138,8 @@ bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 any single(any x) { return cons(x, NIL); }
 #define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
 
-int len(any x) { int n = 0; foreach(e, x) n++; return n; }
+my int len(any x) { int n = 0; foreach(e, x) n++; return n; }
+my any assoq(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
 
 //////////////// strs ////////////////
 
@@ -233,10 +235,10 @@ any intern(const char *name) {
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
-any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot, s_toplevel;
+any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(let);x(letrec);s_dot=intern(".");x(toplevel); }
+  x(lambda);x(let);x(letrec);s_dot=intern("."); }
 #undef x
 
 //////////////// subs ////////////////
@@ -271,12 +273,11 @@ typedef any(*csub)(any *);
 
 //////////////// print ////////////////
 
-void print(any x);
 my void print_args(any x) {
   if(!is_cons(x)) { if(!is_nil(x)) { printf(". "); print(x); printf(" "); } return; }
   print(far(x)); printf(" "); print_args(fdr(x));
 }
-void print(any x) { switch(tag_of(x)) {
+my void print(any x) { switch(tag_of(x)) {
   case t_cons:
     if(is_sym(far(x)) && is_single(fdr(x))) {
       if(far(x) == s_quote)            { printf("'");  print(far(fdr(x))); break; }
@@ -463,6 +464,30 @@ my hash bindings; // FIXME: does it need mutex protection?
 void bind(any name, any subr) { reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); } // FIXME: reg-change?
 any get_binding(any name) { return hash_get(bindings, name); }
 
+//////////////// compiler ////////////////
+
+my void emit(any x, any *dst) { any next = single(x); set_fdr(*dst, next); *dst = next; }
+my void compile_expr(any e, any env, bool tail_context, any *dst) {
+  switch(tag_of(e)) {
+  case t_num: emit(OP_CONST, dst); emit(e, dst); break;
+  case t_cons: // FIXME: handle special stuff like lambda, do, let etc. here
+    compile_expr(far(e), env, false, dst); emit(OP_PREPARE_CALL, dst);
+    foreach(arg, fdr(e)) { compile_expr(arg, env, false, dst); emit(OP_ADD_ARG, dst); }
+    emit(tail_context ? OP_TAILCALL : OP_CALL, dst); break;
+  case t_sym:; any local = assoq(e, env);
+    if(is(local)) { emit(far(local) == IN_ARGS ? OP_GET_ARG : OP_GET_ENV, dst); emit(fdr(local), dst); break; }
+    any global = get_binding(e); if(!is_cons(global)) generic_error("unbound sym", e);
+    emit(OP_CONST, dst); emit(fdr(global), dst); break;
+  }
+}
+my any compile2list(any expr) { any res = single(BFALSE); any buf = res;
+  compile_expr(expr, NIL, true, &buf); emit(OP_RET, &buf); return fdr(res);
+}
+my sub_code compile2sub_code(any e) { any raw = compile2list(e);
+  sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); // FIXME: we ignore env size
+  any *p = code->code; foreach(x, raw) *p++ = x; return code;
+}
+
 //////////////// library ////////////////
 
 any CSUB_plus(any *args) { // FIXME: handle all args
@@ -509,7 +534,7 @@ void bone_init() {
 int main() {
   bone_init();
   reg_push(reg_new());
-
+#if 0
   printf("[bone] ");
   any x; print(x=bone_read()); putchar('\n');
 
@@ -578,6 +603,14 @@ int main() {
 
   any arg = int2any(5); call((sub) &qux_code, &arg);
   print(last_value); putchar('\n');
+#endif
+  while(1) {
+    printf("\n[bone] ");
+    any e = bone_read();
+    sub_code code = compile2sub_code(e);
+    call((sub) &code, NULL);
+    print(last_value);
+  }
 
   reg_free(reg_pop());
   return 0;
