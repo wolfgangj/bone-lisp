@@ -315,7 +315,6 @@ my void print(any x) { switch(tag_of(x)) {
     break;
   case t_other: default: abort(); }
 }
-any CSUB_print(any *args) { print(*args); return *args; }
 
 //////////////// read ////////////////
 
@@ -458,6 +457,22 @@ start:;
   }
 }
 
+my void args_error(sub_code sc, any xs) { generic_error("wrong number of args", cons(sc->name, xs)); }
+my any apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
+  any *args = reg_alloc(argc + (sc->has_rest ? 1 : 0) + sc->localc);
+  foreach(x, xs) {
+    if(pos <  argc) { args[pos] = x; pos++; continue; } // normal arg
+    if(pos == argc) { // starting rest args
+      if(sc->has_rest) { args[pos] = precons(x); p = args[pos]; pos++; continue; } else args_error(sc, xs);
+    }
+    any next = precons(x); set_fdr(p, next); p = next; pos++; // adding another rest arg
+  }
+  if(pos < argc) args_error(sc, xs);
+  if(pos == argc) args[argc] = NIL; else set_fdr(p, NIL);
+  call(subr, args); return last_value;
+}
+
+
 //////////////// bindings ////////////////
 
 my hash bindings; // FIXME: does it need mutex protection?
@@ -484,25 +499,30 @@ my any compile2list(any expr) { any res = single(BFALSE); any buf = res;
   compile_expr(expr, NIL, true, &buf); emit(OP_RET, &buf); return fdr(res);
 }
 my sub_code compile2sub_code(any e) { any raw = compile2list(e);
-  sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); // FIXME: we ignore env size
+  reg_permanent(); sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); reg_pop(); // FIXME: we ignore env size
   any *p = code->code; foreach(x, raw) *p++ = x; return code;
-}
+} // result is in permanent region.
 
 //////////////// library ////////////////
 
-any CSUB_plus(any *args) { // FIXME: handle all args
-  return int2any(any2int(args[0]) + any2int(args[1]));
-}
+any CSUB_simpleplus(any *args) { return int2any(any2int(args[0]) + any2int(args[1])); }
+any CSUB_fullplus(any *args) { int ires = 0; foreach(n, args[0]) ires += any2int(n); return int2any(ires); }
+any CSUB_cons(any *args) { return cons(args[0], args[1]); }
+any CSUB_print(any *args) { print(*args); return *args; }
+any CSUB_apply(any *args) { return apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
   code->code[0] = OP_WRAP; code->code[1] = (any) cptr;
   sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
 }
-
 my void init_csubs() {
-  register_csub(CSUB_plus, "+", 2, 0); // FIXME
+  register_csub(CSUB_simpleplus, "simple+", 2, false);
+  register_csub(CSUB_fullplus, "full+", 0, true);
+  register_csub(CSUB_fullplus, "+", 0, true);
+  register_csub(CSUB_cons, "cons", 2, false);
   register_csub(CSUB_print, "print", 1, 0);
+  register_csub(CSUB_apply, "apply", 2, 0);
 }
 
 //////////////// misc ////////////////
