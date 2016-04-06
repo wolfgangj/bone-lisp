@@ -484,7 +484,7 @@ any get_binding(any name) { return hash_get(bindings, name); }
 my void emit(any x, any *dst) { any next = single(x); set_fdr(*dst, next); *dst = next; }
 my void compile_expr(any e, any env, bool tail_context, any *dst) {
   switch(tag_of(e)) {
-  case t_num: emit(OP_CONST, dst); emit(e, dst); break;
+  case t_num: case t_uniq: case t_str: emit(OP_CONST, dst); emit(e, dst); break;
   case t_cons: // FIXME: handle special stuff like lambda, do, let etc. here
     compile_expr(far(e), env, false, dst); emit(OP_PREPARE_CALL, dst);
     foreach(arg, fdr(e)) { compile_expr(arg, env, false, dst); emit(OP_ADD_ARG, dst); }
@@ -510,6 +510,7 @@ any CSUB_fullplus(any *args) { int ires = 0; foreach(n, args[0]) ires += any2int
 any CSUB_cons(any *args) { return cons(args[0], args[1]); }
 any CSUB_print(any *args) { print(*args); return *args; }
 any CSUB_apply(any *args) { return apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
+any CSUB_id(any *args) { return args[0]; }
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -521,8 +522,10 @@ my void init_csubs() {
   register_csub(CSUB_fullplus, "full+", 0, true);
   register_csub(CSUB_fullplus, "+", 0, true);
   register_csub(CSUB_cons, "cons", 2, false);
-  register_csub(CSUB_print, "print", 1, 0);
-  register_csub(CSUB_apply, "apply", 2, 0);
+  register_csub(CSUB_print, "print", 1, false);
+  register_csub(CSUB_apply, "apply", 2, false);
+  register_csub(CSUB_id, "id", 1, false);
+  register_csub(CSUB_id, "list", 0, true);
 }
 
 //////////////// misc ////////////////
