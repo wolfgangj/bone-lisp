@@ -269,7 +269,7 @@ my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
   any *p = reg_alloc(1+envsize); *p++ = (any) s->code; for(int i = 0; i != envsize; i++) *p++ = copy(s->env[i]);
   return tag((any) p, t_sub);
 }
-typedef any(*csub)(any *);
+typedef void (*csub)(any *);
 
 //////////////// print ////////////////
 
@@ -427,7 +427,7 @@ struct upcoming_call {
   any *the_args, *next_arg; // `next_arg` points into `the_args`.
 } upcoming_calls[256], *upcoming_calls_sp;
 
-void call(sub subr, any *args) {
+void call(sub subr, any *args) { // FIXME: move call_stack_sp++ into OP_CALL?
   call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr; sub lambda; any *lambda_envp;
 start:;
   any *env = subr->env; any *ip = subr->code->code;
@@ -436,7 +436,7 @@ start:;
     case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
     case OP_GET_ARG: last_value = args[any2int(*ip++)]; break; // args+locals
     case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
-    case OP_WRAP: last_value = ((csub) *ip)(args); return;
+    case OP_WRAP: ((csub) *ip)(args); return;
     case OP_PREPARE_CALL: { sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
 	upcoming_calls_sp++; upcoming_calls_sp->to_be_called = to_be_called;
 	upcoming_calls_sp->next_arg = upcoming_calls_sp->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
@@ -505,12 +505,12 @@ my sub_code compile2sub_code(any e) { any raw = compile2list(e);
 
 //////////////// library ////////////////
 
-any CSUB_simpleplus(any *args) { return int2any(any2int(args[0]) + any2int(args[1])); }
-any CSUB_fullplus(any *args) { int ires = 0; foreach(n, args[0]) ires += any2int(n); return int2any(ires); }
-any CSUB_cons(any *args) { return cons(args[0], args[1]); }
-any CSUB_print(any *args) { print(*args); return *args; }
-any CSUB_apply(any *args) { return apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
-any CSUB_id(any *args) { return args[0]; }
+void CSUB_simpleplus(any *args) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
+void CSUB_fullplus(any *args) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
+void CSUB_cons(any *args) { last_value = cons(args[0], args[1]); }
+void CSUB_print(any *args) { print(*args); last_value = *args; }
+void CSUB_apply(any *args) { last_value = apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
+void CSUB_id(any *args) { last_value = args[0]; }
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -519,13 +519,11 @@ my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
 }
 my void init_csubs() {
   register_csub(CSUB_simpleplus, "simple+", 2, false);
-  register_csub(CSUB_fullplus, "full+", 0, true);
-  register_csub(CSUB_fullplus, "+", 0, true);
+  register_csub(CSUB_fullplus, "full+", 0, true); register_csub(CSUB_fullplus, "+", 0, true);
   register_csub(CSUB_cons, "cons", 2, false);
   register_csub(CSUB_print, "print", 1, false);
   register_csub(CSUB_apply, "apply", 2, false);
-  register_csub(CSUB_id, "id", 1, false);
-  register_csub(CSUB_id, "list", 0, true);
+  register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, true);
 }
 
 //////////////// misc ////////////////
@@ -597,7 +595,7 @@ int main() {
   printf("------------\n");
   sub_code plus_code = make_sub_code(intern("+"), 2, false, 0, 0, 2);
   plus_code->code[0] = OP_WRAP;
-  plus_code->code[1] = (any) &CSUB_plus;
+  plus_code->code[1] = (any) &CSUB_simpleplus;
 
   sub_code quux_code = make_sub_code(intern("in:qux"), 1, false, 0, 1, 10);
   quux_code->code[0] = OP_CONST;
