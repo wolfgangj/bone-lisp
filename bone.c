@@ -109,9 +109,7 @@ void reg_push(reg r) { store_reg(*reg_sp); reg_sp++; *reg_sp = r;     load_reg(*
 reg reg_pop()        { store_reg(*reg_sp); reg r = *reg_sp; reg_sp--; load_reg(*reg_sp); return r; }
 my void reg_permanent() { reg_push(permanent_reg); }
 
-any *reg_alloc(int n) {
-  any *res = (any *) allocp;
-  allocp += n;
+any *reg_alloc(int n) { any *res = (any *) allocp; allocp += n;
   if(block((any *) allocp) == current_block) return res;
   current_block = block_new(current_block); allocp = (any **) &current_block[1]; return reg_alloc(n);
 }
@@ -158,13 +156,10 @@ my char *list2charp(any x) {
 #define MAXLOAD 175 // Value between 0 and 255; 128 will cause an average of two probes.
 typedef struct { unsigned size, taken_slots; any *keys, *vals; any default_value; } *hash;
 
-hash hash_new(unsigned initsize, any default_val) {
-  hash h = malloc(sizeof(*h));
+hash hash_new(unsigned initsize, any default_val) { hash h = malloc(sizeof(*h));
   h->size = initsize; h->taken_slots = 0; h->default_value = default_val;
-  h->keys = malloc(initsize*sizeof(any));
-  h->vals = malloc(initsize*sizeof(any));
-  for(unsigned i = 0; i != initsize; i++) h->keys[i] = HASH_SLOT_UNUSED;
-  return h;
+  h->keys = malloc(initsize*sizeof(any)); h->vals = malloc(initsize*sizeof(any));
+  for(unsigned i = 0; i != initsize; i++) h->keys[i] = HASH_SLOT_UNUSED; return h;
 }
 void hash_free(hash h) { free(h->keys); free(h->vals); free(h); }
 
@@ -172,8 +167,7 @@ void hash_free(hash h) { free(h->keys); free(h->vals); free(h); }
    Return true if there is an entry with this key already.  If there
    is none, *POS will contain the position of the slot we can use to
    add it. */
-my bool find_slot(hash h, any key, unsigned *pos) {
-  int first_deleted = -1;
+my bool find_slot(hash h, any key, unsigned *pos) { int first_deleted = -1;
   *pos = key % h->size;
   while(1) {
     if(h->keys[*pos] == key) return true;
@@ -185,14 +179,12 @@ my bool find_slot(hash h, any key, unsigned *pos) {
 
 void hash_set(hash h, any key, any val); // FIXME: to header
 my bool slot_used(any x) { return x != HASH_SLOT_UNUSED && x != HASH_SLOT_DELETED; } 
-my void enlarge_table(hash h) {
-  hash new = hash_new(h->size * 2 + 1, NIL);
+my void enlarge_table(hash h) { hash new = hash_new(h->size * 2 + 1, NIL);
   for(unsigned i = 0; i != h->size; i++) if(slot_used(h->keys[i])) hash_set(new, h->keys[i], h->vals[i]);
   free(h->keys); free(h->vals); h->size = new->size; h->keys = new->keys; h->vals = new->vals; free(new);
 }
 
-void hash_set(hash h, any key, any val) {
-  unsigned pos;
+void hash_set(hash h, any key, any val) { unsigned pos;
   if(!find_slot(h, key, &pos)) {  // adding a new entry
     h->taken_slots++;
     if(((h->taken_slots << 8) / h->size) > MAXLOAD) { enlarge_table(h); find_slot(h, key, &pos); }
@@ -212,8 +204,7 @@ void hash_each(hash h, hash_iter fn, void *hook) {
 bool is_sym(any x) { return is_tagged(x, t_sym); }
 my hash sym_ht;
 my any string_hash(const char *s, size_t *len) {  // This is the djb2 algorithm.
-  int32_t hash = 5381;
-  *len = 0;
+  int32_t hash = 5381; *len = 0;
   while(*s) { (*len)++; hash = ((hash << 5) + hash) + *(s++); }
   return int2any(hash);
 }
@@ -223,9 +214,7 @@ my any add_sym(const char *name, size_t len, any id) {
   reg_permanent(); char *new = (char *) reg_alloc(bytes2words(len+1)); reg_pop();
   memcpy(new, name, len); hash_set(sym_ht, id, (any) new); return as_sym(new);
 }
-any intern(const char *name) {
-  size_t len;
-  any id = string_hash(name, &len);
+any intern(const char *name) { size_t len; any id = string_hash(name, &len);
   while(1) {
     char *candidate = (char *) hash_get(sym_ht, id);
     if(candidate == NULL) return add_sym(name, len, id);
@@ -555,10 +544,10 @@ void bone_init() {
 int main() {
   bone_init();
   reg_push(reg_new());
-#if 0
-  printf("[bone] ");
+  printf("[bone-read] ");
   any x; print(x=bone_read()); putchar('\n');
 
+#if 0
   sub_code foo_code = make_sub_code(intern("foo"), 1, false, 0, 0, 3);
   foo_code->code[0] = OP_GET_ARG;
   foo_code->code[1] = int2any(0);
