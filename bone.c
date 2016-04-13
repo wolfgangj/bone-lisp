@@ -42,21 +42,6 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define BINDING_DECLARED  UNIQ(104)
 #define IN_ARGS           UNIQ(105)
 #define IN_ENV            UNIQ(106)
-#define OP_CONST        UNIQ(200)
-#define OP_GET_ENV      UNIQ(201)
-#define OP_GET_ARG      UNIQ(202)
-#define OP_SET_LOCAL    UNIQ(203)
-#define OP_WRAP         UNIQ(204)
-#define OP_PREPARE_CALL UNIQ(205)
-#define OP_CALL         UNIQ(206)
-#define OP_TAILCALL     UNIQ(207)
-#define OP_ADD_ARG      UNIQ(208)
-#define OP_JMP_IF       UNIQ(209)
-#define OP_JMP          UNIQ(210)
-#define OP_RET          UNIQ(211)
-#define OP_PREPARE_SUB  UNIQ(212)
-#define OP_ADD_ENV      UNIQ(213)
-#define OP_MAKE_SUB     UNIQ(214)
 bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
@@ -408,6 +393,11 @@ any bone_read() {
 
 //////////////// evaluator ////////////////
 
+typedef enum {
+  OP_CONST, OP_GET_ENV, OP_GET_ARG, OP_SET_LOCAL, OP_WRAP, OP_PREPARE_CALL, OP_CALL, OP_TAILCALL, OP_ADD_ARG,
+  OP_JMP_IF, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB
+} opcode;
+
 my any last_value;
 struct call_stack_entry { sub subr; int tail_calls; } call_stack[256], *call_stack_sp;
 struct upcoming_call {
@@ -541,7 +531,7 @@ void bone_init() {
 }
 
 // FIXME: doesn't belong here
-int main() {
+int main() { printf("=> %d\n", -1/(size_t)8);
   bone_init();
   reg_push(reg_new());
   printf("[bone-read] ");
