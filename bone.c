@@ -418,6 +418,9 @@ my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
     any next = single(last_value); set_fdr(next_call->rest_constructor, next); next_call->rest_constructor = next;
   }
 }
+my void verify_argc(struct upcoming_call *the_call) {
+  if(the_call->nonrest_args_left) args_error_unspecific(the_call->to_be_called->code);
+}
 void call(sub subr, any *args) { // FIXME: move call_stack_sp++ into OP_CALL?
   call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr; sub lambda; any *lambda_envp;
 start:;
@@ -434,11 +437,10 @@ start:;
 	next_call->next_arg = next_call->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
 	if(sc->has_rest) { next_call->rest_constructor = next_call->the_args[sc->argc] = NIL; }
 	break; }
-    case OP_CALL: { struct upcoming_call *the_call = next_call--;
-	if(next_call->nonrest_args_left) args_error_unspecific(next_call->to_be_called->code);
+    case OP_CALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call);
 	call(the_call->to_be_called, the_call->the_args); break; }
-    case OP_TAILCALL: { struct upcoming_call *tail_call = next_call--;
-	subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start; }
+    case OP_TAILCALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call);
+	subr = the_call->to_be_called; args = the_call->the_args; call_stack_sp->tail_calls++; goto start; }
     case OP_ADD_ARG:
       if(next_call->nonrest_args_left) { next_call->nonrest_args_left--; add_nonrest_arg(); } else add_rest_arg();
       break;
@@ -549,10 +551,10 @@ void bone_init() {
 int main() {
   bone_init();
   reg_push(reg_new());
+#if 0
   printf("[bone-read] ");
   any x; print(x=bone_read()); putchar('\n');
 
-#if 0
   sub_code foo_code = make_sub_code(intern("foo"), 1, false, 0, 0, 3);
   foo_code->code[0] = OP_GET_ARG;
   foo_code->code[1] = int2any(0);
