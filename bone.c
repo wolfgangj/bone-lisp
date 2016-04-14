@@ -56,6 +56,7 @@ any tag(any x, type_tag t) { return x | t; }
 any untag(any x) { return x & ~7; }
 any untag_check(any x, type_tag t) { check(x, t); return untag(x); }
 
+bool is_num(any x) { return is_tagged(x, t_num); }
 // FIXME: these assume little-endian
 int32_t any2int(any x) { check(x, t_num); return ((int32_t *) &x)[1]; }
 any int2any(int32_t n) { any r = t_num; ((int32_t *) &r)[1] = n; return r; }
@@ -276,7 +277,7 @@ my void print(any x) { switch(tag_of(x)) {
     break;
   case t_str: printf("\"");
     foreach(c, unstr(x))
-      switch(any2int(c)) { // FIXME: add more (and add them to reader, too)
+      switch(any2int(c)) { // FIXME: add more (and add them to reader, too) | FIXME: handle grapheme clusters
       case '"':  printf("\\\""); break;
       case '\\': printf("\\\\"); break;
       case '\n': printf("\\n");  break;
@@ -288,6 +289,12 @@ my void print(any x) { switch(tag_of(x)) {
     printf(" argc=%d take-rest?=", code->argc); print(code->has_rest ? BTRUE : BFALSE); printf(")");
     break;
   case t_other: default: abort(); }
+}
+
+my void say_chr(any chr) { if(is_num(chr)) putchar(any2int(chr)); else foreach(x, chr) putchar(any2int(x)); }
+my void say_str(any s) { foreach(chr, unstr(s)) say_chr(chr); }
+my void say(any x) { switch(tag_of(x)) {
+  case t_str: say_str(x); break; case t_cons: foreach(e, x) say(e); break; default: print(x); }
 }
 
 //////////////// read ////////////////
@@ -504,7 +511,8 @@ my sub_code compile2sub_code(any e) { any raw = compile2list(e);
 void CSUB_simpleplus(any *args) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
 void CSUB_fullplus(any *args) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
 void CSUB_cons(any *args) { last_value = cons(args[0], args[1]); }
-void CSUB_print(any *args) { print(*args); last_value = *args; }
+void CSUB_print1(any *args) { print(args[0]); last_value = single(args[0]); }
+void CSUB_print(any *args) { foreach(x, args[0]) print(x); last_value = args[0]; }
 void CSUB_apply(any *args) { apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
 void CSUB_id(any *args) { last_value = args[0]; }
 void CSUB_nilp(any *args) { last_value = to_bool(args[0] == NIL); }
@@ -519,6 +527,12 @@ void CSUB_nump(any *args) { last_value = to_bool(is_tagged(args[0], t_num)); }
 void CSUB_strp(any *args) { last_value = to_bool(is_tagged(args[0], t_str)); }
 void CSUB_str(any *args) { last_value = str(args[0]); }
 void CSUB_unstr(any *args) { last_value = unstr(args[0]); }
+void CSUB_len(any *args) { last_value = int2any(len(args[0])); }
+void CSUB_assoq(any *args) { last_value = assoq(args[0], args[1]); }
+void CSUB_intern(any *args) { last_value = intern_from_chars(unstr(args[0])); }
+void CSUB_copy(any *args) { last_value = copy(args[0]); }
+void CSUB_say1(any *args) { say(args[0]); last_value = single(args[0]); }
+void CSUB_say(any *args) { foreach(x, args[0]) say(x); last_value = args[0]; }
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -529,7 +543,8 @@ my void init_csubs() {
   register_csub(CSUB_simpleplus, "simple+", 2, false);
   register_csub(CSUB_fullplus, "full+", 0, true); register_csub(CSUB_fullplus, "+", 0, true);
   register_csub(CSUB_cons, "cons", 2, false);
-  register_csub(CSUB_print, "print", 1, false);
+  register_csub(CSUB_print1, "print1", 1, false);
+  register_csub(CSUB_print, "print", 0, true);
   register_csub(CSUB_apply, "apply", 2, false);
   register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, true);
   register_csub(CSUB_nilp, "nil?", 1, false);
@@ -544,6 +559,13 @@ my void init_csubs() {
   register_csub(CSUB_strp, "str?", 1, false);
   register_csub(CSUB_str, "str", 1, false);
   register_csub(CSUB_unstr, "unstr", 1, false);
+  register_csub(CSUB_len, "len", 1, false);
+  register_csub(CSUB_assoq, "assoq", 2, false);
+  register_csub(CSUB_print, "len", 1, false);
+  register_csub(CSUB_intern, "intern", 1, false); register_csub(CSUB_intern, "str->sym", 1, false);
+  register_csub(CSUB_copy, "copy", 1, false);
+  register_csub(CSUB_say1, "say1", 1, false);
+  register_csub(CSUB_say, "say", 0, true);
 }
 
 //////////////// misc ////////////////
@@ -645,8 +667,9 @@ int main() {
   any arg = int2any(5); call((sub) &qux_code, &arg);
   print(last_value); putchar('\n');
 #endif
+  int line = 0;
   while(1) {
-    printf("\n[bone] ");
+    printf("\n@%d: ", line++);
     any e = bone_read();
     sub_code code = compile2sub_code(e);
     call((sub) &code, NULL);
