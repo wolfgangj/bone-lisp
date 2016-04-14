@@ -533,6 +533,16 @@ my void CSUB_intern(any *args) { last_value = intern_from_chars(unstr(args[0]));
 my void CSUB_copy(any *args) { last_value = copy(args[0]); }
 my void CSUB_say1(any *args) { say(args[0]); last_value = single(args[0]); }
 my void CSUB_say(any *args) { foreach(x, args[0]) say(x); last_value = args[0]; }
+my void CSUB_unaryminus(any *args) { last_value = int2any(-any2int(args[0])); }
+my void CSUB_simpleminus(any *args) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
+my void CSUB_fullminus(any *args) { int res = any2int(args[0]);
+  foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
+my void CSUB_simple_num_eqp(any *args) { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
+my void CSUB_simple_num_neqp(any *args) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
+my void CSUB_simple_num_gtp(any *args) { last_value = to_bool(any2int(args[0]) > any2int(args[1])); }
+my void CSUB_simple_num_ltp(any *args) { last_value = to_bool(any2int(args[0]) < any2int(args[1])); }
+my void CSUB_simple_num_geqp(any *args) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
+my void CSUB_simple_num_leqp(any *args) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -566,6 +576,17 @@ my void init_csubs() {
   register_csub(CSUB_copy, "copy", 1, false);
   register_csub(CSUB_say1, "say1", 1, false);
   register_csub(CSUB_say, "say", 0, true);
+  register_csub(CSUB_unaryminus, "unary-", 1, false);
+  register_csub(CSUB_simpleminus, "simple-", 2, false);
+  register_csub(CSUB_fullminus, "full-", 1, true); register_csub(CSUB_fullminus, "-", 1, true);
+  // FIXME: Add the full versions and bind canonical names to to them
+  register_csub(CSUB_simple_num_eqp, "simple=?", 2, false); register_csub(CSUB_simple_num_eqp, "=?", 2, false);
+  register_csub(CSUB_simple_num_neqp, "simple<>?", 2, false); register_csub(CSUB_simple_num_neqp, "<>?", 2, false);
+  register_csub(CSUB_simple_num_gtp, "simple>?", 2, false); register_csub(CSUB_simple_num_gtp, ">?", 2, false);
+  register_csub(CSUB_simple_num_ltp, "simple<?", 2, false); register_csub(CSUB_simple_num_ltp, "<?", 2, false);
+  register_csub(CSUB_simple_num_geqp, "simple>=?", 2, false); register_csub(CSUB_simple_num_geqp, ">=?", 2, false);
+  register_csub(CSUB_simple_num_leqp, "simple<=?", 2, false); register_csub(CSUB_simple_num_leqp, "<=?", 2, false);
+
 }
 
 //////////////// misc ////////////////
