@@ -27,7 +27,7 @@
 #define my static
 
 typedef uint64_t any; // we only support 64 bit currently
-my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; } // works for n=0.
+my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 
 #define UNIQ(n) (t_uniq | (010*(n)))
@@ -394,7 +394,7 @@ any bone_read() {
 //////////////// evaluator ////////////////
 
 typedef enum {
-  OP_CONST, OP_GET_ENV, OP_GET_ARG, OP_SET_LOCAL, OP_WRAP, OP_PREPARE_CALL, OP_CALL, OP_TAILCALL, OP_ADD_ARG,
+  OP_CONST = 1, OP_GET_ENV, OP_GET_ARG, OP_SET_LOCAL, OP_WRAP, OP_PREPARE_CALL, OP_CALL, OP_TAILCALL, OP_ADD_ARG,
   OP_JMP_IF, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB
 } opcode;
 
@@ -402,9 +402,12 @@ my any last_value;
 struct call_stack_entry { sub subr; int tail_calls; } call_stack[256], *call_stack_sp;
 struct upcoming_call {
   sub to_be_called;
-  int args_left;
+  int nonrest_args_left; any rest_constructor;
   any *the_args, *next_arg; // `next_arg` points into `the_args`.
-} upcoming_calls[256], *upcoming_calls_sp;
+} upcoming_calls[256], *next_call; // stack pointer
+
+my void args_error(sub_code sc, any xs) { generic_error("wrong number of args", cons(sc->name, xs)); }
+my void args_error_unspecific(sub_code sc) { args_error(sc, single(intern("..."))); }
 
 void call(sub subr, any *args) { // FIXME: move call_stack_sp++ into OP_CALL?
   call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr; sub lambda; any *lambda_envp;
@@ -417,14 +420,25 @@ start:;
     case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
     case OP_WRAP: ((csub) *ip)(args); return;
     case OP_PREPARE_CALL: { sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
-	upcoming_calls_sp++; upcoming_calls_sp->to_be_called = to_be_called;
-	upcoming_calls_sp->next_arg = upcoming_calls_sp->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
+	next_call++; next_call->to_be_called = to_be_called;
+	next_call->nonrest_args_left = sc->argc;
+	next_call->next_arg = next_call->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
+	if(sc->has_rest) { next_call->rest_constructor = next_call->the_args[sc->argc] = NIL; }
 	break; }
-    case OP_CALL: { struct upcoming_call *the_call = upcoming_calls_sp--;
+    case OP_CALL: { struct upcoming_call *the_call = next_call--;
+	if(next_call->nonrest_args_left) args_error_unspecific(next_call->to_be_called->code);
 	call(the_call->to_be_called, the_call->the_args); break; }
-    case OP_TAILCALL: { struct upcoming_call *tail_call = upcoming_calls_sp--;
+    case OP_TAILCALL: { struct upcoming_call *tail_call = next_call--;
 	subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start; }
-    case OP_ADD_ARG: *(upcoming_calls_sp->next_arg++) = last_value; break;
+    case OP_ADD_ARG: if(next_call->nonrest_args_left) { next_call->nonrest_args_left--;
+	*(next_call->next_arg++) = last_value; } // non-rest arg
+      else { sub_code sc = next_call->to_be_called->code;
+	if(!sc->has_rest) args_error_unspecific(sc);
+	if(next_call->rest_constructor == NIL) {
+	  next_call->rest_constructor = next_call->the_args[sc->argc] = single(last_value); break; // first rest arg
+	} else { // adding another rest arg
+	  any next = single(last_value); set_fdr(next_call->rest_constructor, next); next_call->rest_constructor = next;
+	} } break;
     case OP_JMP_IF: if(!is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
     case OP_RET: return;
@@ -436,11 +450,10 @@ start:;
   }
 }
 
-my void args_error(sub_code sc, any xs) { generic_error("wrong number of args", cons(sc->name, xs)); }
-my any apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
-  any *args = reg_alloc(argc + (sc->has_rest ? 1 : 0) + sc->localc);
+my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
+  any *args = reg_alloc(argc + (sc->has_rest ? 1 : 0) + sc->localc); // FIXME: allocate on stack
   foreach(x, xs) {
-    if(pos <  argc) { args[pos] = x; pos++; continue; } // normal arg
+    if(pos <  argc) { args[pos] = x; pos++; continue; } // non-rest arg
     if(pos == argc) { // starting rest args
       if(sc->has_rest) { args[pos] = precons(x); p = args[pos]; pos++; continue; } else args_error(sc, xs);
     }
@@ -448,9 +461,8 @@ my any apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, 
   }
   if(pos < argc) args_error(sc, xs);
   if(pos == argc) args[argc] = NIL; else set_fdr(p, NIL);
-  call(subr, args); return last_value;
+  call(subr, args);
 }
-
 
 //////////////// bindings ////////////////
 
@@ -488,7 +500,7 @@ void CSUB_simpleplus(any *args) { last_value = int2any(any2int(args[0]) + any2in
 void CSUB_fullplus(any *args) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
 void CSUB_cons(any *args) { last_value = cons(args[0], args[1]); }
 void CSUB_print(any *args) { print(*args); last_value = *args; }
-void CSUB_apply(any *args) { last_value = apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
+void CSUB_apply(any *args) { apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
 void CSUB_id(any *args) { last_value = args[0]; }
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
@@ -518,7 +530,7 @@ any copy(any x) {
 
 my void bone_init_thread() {
   call_stack_sp = call_stack; call_stack->subr = NULL; call_stack->tail_calls = 0; // FIXME: all needed?
-  upcoming_calls_sp = upcoming_calls;
+  next_call = upcoming_calls;
 }
 
 void bone_init() {
@@ -531,7 +543,7 @@ void bone_init() {
 }
 
 // FIXME: doesn't belong here
-int main() { printf("=> %d\n", -1/(size_t)8);
+int main() {
   bone_init();
   reg_push(reg_new());
   printf("[bone-read] ");
