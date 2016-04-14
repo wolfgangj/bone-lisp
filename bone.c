@@ -508,41 +508,45 @@ my sub_code compile2sub_code(any e) { any raw = compile2list(e);
 
 //////////////// library ////////////////
 
-my void CSUB_simpleplus(any *args) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
-my void CSUB_fullplus(any *args) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
-my void CSUB_cons(any *args) { last_value = cons(args[0], args[1]); }
-my void CSUB_print1(any *args) { print(args[0]); last_value = single(args[0]); }
-my void CSUB_print(any *args) { foreach(x, args[0]) print(x); last_value = args[0]; }
-my void CSUB_apply(any *args) { apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
-my void CSUB_id(any *args) { last_value = args[0]; }
-my void CSUB_nilp(any *args) { last_value = to_bool(args[0] == NIL); }
-my void CSUB_eqp(any *args) { last_value = to_bool(args[0] == args[1]); }
-my void CSUB_not(any *args) { last_value = to_bool(args[0] == BFALSE); }
-my void CSUB_car(any *args) { last_value = car(args[0]); }
-my void CSUB_cdr(any *args) { last_value = cdr(args[0]); }
-my void CSUB_consp(any *args) { last_value = to_bool(is_tagged(args[0], t_cons)); }
-my void CSUB_symp(any *args) { last_value = to_bool(is_tagged(args[0], t_sym)); }
-my void CSUB_subp(any *args) { last_value = to_bool(is_tagged(args[0], t_sub)); }
-my void CSUB_nump(any *args) { last_value = to_bool(is_tagged(args[0], t_num)); }
-my void CSUB_strp(any *args) { last_value = to_bool(is_tagged(args[0], t_str)); }
-my void CSUB_str(any *args) { last_value = str(args[0]); }
-my void CSUB_unstr(any *args) { last_value = unstr(args[0]); }
-my void CSUB_len(any *args) { last_value = int2any(len(args[0])); }
-my void CSUB_assoq(any *args) { last_value = assoq(args[0], args[1]); }
-my void CSUB_intern(any *args) { last_value = intern_from_chars(unstr(args[0])); }
-my void CSUB_copy(any *args) { last_value = copy(args[0]); }
-my void CSUB_say1(any *args) { say(args[0]); last_value = single(args[0]); }
-my void CSUB_say(any *args) { foreach(x, args[0]) say(x); last_value = args[0]; }
-my void CSUB_unaryminus(any *args) { last_value = int2any(-any2int(args[0])); }
-my void CSUB_simpleminus(any *args) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
-my void CSUB_fullminus(any *args) { int res = any2int(args[0]);
+#define DEFSUB(name) my void CSUB_ ## name(any *args)
+DEFSUB(simpleplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
+DEFSUB(fullplus) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
+DEFSUB(cons) { last_value = cons(args[0], args[1]); }
+DEFSUB(print) { print(args[0]); last_value = single(args[0]); }
+DEFSUB(apply) { apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
+DEFSUB(id) { last_value = args[0]; }
+DEFSUB(nilp) { last_value = to_bool(args[0] == NIL); }
+DEFSUB(eqp) { last_value = to_bool(args[0] == args[1]); }
+DEFSUB(not) { last_value = to_bool(args[0] == BFALSE); }
+DEFSUB(car) { last_value = car(args[0]); }
+DEFSUB(cdr) { last_value = cdr(args[0]); }
+DEFSUB(consp) { last_value = to_bool(is_tagged(args[0], t_cons)); }
+DEFSUB(symp) { last_value = to_bool(is_tagged(args[0], t_sym)); }
+DEFSUB(subp) { last_value = to_bool(is_tagged(args[0], t_sub)); }
+DEFSUB(nump) { last_value = to_bool(is_tagged(args[0], t_num)); }
+DEFSUB(strp) { last_value = to_bool(is_tagged(args[0], t_str)); }
+DEFSUB(str) { last_value = str(args[0]); }
+DEFSUB(unstr) { last_value = unstr(args[0]); }
+DEFSUB(len) { last_value = int2any(len(args[0])); }
+DEFSUB(assoq) { last_value = assoq(args[0], args[1]); }
+DEFSUB(intern) { last_value = intern_from_chars(unstr(args[0])); }
+DEFSUB(copy) { last_value = copy(args[0]); }
+DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
+DEFSUB(unaryminus) { last_value = int2any(-any2int(args[0])); }
+DEFSUB(simpleminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
+DEFSUB(fullminus) { int res = any2int(args[0]);
   foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
-my void CSUB_simple_num_eqp(any *args) { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
-my void CSUB_simple_num_neqp(any *args) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
-my void CSUB_simple_num_gtp(any *args) { last_value = to_bool(any2int(args[0]) > any2int(args[1])); }
-my void CSUB_simple_num_ltp(any *args) { last_value = to_bool(any2int(args[0]) < any2int(args[1])); }
-my void CSUB_simple_num_geqp(any *args) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
-my void CSUB_simple_num_leqp(any *args) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
+DEFSUB(simple_num_eqp) { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
+DEFSUB(simple_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
+DEFSUB(simple_num_gtp) { last_value = to_bool(any2int(args[0]) > any2int(args[1])); }
+DEFSUB(simple_num_ltp) { last_value = to_bool(any2int(args[0]) < any2int(args[1])); }
+DEFSUB(simple_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
+DEFSUB(simple_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
+// FIXME: the set_far() below may be dangerous when we have `car!`, because a sub that takes only
+// rest args will see the cons `arg` directly and could let it escape.  In the sense of:
+//   (each xs (lambda rest (car! elsewhere rest))) ;; but taking rest args here is not sane.
+DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE);
+  foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -553,8 +557,7 @@ my void init_csubs() {
   register_csub(CSUB_simpleplus, "simple+", 2, false);
   register_csub(CSUB_fullplus, "full+", 0, true); register_csub(CSUB_fullplus, "+", 0, true);
   register_csub(CSUB_cons, "cons", 2, false);
-  register_csub(CSUB_print1, "print1", 1, false);
-  register_csub(CSUB_print, "print", 0, true);
+  register_csub(CSUB_print, "print", 1, false);
   register_csub(CSUB_apply, "apply", 2, false);
   register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, true);
   register_csub(CSUB_nilp, "nil?", 1, false);
@@ -571,10 +574,8 @@ my void init_csubs() {
   register_csub(CSUB_unstr, "unstr", 1, false);
   register_csub(CSUB_len, "len", 1, false);
   register_csub(CSUB_assoq, "assoq", 2, false);
-  register_csub(CSUB_print, "len", 1, false);
   register_csub(CSUB_intern, "intern", 1, false); register_csub(CSUB_intern, "str->sym", 1, false);
   register_csub(CSUB_copy, "copy", 1, false);
-  register_csub(CSUB_say1, "say1", 1, false);
   register_csub(CSUB_say, "say", 0, true);
   register_csub(CSUB_unaryminus, "unary-", 1, false);
   register_csub(CSUB_simpleminus, "simple-", 2, false);
@@ -587,6 +588,7 @@ my void init_csubs() {
   register_csub(CSUB_simple_num_geqp, "simple>=?", 2, false); register_csub(CSUB_simple_num_geqp, ">=?", 2, false);
   register_csub(CSUB_simple_num_leqp, "simple<=?", 2, false); register_csub(CSUB_simple_num_leqp, "<=?", 2, false);
 
+  register_csub(CSUB_each, "each", 2, false);
 }
 
 //////////////// misc ////////////////
