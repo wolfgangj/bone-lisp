@@ -220,14 +220,14 @@ my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=inter
 
 typedef struct sub_code { // fields are in the order in which we access them.
   int argc; // number of required args
-  bool has_rest; // whether rest args are taken
+  int has_rest; // accepting rest args? 0=no, 1=yes
   int localc; // for `let` etc.
   any name; // sym for backtraces
   int size_of_env; // so that we can copy subs
   any code[1]; // can be longer
 } *sub_code;
 #define sub_code_header_size (bytes2words(sizeof(struct sub_code))-1)
-my sub_code make_sub_code(any name, int argc, bool has_rest, int localc, int size_of_env, int code_size) {
+my sub_code make_sub_code(any name, int argc, int has_rest, int localc, int size_of_env, int code_size) {
   sub_code code = (sub_code) reg_alloc(sub_code_header_size + code_size);
 #define x(f) code->f = f
   x(name); x(argc); x(has_rest); x(localc); x(size_of_env);
@@ -441,7 +441,7 @@ start:;
     case OP_PREPARE_CALL: { sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
 	next_call++; next_call->to_be_called = to_be_called;
 	next_call->nonrest_args_left = sc->argc;
-	next_call->next_arg = next_call->the_args = reg_alloc(sc->argc+(sc->has_rest?1:0)+sc->localc);
+	next_call->next_arg = next_call->the_args = reg_alloc(sc->argc+sc->has_rest+sc->localc);
 	if(sc->has_rest) { next_call->rest_constructor = next_call->the_args[sc->argc] = NIL; }
 	break; }
     case OP_CALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call);
@@ -463,7 +463,7 @@ start:;
 }
 
 my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
-  any *args = reg_alloc(argc + (sc->has_rest ? 1 : 0) + sc->localc); // FIXME: allocate on stack
+  any *args = reg_alloc(argc + sc->has_rest + sc->localc); // FIXME: allocate on stack
   foreach(x, xs) {
     if(pos <  argc) { args[pos] = x; pos++; continue; } // non-rest arg
     if(pos == argc) { // starting rest args
@@ -548,18 +548,18 @@ DEFSUB(simple_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[
 DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE);
   foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
 
-my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
+my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
   code->code[0] = OP_WRAP; code->code[1] = (any) cptr;
   sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
 }
 my void init_csubs() {
   register_csub(CSUB_simpleplus, "simple+", 2, false);
-  register_csub(CSUB_fullplus, "full+", 0, true); register_csub(CSUB_fullplus, "+", 0, true);
+  register_csub(CSUB_fullplus, "full+", 0, 1); register_csub(CSUB_fullplus, "+", 0, 1);
   register_csub(CSUB_cons, "cons", 2, false);
   register_csub(CSUB_print, "print", 1, false);
   register_csub(CSUB_apply, "apply", 2, false);
-  register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, true);
+  register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, 1);
   register_csub(CSUB_nilp, "nil?", 1, false);
   register_csub(CSUB_eqp, "eq?", 2, false);
   register_csub(CSUB_not, "not", 1, false);
@@ -576,10 +576,10 @@ my void init_csubs() {
   register_csub(CSUB_assoq, "assoq", 2, false);
   register_csub(CSUB_intern, "intern", 1, false); register_csub(CSUB_intern, "str->sym", 1, false);
   register_csub(CSUB_copy, "copy", 1, false);
-  register_csub(CSUB_say, "say", 0, true);
+  register_csub(CSUB_say, "say", 0, 1);
   register_csub(CSUB_unaryminus, "unary-", 1, false);
   register_csub(CSUB_simpleminus, "simple-", 2, false);
-  register_csub(CSUB_fullminus, "full-", 1, true); register_csub(CSUB_fullminus, "-", 1, true);
+  register_csub(CSUB_fullminus, "full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
   // FIXME: Add the full versions and bind canonical names to to them
   register_csub(CSUB_simple_num_eqp, "simple=?", 2, false); register_csub(CSUB_simple_num_eqp, "=?", 2, false);
   register_csub(CSUB_simple_num_neqp, "simple<>?", 2, false); register_csub(CSUB_simple_num_neqp, "<>?", 2, false);
@@ -618,77 +618,11 @@ void bone_init() {
 
 // FIXME: doesn't belong here
 int main() {
-  bone_init();
+  bone_init(); printf("Bone Lisp 0.1");
   reg_push(reg_new());
 #if 0
   printf("[bone-read] ");
   any x; print(x=bone_read()); putchar('\n');
-
-  sub_code foo_code = make_sub_code(intern("foo"), 1, false, 0, 0, 3);
-  foo_code->code[0] = OP_GET_ARG;
-  foo_code->code[1] = int2any(0);
-  foo_code->code[2] = OP_RET;
-  call((sub)&foo_code, &x);
-  print(last_value); putchar('\n');
-
-  any foo = sub2any((sub)&foo_code); 
-  sub_code bar_code = make_sub_code(intern("bar"), 0, false, 0, 0, 15);
-  bar_code->code[0] = OP_CONST;
-  bar_code->code[1] = foo;
-  bar_code->code[2] = OP_PREPARE_CALL;
-  bar_code->code[3] = OP_CONST;
-  bar_code->code[4] = BTRUE;
-  bar_code->code[5] = OP_ADD_ARG;
-  bar_code->code[6] = OP_CALL;
-  bar_code->code[7] = OP_JMP_IF;
-  bar_code->code[8] = int2any(4);
-  bar_code->code[9] = OP_CONST;
-  bar_code->code[10] = int2any(1);
-  bar_code->code[11] = OP_RET;
-  bar_code->code[12] = OP_CONST;
-  bar_code->code[13] = int2any(2);
-  bar_code->code[14] = OP_RET;
-  call((sub)&bar_code, NULL);
-  print(last_value); putchar('\n');
-
-  printf("------------\n");
-  sub_code baz_code = make_sub_code(intern("baz"), 1, false, 0, 0, 2);
-  baz_code->code[0] = OP_WRAP;
-  baz_code->code[1] = (any) &CSUB_print;
-  call((sub)&baz_code, &x); putchar('\n');
-
-  printf("------------\n");
-  sub_code plus_code = make_sub_code(intern("+"), 2, false, 0, 0, 2);
-  plus_code->code[0] = OP_WRAP;
-  plus_code->code[1] = (any) &CSUB_simpleplus;
-
-  sub_code quux_code = make_sub_code(intern("in:qux"), 1, false, 0, 1, 10);
-  quux_code->code[0] = OP_CONST;
-  quux_code->code[1] = sub2any((sub) &plus_code);
-  quux_code->code[2] = OP_PREPARE_CALL;
-  quux_code->code[3] = OP_GET_ARG;
-  quux_code->code[4] = int2any(0);
-  quux_code->code[5] = OP_ADD_ARG;
-  quux_code->code[6] = OP_GET_ENV;
-  quux_code->code[7] = int2any(0);
-  quux_code->code[8] = OP_ADD_ARG;
-  quux_code->code[9] = OP_TAILCALL;
-
-  sub_code qux_code = make_sub_code(intern("qux"), 1, false, 0, 0, 11);
-  qux_code->code[0] = OP_PREPARE_SUB;
-  qux_code->code[1] = (any) quux_code;
-  qux_code->code[2] = OP_GET_ARG;
-  qux_code->code[3] = int2any(0);
-  qux_code->code[4] = OP_ADD_ENV;
-  qux_code->code[5] = OP_MAKE_SUB;
-  qux_code->code[6] = OP_PREPARE_CALL;
-  qux_code->code[7] = OP_CONST;
-  qux_code->code[8] = int2any(3);
-  qux_code->code[9] = OP_ADD_ARG;
-  qux_code->code[10] = OP_TAILCALL;
-
-  any arg = int2any(5); call((sub) &qux_code, &arg);
-  print(last_value); putchar('\n');
 #endif
   int line = 0;
   while(1) {
