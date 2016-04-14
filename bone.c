@@ -409,6 +409,15 @@ struct upcoming_call {
 my void args_error(sub_code sc, any xs) { generic_error("wrong number of args", cons(sc->name, xs)); }
 my void args_error_unspecific(sub_code sc) { args_error(sc, single(intern("..."))); }
 
+my void add_nonrest_arg() { *(next_call->next_arg++) = last_value; }
+my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
+  if(!sc->has_rest) args_error_unspecific(sc);
+  if(next_call->rest_constructor == NIL) { // first rest arg
+    next_call->rest_constructor = next_call->the_args[sc->argc] = single(last_value);
+  } else { // adding another rest arg
+    any next = single(last_value); set_fdr(next_call->rest_constructor, next); next_call->rest_constructor = next;
+  }
+}
 void call(sub subr, any *args) { // FIXME: move call_stack_sp++ into OP_CALL?
   call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr; sub lambda; any *lambda_envp;
 start:;
@@ -430,15 +439,9 @@ start:;
 	call(the_call->to_be_called, the_call->the_args); break; }
     case OP_TAILCALL: { struct upcoming_call *tail_call = next_call--;
 	subr = tail_call->to_be_called; args = tail_call->the_args; call_stack_sp->tail_calls++; goto start; }
-    case OP_ADD_ARG: if(next_call->nonrest_args_left) { next_call->nonrest_args_left--;
-	*(next_call->next_arg++) = last_value; } // non-rest arg
-      else { sub_code sc = next_call->to_be_called->code;
-	if(!sc->has_rest) args_error_unspecific(sc);
-	if(next_call->rest_constructor == NIL) {
-	  next_call->rest_constructor = next_call->the_args[sc->argc] = single(last_value); break; // first rest arg
-	} else { // adding another rest arg
-	  any next = single(last_value); set_fdr(next_call->rest_constructor, next); next_call->rest_constructor = next;
-	} } break;
+    case OP_ADD_ARG:
+      if(next_call->nonrest_args_left) { next_call->nonrest_args_left--; add_nonrest_arg(); } else add_rest_arg();
+      break;
     case OP_JMP_IF: if(!is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
     case OP_RET: return;
