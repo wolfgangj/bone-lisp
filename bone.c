@@ -507,6 +507,18 @@ void CSUB_cons(any *args) { last_value = cons(args[0], args[1]); }
 void CSUB_print(any *args) { print(*args); last_value = *args; }
 void CSUB_apply(any *args) { apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
 void CSUB_id(any *args) { last_value = args[0]; }
+void CSUB_nilp(any *args) { last_value = to_bool(args[0] == NIL); }
+void CSUB_eqp(any *args) { last_value = to_bool(args[0] == args[1]); }
+void CSUB_not(any *args) { last_value = to_bool(args[0] == BFALSE); }
+void CSUB_car(any *args) { last_value = car(args[0]); }
+void CSUB_cdr(any *args) { last_value = cdr(args[0]); }
+void CSUB_consp(any *args) { last_value = to_bool(is_tagged(args[0], t_cons)); }
+void CSUB_symp(any *args) { last_value = to_bool(is_tagged(args[0], t_sym)); }
+void CSUB_subp(any *args) { last_value = to_bool(is_tagged(args[0], t_sub)); }
+void CSUB_nump(any *args) { last_value = to_bool(is_tagged(args[0], t_num)); }
+void CSUB_strp(any *args) { last_value = to_bool(is_tagged(args[0], t_str)); }
+void CSUB_str(any *args) { last_value = str(args[0]); }
+void CSUB_unstr(any *args) { last_value = unstr(args[0]); }
 
 my void register_csub(csub cptr, const char *name, int argc, bool has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -520,6 +532,18 @@ my void init_csubs() {
   register_csub(CSUB_print, "print", 1, false);
   register_csub(CSUB_apply, "apply", 2, false);
   register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, true);
+  register_csub(CSUB_nilp, "nil?", 1, false);
+  register_csub(CSUB_eqp, "eq?", 2, false);
+  register_csub(CSUB_not, "not", 1, false);
+  register_csub(CSUB_car, "car", 1, false);
+  register_csub(CSUB_cdr, "cdr", 1, false);
+  register_csub(CSUB_consp, "cons?", 1, false);
+  register_csub(CSUB_symp, "sym?", 1, false);
+  register_csub(CSUB_subp, "sub?", 1, false);
+  register_csub(CSUB_nump, "num?", 1, false);
+  register_csub(CSUB_strp, "str?", 1, false);
+  register_csub(CSUB_str, "str", 1, false);
+  register_csub(CSUB_unstr, "unstr", 1, false);
 }
 
 //////////////// misc ////////////////
