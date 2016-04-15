@@ -121,8 +121,9 @@ my bool is_cons(any x) { return is_tagged(x, t_cons); }
 my bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 my any single(any x) { return cons(x, NIL); }
 #define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
+#define foreach_cons(var, lst) for(any var = (lst); !is_nil(var); var = fdr(var))
 
-my int len(any x) { int n = 0; foreach(e, x) n++; return n; }
+my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
 my any assoq(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
 
 //////////////// strs ////////////////
@@ -210,10 +211,10 @@ my any intern(const char *name) { size_t len; any id = string_hash(name, &len);
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
-my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot;
+my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot, s_do;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(with);x(if);s_dot=intern("."); }
+  x(lambda);x(with);x(if);s_dot=intern(".");x(do); }
 #undef x
 
 //////////////// subs ////////////////
@@ -490,7 +491,7 @@ my void compile_expr(any e, any env, bool tail_context, any *dst) {
   case t_num: case t_uniq: case t_str: emit(OP_CONST, dst); emit(e, dst); break;
   case t_cons:; any first = far(e);
     if(first == s_quote) { emit(OP_CONST, dst); emit(fdr(e), dst); break; } // FIXME: copy()?
-    //if(first == s_if) { break; }
+    if(first == s_do) { foreach_cons(x, fdr(e)) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, dst); break; }
     compile_expr(first, env, false, dst); emit(OP_PREPARE_CALL, dst);
     foreach(arg, fdr(e)) { compile_expr(arg, env, false, dst); emit(OP_ADD_ARG, dst); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, dst); break;
@@ -560,7 +561,7 @@ my void init_csubs() {
   register_csub(CSUB_print, "print", 1, false);
   register_csub(CSUB_apply, "apply", 2, false);
   register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, 1);
-  register_csub(CSUB_nilp, "nil?", 1, false);
+  register_csub(CSUB_nilp, "nil?", 1, false); register_csub(CSUB_nilp, "no", 1, false);
   register_csub(CSUB_eqp, "eq?", 2, false);
   register_csub(CSUB_not, "not", 1, false);
   register_csub(CSUB_car, "car", 1, false);
@@ -572,7 +573,7 @@ my void init_csubs() {
   register_csub(CSUB_strp, "str?", 1, false);
   register_csub(CSUB_str, "str", 1, false);
   register_csub(CSUB_unstr, "unstr", 1, false);
-  register_csub(CSUB_len, "len", 1, false);
+  register_csub(CSUB_len, "len", 1, false); register_csub(CSUB_len, "length", 1, false); register_csub(CSUB_len, "size", 1, false);
   register_csub(CSUB_assoq, "assoq", 2, false);
   register_csub(CSUB_intern, "intern", 1, false); register_csub(CSUB_intern, "str->sym", 1, false);
   register_csub(CSUB_copy, "copy", 1, false);
