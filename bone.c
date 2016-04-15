@@ -210,10 +210,10 @@ my any intern(const char *name) { size_t len; any id = string_hash(name, &len);
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
-my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_let, s_letrec, s_dot;
+my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(let);x(letrec);s_dot=intern("."); }
+  x(lambda);x(with);x(if);s_dot=intern("."); }
 #undef x
 
 //////////////// subs ////////////////
@@ -489,6 +489,8 @@ my void compile_expr(any e, any env, bool tail_context, any *dst) {
   switch(tag_of(e)) {
   case t_num: case t_uniq: case t_str: emit(OP_CONST, dst); emit(e, dst); break;
   case t_cons:; any first = far(e);
+    if(first == s_quote) { emit(OP_CONST, dst); emit(fdr(e), dst); break; } // FIXME: copy()?
+    //if(first == s_if) { break; }
     compile_expr(first, env, false, dst); emit(OP_PREPARE_CALL, dst);
     foreach(arg, fdr(e)) { compile_expr(arg, env, false, dst); emit(OP_ADD_ARG, dst); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, dst); break;
