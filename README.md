@@ -2,11 +2,6 @@
 
 # The Bone Lisp programming language
 
-> "They who would give up essential Freedom,  
-> to purchase a little Type-Safety,  
-> deserve neither Freedom nor Type-Safety."  
-> (Benjamin Franklisp)
-
     (defsub (len xs)
       "Calculate the length of the list `xs`."
       (with loop | remaining n
@@ -26,7 +21,8 @@ elimination and uses explicit regions for memory management (instead
 of garbage collection).  Currently, cons cells are the universal data
 structure (no arrays, records or hash tables).
 
-It is inspired by Pico Lisp, Scheme, Forth, Common Lisp and Erlang.
+It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp, Erlang
+and Ruby.
 
 It is currently written for 64 bit systems.  And it requires
 little-endian, though both issues are not that hard to fix if desired.
@@ -55,3 +51,19 @@ and embedded systems.
 
 It is being developed by
 Wolfgang Jaehrling (wolfgang at conseptizer dot org)
+
+## Links
+
+Somewhat related:
+* [Carp](https://github.com/eriksvedang/Carp) is "a statically typed lisp, without a GC"
+* [newLISP](http://www.newlisp.org/) uses "One Reference Only" memory menagement
+* [MLKit](http://www.elsman.com/mlkit/) uses region inference (and a GC)
+* [Linear Lisp](http://home.pipeline.com/~hbaker1/LinearLisp.html) produces no garbage
+
+Bone Lisp is influenced by:
+* [PicoLisp](http://picolisp.com/) is a pragmatic but simple Lisp
+* [R5RS Scheme](http://www.schemers.org/Documents/Standards/R5RS/) is a beautiful Lisp dialect
+* [Forth](https://en.wikipedia.org/wiki/Forth_%28programming_language%29) is a lesson in simplicity
+* [Common Lisp](https://common-lisp.net/) is a full-featured traditional Lisp
+* [Erlang](http://www.erlang.org/) is a functional language for building scalable real-time systems
+* [Ruby](https://www.ruby-lang.org/) is a scripting language with great usability

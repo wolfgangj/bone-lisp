@@ -615,25 +615,18 @@ void bone_init() {
   bindings = hash_new(997, BFALSE); init_csubs();
   bone_init_thread();
 }
-
-// FIXME: doesn't belong here
-int main() {
-  bone_init(); printf("Bone Lisp 0.1");
-  reg_push(reg_new());
-#if 1
-  printf("[bone-read] ");
-  any x; print(x=bone_read()); putchar('\n');
-#endif
-  int line = 0;
-  while(1) {
-    printf("\n@%d: ", line++);
-    any e = bone_read();
-    sub_code code = compile2sub_code(e);
-    call((sub) &code, NULL);
-    print(last_value);
+void bone_repl() { int line = 0;
+  while(1) { printf("\n@%d: ", line++);
+    any e = bone_read(); sub_code code = compile2sub_code(e); call((sub) &code, NULL); print(last_value);
   }
+}
 
-  reg_free(reg_pop());
+// FIXME: should have its own file, to allow embedding.
+int main() {
+  printf("Bone Lisp 0.1"); bone_init(); bone_repl();
+
+  //reg_push(reg_new());
+  //reg_free(reg_pop());
   return 0;
 }
 
