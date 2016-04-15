@@ -253,15 +253,15 @@ my void print_args(any x) {
   print(far(x)); printf(" "); print_args(fdr(x));
 }
 my void print(any x) { switch(tag_of(x)) {
-  case t_cons:
-    if(is_sym(far(x)) && is_single(fdr(x))) {
-      if(far(x) == s_quote)            { printf("'");  print(far(fdr(x))); break; }
-      if(far(x) == s_quasiquote)       { printf("`");  print(far(fdr(x))); break; }
-      if(far(x) == s_unquote)          { printf(",");  print(far(fdr(x))); break; }
-      if(far(x) == s_unquote_splicing) { printf(",@"); print(far(fdr(x))); break; }
-    } else if(far(x) == s_lambda && is_cons(fdr(x)) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
-      printf("| "); print_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
-    }
+  case t_cons:; any a = far(x);
+    if(is_sym(far(x))) {
+      if(a == s_quote)            { printf("'");  print(fdr(x)); break; }
+      if(a == s_quasiquote)       { printf("`");  print(fdr(x)); break; }
+      if(a == s_unquote)          { printf(",");  print(fdr(x)); break; }
+      if(a == s_unquote_splicing) { printf(",@"); print(fdr(x)); break; }
+      if(a == s_lambda && is_cons(fdr(x)) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
+	printf("| "); print_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
+      } }
     bool first = true; printf("(");
     do { if(first) first=false; else printf(" "); print(far(x)); x=fdr(x); } while(is_tagged(x, t_cons));
     if(x != NIL) { printf(" . "); print(x); } printf(")"); break;
@@ -374,14 +374,14 @@ my any lambda_parser(any *body) { any x = reader();
 my any read_lambda_short_form() { any body, args = lambda_parser(&body); return cons(s_lambda, cons(args, single(body))); }
 my any read_unquote() { any q = s_unquote; int c = look();
   if(c == '@') { nextc(); q = s_unquote_splicing; }
-  return cons(q, single(reader()));
+  return cons(q, reader());
 }
-my any reader() { int c = find_token(); switch(c) {
+my any reader() { int c = find_token(); switch(c) { // FIXME: should have arg "allow_closing_paren"
   case ')': return READER_LIST_END;
   case '(': return read_list();
   case '|': return read_lambda_short_form();
-  case '\'': return cons(s_quote, single(reader()));
-  case '`': return cons(s_quasiquote, single(reader()));
+  case '\'': return cons(s_quote, reader());
+  case '`': return cons(s_quasiquote, reader());
   case ',': return read_unquote();
   case '"': return read_str();
   case '#': switch(c = nextc()) {
@@ -488,8 +488,8 @@ my void emit(any x, any *dst) { any next = single(x); set_fdr(*dst, next); *dst 
 my void compile_expr(any e, any env, bool tail_context, any *dst) {
   switch(tag_of(e)) {
   case t_num: case t_uniq: case t_str: emit(OP_CONST, dst); emit(e, dst); break;
-  case t_cons: // FIXME: handle special stuff like lambda, do, let etc. here
-    compile_expr(far(e), env, false, dst); emit(OP_PREPARE_CALL, dst);
+  case t_cons:; any first = far(e);
+    compile_expr(first, env, false, dst); emit(OP_PREPARE_CALL, dst);
     foreach(arg, fdr(e)) { compile_expr(arg, env, false, dst); emit(OP_ADD_ARG, dst); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, dst); break;
   case t_sym:; any local = assoq(e, env);
@@ -534,8 +534,7 @@ DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
 DEFSUB(unaryminus) { last_value = int2any(-any2int(args[0])); }
 DEFSUB(simpleminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
-DEFSUB(fullminus) { int res = any2int(args[0]);
-  foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
+DEFSUB(fullminus) { int res = any2int(args[0]); foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
 DEFSUB(simple_num_eqp) { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
 DEFSUB(simple_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
 DEFSUB(simple_num_gtp) { last_value = to_bool(any2int(args[0]) > any2int(args[1])); }
@@ -545,8 +544,7 @@ DEFSUB(simple_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[
 // FIXME: the set_far() below may be dangerous when we have `car!`, because a sub that takes only
 // rest args will see the cons `arg` directly and could let it escape.  In the sense of:
 //   (each xs (lambda rest (car! elsewhere rest))) ;; but taking rest args here is not sane.
-DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE);
-  foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
+DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -595,7 +593,7 @@ my void init_csubs() {
 
 my any copy(any x) {
   switch(tag_of(x)) {
-  case t_cons: return cons(copy(far(x)), copy(fdr(x)));
+  case t_cons: return cons(copy(far(x)), copy(fdr(x))); // FIXME: optimize
   case t_str: return str(copy(unstr(x)));
   case t_sym: case t_num: case t_uniq: return x;
   case t_sub: return copy_sub(x);
@@ -620,7 +618,7 @@ void bone_init() {
 int main() {
   bone_init(); printf("Bone Lisp 0.1");
   reg_push(reg_new());
-#if 0
+#if 1
   printf("[bone-read] ");
   any x; print(x=bone_read()); putchar('\n');
 #endif
