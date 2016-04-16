@@ -480,7 +480,7 @@ my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc,
 //////////////// bindings ////////////////
 
 my hash bindings; // FIXME: does it need mutex protection?
-my void bind(any name, any subr) { reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); } // FIXME: reg-change?
+my void bind(any name, any subr) { reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); }
 my any get_binding(any name) { return hash_get(bindings, name); }
 
 //////////////// compiler ////////////////
@@ -535,10 +535,10 @@ DEFSUB(not) { last_value = to_bool(args[0] == BFALSE); }
 DEFSUB(car) { last_value = car(args[0]); }
 DEFSUB(cdr) { last_value = cdr(args[0]); }
 DEFSUB(consp) { last_value = to_bool(is_tagged(args[0], t_cons)); }
-DEFSUB(symp) { last_value = to_bool(is_tagged(args[0], t_sym)); }
-DEFSUB(subp) { last_value = to_bool(is_tagged(args[0], t_sub)); }
-DEFSUB(nump) { last_value = to_bool(is_tagged(args[0], t_num)); }
-DEFSUB(strp) { last_value = to_bool(is_tagged(args[0], t_str)); }
+DEFSUB(symp)  { last_value = to_bool(is_tagged(args[0], t_sym)); }
+DEFSUB(subp)  { last_value = to_bool(is_tagged(args[0], t_sub)); }
+DEFSUB(nump)  { last_value = to_bool(is_tagged(args[0], t_num)); }
+DEFSUB(strp)  { last_value = to_bool(is_tagged(args[0], t_str)); }
 DEFSUB(str) { last_value = str(args[0]); }
 DEFSUB(unstr) { last_value = unstr(args[0]); }
 DEFSUB(len) { last_value = int2any(len(args[0])); }
@@ -549,13 +549,13 @@ DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
 DEFSUB(unaryminus) { last_value = int2any(-any2int(args[0])); }
 DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
 DEFSUB(fullminus) { int res = any2int(args[0]); foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
-DEFSUB(fast_num_eqp) { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
+DEFSUB(fast_num_eqp)  { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
 DEFSUB(fast_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
-DEFSUB(fast_num_gtp) { last_value = to_bool(any2int(args[0]) > any2int(args[1])); }
-DEFSUB(fast_num_ltp) { last_value = to_bool(any2int(args[0]) < any2int(args[1])); }
+DEFSUB(fast_num_gtp)  { last_value = to_bool(any2int(args[0]) >  any2int(args[1])); }
+DEFSUB(fast_num_ltp)  { last_value = to_bool(any2int(args[0]) <  any2int(args[1])); }
 DEFSUB(fast_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
 DEFSUB(fast_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
-// FIXME: the set_far() below may be dangerous when we have `car!`, because a sub that takes only
+// FIXME: the set_far() in `each` may be dangerous when we have `car!`, because a sub that takes only
 // rest args will see the cons `arg` directly and could let it escape.  In the sense of:
 //   (each xs (lambda rest (car! elsewhere rest))) ;; but taking rest args here is not sane.
 DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
