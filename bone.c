@@ -485,24 +485,25 @@ my any get_binding(any name) { return hash_get(bindings, name); }
 
 //////////////// compiler ////////////////
 
-my void emit(any x, any *dst) { any next = single(x); set_fdr(*dst, next); *dst = next; }
-my void compile_expr(any e, any env, bool tail_context, any *dst) {
+typedef struct { any dst; int pos; } compile_state;
+my void emit(any x, compile_state *state) { any next = single(x); set_fdr(state->dst, next); state->dst = next; state->pos++; }
+my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
-  case t_num: case t_uniq: case t_str: emit(OP_CONST, dst); emit(e, dst); break;
+  case t_num: case t_uniq: case t_str: emit(OP_CONST, state); emit(e, state); break;
   case t_cons:; any first = far(e);
-    if(first == s_quote) { emit(OP_CONST, dst); emit(fdr(e), dst); break; } // FIXME: copy()?
-    if(first == s_do) { foreach_cons(x, fdr(e)) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, dst); break; }
-    compile_expr(first, env, false, dst); emit(OP_PREPARE_CALL, dst);
-    foreach(arg, fdr(e)) { compile_expr(arg, env, false, dst); emit(OP_ADD_ARG, dst); }
-    emit(tail_context ? OP_TAILCALL : OP_CALL, dst); break;
+    if(first == s_quote) { emit(OP_CONST, state); emit(fdr(e), state); break; } // FIXME: copy()?
+    if(first == s_do) { foreach_cons(x, fdr(e)) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
+    compile_expr(first, env, false, state); emit(OP_PREPARE_CALL, state);
+    foreach(arg, fdr(e)) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
+    emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
   case t_sym:; any local = assoq(e, env);
-    if(is(local)) { emit(far(local) == IN_ARGS ? OP_GET_ARG : OP_GET_ENV, dst); emit(fdr(local), dst); break; }
+    if(is(local)) { emit(far(local) == IN_ARGS ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
     any global = get_binding(e); if(!is_cons(global)) generic_error("unbound sym", e);
-    emit(OP_CONST, dst); emit(fdr(global), dst); break;
+    emit(OP_CONST, state); emit(fdr(global), state); break;
   }
 }
-my any compile2list(any expr) { any res = single(BFALSE); any buf = res;
-  compile_expr(expr, NIL, true, &buf); emit(OP_RET, &buf); return fdr(res);
+my any compile2list(any expr) { any res = single(BFALSE); compile_state state = {res,0};
+  compile_expr(expr, NIL, true, &state); emit(OP_RET, &state); return fdr(res);
 }
 my sub_code compile2sub_code(any e) { any raw = compile2list(e);
   reg_permanent(); sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); reg_pop(); // FIXME: we ignore env size
@@ -581,7 +582,7 @@ my void init_csubs() {
   register_csub(CSUB_unaryminus, "unary-", 1, false);
   register_csub(CSUB_simpleminus, "simple-", 2, false);
   register_csub(CSUB_fullminus, "full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
-  // FIXME: Add the full versions and bind canonical names to to them
+  // FIXME: Add the full versions and bind canonical names to them
   register_csub(CSUB_simple_num_eqp, "simple=?", 2, false); register_csub(CSUB_simple_num_eqp, "=?", 2, false);
   register_csub(CSUB_simple_num_neqp, "simple<>?", 2, false); register_csub(CSUB_simple_num_neqp, "<>?", 2, false);
   register_csub(CSUB_simple_num_gtp, "simple>?", 2, false); register_csub(CSUB_simple_num_gtp, ">?", 2, false);
