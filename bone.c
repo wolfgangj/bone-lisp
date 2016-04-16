@@ -523,7 +523,7 @@ my sub_code compile2sub_code(any e) { any raw = compile2list(e);
 //////////////// library ////////////////
 
 #define DEFSUB(name) my void CSUB_ ## name(any *args)
-DEFSUB(simpleplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
+DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
 DEFSUB(fullplus) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
 DEFSUB(cons) { last_value = cons(args[0], args[1]); }
 DEFSUB(print) { print(args[0]); last_value = single(args[0]); }
@@ -547,21 +547,21 @@ DEFSUB(intern) { last_value = intern_from_chars(unstr(args[0])); }
 DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
 DEFSUB(unaryminus) { last_value = int2any(-any2int(args[0])); }
-DEFSUB(simpleminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
+DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
 DEFSUB(fullminus) { int res = any2int(args[0]); foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
-DEFSUB(simple_num_eqp) { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
-DEFSUB(simple_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
-DEFSUB(simple_num_gtp) { last_value = to_bool(any2int(args[0]) > any2int(args[1])); }
-DEFSUB(simple_num_ltp) { last_value = to_bool(any2int(args[0]) < any2int(args[1])); }
-DEFSUB(simple_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
-DEFSUB(simple_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
+DEFSUB(fast_num_eqp) { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
+DEFSUB(fast_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
+DEFSUB(fast_num_gtp) { last_value = to_bool(any2int(args[0]) > any2int(args[1])); }
+DEFSUB(fast_num_ltp) { last_value = to_bool(any2int(args[0]) < any2int(args[1])); }
+DEFSUB(fast_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
+DEFSUB(fast_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
 // FIXME: the set_far() below may be dangerous when we have `car!`, because a sub that takes only
 // rest args will see the cons `arg` directly and could let it escape.  In the sense of:
 //   (each xs (lambda rest (car! elsewhere rest))) ;; but taking rest args here is not sane.
 DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
-DEFSUB(simplemult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
+DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_value = int2any(ires); }
-DEFSUB(simplediv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
+DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
 DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0]) / any2int(last_value)); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
@@ -570,8 +570,8 @@ my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
 }
 my void init_csubs() {
-  register_csub(CSUB_simpleplus, "simple+", 2, 0);
-  register_csub(CSUB_fullplus, "full+", 0, 1); register_csub(CSUB_fullplus, "+", 0, 1);
+  register_csub(CSUB_fastplus, "_fast+", 2, 0);
+  register_csub(CSUB_fullplus, "_full+", 0, 1); register_csub(CSUB_fullplus, "+", 0, 1);
   register_csub(CSUB_cons, "cons", 2, 0);
   register_csub(CSUB_print, "print", 1, 0);
   register_csub(CSUB_apply, "apply", 2, 0);
@@ -593,22 +593,22 @@ my void init_csubs() {
   register_csub(CSUB_intern, "intern", 1, 0); register_csub(CSUB_intern, "str->sym", 1, 0);
   register_csub(CSUB_copy, "copy", 1, 0);
   register_csub(CSUB_say, "say", 0, 1);
-  register_csub(CSUB_unaryminus, "unary-", 1, 0);
-  register_csub(CSUB_simpleminus, "simple-", 2, 0);
-  register_csub(CSUB_fullminus, "full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
+  register_csub(CSUB_unaryminus, "_unary-", 1, 0);
+  register_csub(CSUB_fastminus, "_fast-", 2, 0);
+  register_csub(CSUB_fullminus, "_full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
   // FIXME: Add the full versions and bind canonical names to them
-  register_csub(CSUB_simple_num_eqp, "simple=?", 2, 0); register_csub(CSUB_simple_num_eqp, "=?", 2, 0);
-  register_csub(CSUB_simple_num_neqp, "simple<>?", 2, 0); register_csub(CSUB_simple_num_neqp, "<>?", 2, 0);
-  register_csub(CSUB_simple_num_gtp, "simple>?", 2, 0); register_csub(CSUB_simple_num_gtp, ">?", 2, 0);
-  register_csub(CSUB_simple_num_ltp, "simple<?", 2, 0); register_csub(CSUB_simple_num_ltp, "<?", 2, 0);
-  register_csub(CSUB_simple_num_geqp, "simple>=?", 2, 0); register_csub(CSUB_simple_num_geqp, ">=?", 2, 0);
-  register_csub(CSUB_simple_num_leqp, "simple<=?", 2, 0); register_csub(CSUB_simple_num_leqp, "<=?", 2, 0);
+  register_csub(CSUB_fast_num_eqp, "_fast=?", 2, 0); register_csub(CSUB_fast_num_eqp, "=?", 2, 0);
+  register_csub(CSUB_fast_num_neqp, "_fast<>?", 2, 0); register_csub(CSUB_fast_num_neqp, "<>?", 2, 0);
+  register_csub(CSUB_fast_num_gtp, "_fast>?", 2, 0); register_csub(CSUB_fast_num_gtp, ">?", 2, 0);
+  register_csub(CSUB_fast_num_ltp, "_fast<?", 2, 0); register_csub(CSUB_fast_num_ltp, "<?", 2, 0);
+  register_csub(CSUB_fast_num_geqp, "_fast>=?", 2, 0); register_csub(CSUB_fast_num_geqp, ">=?", 2, 0);
+  register_csub(CSUB_fast_num_leqp, "_fast<=?", 2, 0); register_csub(CSUB_fast_num_leqp, "<=?", 2, 0);
 
   register_csub(CSUB_each, "each", 2, 0);
-  register_csub(CSUB_simplemult, "simple*", 2, 0);
-  register_csub(CSUB_fullmult, "full*", 0, 1); register_csub(CSUB_fullmult, "*", 0, 1);
-  register_csub(CSUB_simplediv, "simple/", 2, 0);
-  register_csub(CSUB_fulldiv, "full/", 1, 1); register_csub(CSUB_fulldiv, "/", 1, 1);
+  register_csub(CSUB_fastmult, "_fast*", 2, 0);
+  register_csub(CSUB_fullmult, "_full*", 0, 1); register_csub(CSUB_fullmult, "*", 0, 1);
+  register_csub(CSUB_fastdiv, "_fast/", 2, 0);
+  register_csub(CSUB_fulldiv, "_full/", 1, 1); register_csub(CSUB_fulldiv, "/", 1, 1);
 }
 
 //////////////// misc ////////////////
