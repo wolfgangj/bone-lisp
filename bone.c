@@ -559,6 +559,10 @@ DEFSUB(simple_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[
 // rest args will see the cons `arg` directly and could let it escape.  In the sense of:
 //   (each xs (lambda rest (car! elsewhere rest))) ;; but taking rest args here is not sane.
 DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
+DEFSUB(simplemult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
+DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_value = int2any(ires); }
+DEFSUB(simplediv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
+DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0]) / any2int(last_value)); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -566,41 +570,45 @@ my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
 }
 my void init_csubs() {
-  register_csub(CSUB_simpleplus, "simple+", 2, false);
+  register_csub(CSUB_simpleplus, "simple+", 2, 0);
   register_csub(CSUB_fullplus, "full+", 0, 1); register_csub(CSUB_fullplus, "+", 0, 1);
-  register_csub(CSUB_cons, "cons", 2, false);
-  register_csub(CSUB_print, "print", 1, false);
-  register_csub(CSUB_apply, "apply", 2, false);
-  register_csub(CSUB_id, "id", 1, false); register_csub(CSUB_id, "list", 0, 1);
-  register_csub(CSUB_nilp, "nil?", 1, false); register_csub(CSUB_nilp, "no", 1, false);
-  register_csub(CSUB_eqp, "eq?", 2, false);
-  register_csub(CSUB_not, "not", 1, false);
-  register_csub(CSUB_car, "car", 1, false);
-  register_csub(CSUB_cdr, "cdr", 1, false);
-  register_csub(CSUB_consp, "cons?", 1, false);
-  register_csub(CSUB_symp, "sym?", 1, false);
-  register_csub(CSUB_subp, "sub?", 1, false);
-  register_csub(CSUB_nump, "num?", 1, false);
-  register_csub(CSUB_strp, "str?", 1, false);
-  register_csub(CSUB_str, "str", 1, false);
-  register_csub(CSUB_unstr, "unstr", 1, false);
-  register_csub(CSUB_len, "len", 1, false); register_csub(CSUB_len, "length", 1, false); register_csub(CSUB_len, "size", 1, false);
-  register_csub(CSUB_assoq, "assoq", 2, false);
-  register_csub(CSUB_intern, "intern", 1, false); register_csub(CSUB_intern, "str->sym", 1, false);
-  register_csub(CSUB_copy, "copy", 1, false);
+  register_csub(CSUB_cons, "cons", 2, 0);
+  register_csub(CSUB_print, "print", 1, 0);
+  register_csub(CSUB_apply, "apply", 2, 0);
+  register_csub(CSUB_id, "id", 1, 0); register_csub(CSUB_id, "list", 0, 1);
+  register_csub(CSUB_nilp, "nil?", 1, 0); register_csub(CSUB_nilp, "no", 1, 0);
+  register_csub(CSUB_eqp, "eq?", 2, 0);
+  register_csub(CSUB_not, "not", 1, 0);
+  register_csub(CSUB_car, "car", 1, 0);
+  register_csub(CSUB_cdr, "cdr", 1, 0);
+  register_csub(CSUB_consp, "cons?", 1, 0);
+  register_csub(CSUB_symp, "sym?", 1, 0);
+  register_csub(CSUB_subp, "sub?", 1, 0);
+  register_csub(CSUB_nump, "num?", 1, 0);
+  register_csub(CSUB_strp, "str?", 1, 0);
+  register_csub(CSUB_str, "str", 1, 0);
+  register_csub(CSUB_unstr, "unstr", 1, 0);
+  register_csub(CSUB_len, "len", 1, 0); register_csub(CSUB_len, "length", 1, 0); register_csub(CSUB_len, "size", 1, 0);
+  register_csub(CSUB_assoq, "assoq", 2, 0);
+  register_csub(CSUB_intern, "intern", 1, 0); register_csub(CSUB_intern, "str->sym", 1, 0);
+  register_csub(CSUB_copy, "copy", 1, 0);
   register_csub(CSUB_say, "say", 0, 1);
-  register_csub(CSUB_unaryminus, "unary-", 1, false);
-  register_csub(CSUB_simpleminus, "simple-", 2, false);
+  register_csub(CSUB_unaryminus, "unary-", 1, 0);
+  register_csub(CSUB_simpleminus, "simple-", 2, 0);
   register_csub(CSUB_fullminus, "full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
   // FIXME: Add the full versions and bind canonical names to them
-  register_csub(CSUB_simple_num_eqp, "simple=?", 2, false); register_csub(CSUB_simple_num_eqp, "=?", 2, false);
-  register_csub(CSUB_simple_num_neqp, "simple<>?", 2, false); register_csub(CSUB_simple_num_neqp, "<>?", 2, false);
-  register_csub(CSUB_simple_num_gtp, "simple>?", 2, false); register_csub(CSUB_simple_num_gtp, ">?", 2, false);
-  register_csub(CSUB_simple_num_ltp, "simple<?", 2, false); register_csub(CSUB_simple_num_ltp, "<?", 2, false);
-  register_csub(CSUB_simple_num_geqp, "simple>=?", 2, false); register_csub(CSUB_simple_num_geqp, ">=?", 2, false);
-  register_csub(CSUB_simple_num_leqp, "simple<=?", 2, false); register_csub(CSUB_simple_num_leqp, "<=?", 2, false);
+  register_csub(CSUB_simple_num_eqp, "simple=?", 2, 0); register_csub(CSUB_simple_num_eqp, "=?", 2, 0);
+  register_csub(CSUB_simple_num_neqp, "simple<>?", 2, 0); register_csub(CSUB_simple_num_neqp, "<>?", 2, 0);
+  register_csub(CSUB_simple_num_gtp, "simple>?", 2, 0); register_csub(CSUB_simple_num_gtp, ">?", 2, 0);
+  register_csub(CSUB_simple_num_ltp, "simple<?", 2, 0); register_csub(CSUB_simple_num_ltp, "<?", 2, 0);
+  register_csub(CSUB_simple_num_geqp, "simple>=?", 2, 0); register_csub(CSUB_simple_num_geqp, ">=?", 2, 0);
+  register_csub(CSUB_simple_num_leqp, "simple<=?", 2, 0); register_csub(CSUB_simple_num_leqp, "<=?", 2, 0);
 
-  register_csub(CSUB_each, "each", 2, false);
+  register_csub(CSUB_each, "each", 2, 0);
+  register_csub(CSUB_simplemult, "simple*", 2, 0);
+  register_csub(CSUB_fullmult, "full*", 0, 1); register_csub(CSUB_fullmult, "*", 0, 1);
+  register_csub(CSUB_simplediv, "simple/", 2, 0);
+  register_csub(CSUB_fulldiv, "full/", 1, 1); register_csub(CSUB_fulldiv, "/", 1, 1);
 }
 
 //////////////// misc ////////////////
