@@ -403,7 +403,7 @@ my any bone_read() {
 
 typedef enum {
   OP_CONST = 1, OP_GET_ENV, OP_GET_ARG, OP_SET_LOCAL, OP_WRAP, OP_PREPARE_CALL, OP_CALL, OP_TAILCALL, OP_ADD_ARG,
-  OP_JMP_IF, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB
+  OP_JMP_IFN, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB
 } opcode;
 
 my any last_value;
@@ -452,7 +452,7 @@ start:;
     case OP_ADD_ARG:
       if(next_call->nonrest_args_left) { next_call->nonrest_args_left--; add_nonrest_arg(); } else add_rest_arg();
       break;
-    case OP_JMP_IF: if(!is(last_value)) { ip++; break; } // else fall through
+    case OP_JMP_IFN: if(is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
     case OP_RET: return;
     case OP_PREPARE_SUB: { sub_code lc = (sub_code) *ip++; lambda = (sub) reg_alloc(1+lc->size_of_env);
@@ -487,12 +487,22 @@ my any get_binding(any name) { return hash_get(bindings, name); }
 
 typedef struct { any dst; int pos; } compile_state;
 my void emit(any x, compile_state *state) { any next = single(x); set_fdr(state->dst, next); state->dst = next; state->pos++; }
+my void compile_expr(any e, any env, bool tail_context, compile_state *state); // decl for mutual recursion
+my void compile_if(any e, any env, bool tail_context, compile_state *state) {
+  compile_expr(car(e), env, false, state); e = fdr(e);
+  emit(OP_JMP_IFN, state); emit(0, state); compile_state to_else_jmp = *state;
+  compile_expr(car(e), env, tail_context, state); emit(OP_JMP, state); emit(0, state); e = fdr(e);
+  set_far(to_else_jmp.dst, int2any(state->pos + 1 - to_else_jmp.pos)); compile_state after_then_jmp = *state;
+  compile_expr(car(e), env, tail_context, state);
+  set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
+}
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
   case t_num: case t_uniq: case t_str: emit(OP_CONST, state); emit(e, state); break;
   case t_cons:; any first = far(e);
-    if(first == s_quote) { emit(OP_CONST, state); emit(fdr(e), state); break; } // FIXME: copy()?
-    if(first == s_do) { foreach_cons(x, fdr(e)) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
+    if(first==s_quote) { emit(OP_CONST, state); emit(fdr(e), state); break; } // FIXME: copy()?
+    if(first==s_do) { foreach_cons(x, fdr(e)) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
+    if(first==s_if) { compile_if(fdr(e), env, tail_context, state); break; }
     compile_expr(first, env, false, state); emit(OP_PREPARE_CALL, state);
     foreach(arg, fdr(e)) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
