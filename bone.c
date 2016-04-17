@@ -563,6 +563,9 @@ DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_value = int2any(ires); }
 DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
 DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0]) / any2int(last_value)); }
+DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
+DEFSUB(cat2) { if(is_nil(args[0])) { last_value = args[1]; return; } any res = precons(car(args[0])); any p = res;
+  foreach(x, fdr(args[0])) { any n = precons(x); set_fdr(p, n); p = n; } set_fdr(p, args[1]); last_value = res; }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -609,6 +612,8 @@ my void init_csubs() {
   register_csub(CSUB_fullmult, "_full*", 0, 1); register_csub(CSUB_fullmult, "*", 0, 1);
   register_csub(CSUB_fastdiv, "_fast/", 2, 0);
   register_csub(CSUB_fulldiv, "_full/", 1, 1); register_csub(CSUB_fulldiv, "/", 1, 1);
+  register_csub(CSUB_listp, "list?", 1, 0);
+  register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
 }
 
 //////////////// misc ////////////////
