@@ -479,7 +479,7 @@ my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc,
 
 //////////////// bindings ////////////////
 
-my hash bindings; // FIXME: does it need mutex protection?
+my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
 my void bind(any name, any subr) { reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); }
 my any get_binding(any name) { return hash_get(bindings, name); }
 
@@ -570,6 +570,7 @@ DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
   if(subr->code->argc + subr->code->has_rest) generic_error("expected sub without args, but got", args[0]);
   reg_push(reg_new()); call(subr, reg_alloc(subr->code->localc)); last_value = copy_back(last_value); reg_free(reg_pop());
 }
+DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -619,6 +620,7 @@ my void init_csubs() {
   register_csub(CSUB_listp, "list?", 1, 0);
   register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
+  register_csub(CSUB_bind, "_bind", 2, 0);
 }
 
 //////////////// misc ////////////////
