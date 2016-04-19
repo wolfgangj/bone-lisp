@@ -40,8 +40,6 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define READER_LIST_END   UNIQ(102)
 #define BINDING_DEFINED   UNIQ(103)
 #define BINDING_DECLARED  UNIQ(104)
-#define IN_ARGS           UNIQ(105)
-#define IN_ENV            UNIQ(106)
 my bool is_nil(any x) { return x == NIL; }
 my bool is(any x) { return x != BFALSE; }
 my any to_bool(int x) { return x ? BTRUE : BFALSE; }
@@ -103,7 +101,7 @@ my any *reg_alloc(int n) { any *res = (any *) allocp; allocp += n;
 my any reg2any(reg r) { return tag((any) r, t_reg); }
 my reg any2reg(any x) { return (reg) untag_check(x, t_reg); }
 
-my any copy(any x); // FIXME: to header
+my any copy(any x);
 my any copy_back(any x) { reg_push(reg_sp[-1]); any y = copy(x); reg_pop(); return y; }
 
 //////////////// conses / lists ////////////////
@@ -164,13 +162,12 @@ my bool find_slot(hash h, any key, unsigned *pos) { int first_deleted = -1;
   }
 }
 
-my void hash_set(hash h, any key, any val); // FIXME: to header
+my void hash_set(hash h, any key, any val);
 my bool slot_used(any x) { return x != HASH_SLOT_UNUSED && x != HASH_SLOT_DELETED; } 
 my void enlarge_table(hash h) { hash new = hash_new(h->size * 2 + 1, NIL);
   for(unsigned i = 0; i != h->size; i++) if(slot_used(h->keys[i])) hash_set(new, h->keys[i], h->vals[i]);
   free(h->keys); free(h->vals); h->size = new->size; h->keys = new->keys; h->vals = new->vals; free(new);
 }
-
 my void hash_set(hash h, any key, any val) { unsigned pos;
   if(!find_slot(h, key, &pos)) {  // adding a new entry
     h->taken_slots++;
@@ -211,10 +208,10 @@ my any intern(const char *name) { size_t len; any id = string_hash(name, &len);
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
-my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot, s_do;
+my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot, s_do, s_stack, s_reg;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(with);x(if);s_dot=intern(".");x(do); }
+  x(lambda);x(with);x(if);s_dot=intern(".");x(do);x(stack);x(reg); }
 #undef x
 
 //////////////// subs ////////////////
@@ -368,8 +365,8 @@ my any read_list() { any x = reader();
 }
 my any lambda_parser(any *body) { any x = reader();
   if(is_cons(x)) { *body = x; return NIL; }
+  if(!is_sym(x)) { parse_error("invalid lambda short form (expected sym)"); }
   if(x == s_dot) { any rest = reader(); *body = reader(); return rest; }
-  if(is_nil(x)) { parse_error("empty body expression not allowed in lambda short form"); }
   return cons(x, lambda_parser(body));
 }
 my any read_lambda_short_form() { any body, args = lambda_parser(&body); return cons(s_lambda, cons(args, single(body))); }
@@ -377,7 +374,7 @@ my any read_unquote() { any q = s_unquote; int c = look();
   if(c == '@') { nextc(); q = s_unquote_splicing; }
   return cons(q, reader());
 }
-my any reader() { int c = find_token(); switch(c) { // FIXME: should have arg "allow_closing_paren"
+my any reader() { int c = find_token(); switch(c) {
   case ')': return READER_LIST_END;
   case '(': return read_list();
   case '|': return read_lambda_short_form();
@@ -500,14 +497,14 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
   case t_num: case t_uniq: case t_str: emit(OP_CONST, state); emit(e, state); break;
   case t_cons:; any first = far(e);
-    if(first==s_quote) { emit(OP_CONST, state); emit(fdr(e), state); break; } // FIXME: copy()?
+    if(first==s_quote) { emit(OP_CONST, state); emit(fdr(e), state); break; } // FIXME: copy() to permanent?
     if(first==s_do) { foreach_cons(x, fdr(e)) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
     if(first==s_if) { compile_if(fdr(e), env, tail_context, state); break; }
     compile_expr(first, env, false, state); emit(OP_PREPARE_CALL, state);
     foreach(arg, fdr(e)) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
   case t_sym:; any local = assoq(e, env);
-    if(is(local)) { emit(far(local) == IN_ARGS ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
+    if(is(local)) { emit(far(local) == s_stack ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
     any global = get_binding(e); if(!is_cons(global)) generic_error("unbound sym", e);
     emit(OP_CONST, state); emit(fdr(global), state); break;
   }
@@ -516,7 +513,7 @@ my any compile2list(any expr) { any res = single(BFALSE); compile_state state = 
   compile_expr(expr, NIL, true, &state); emit(OP_RET, &state); return fdr(res);
 }
 my sub_code compile2sub_code(any e) { any raw = compile2list(e);
-  reg_permanent(); sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); reg_pop(); // FIXME: we ignore env size
+  reg_permanent(); sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); reg_pop(); // FIXME: we pass 0 as env size
   any *p = code->code; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
 
