@@ -61,7 +61,7 @@ Bone Lisp is influenced by:
 Somewhat related projects:
 * [Pre-Scheme](https://en.wikipedia.org/wiki/PreScheme) is a GC-free (LIFO) subset of Scheme
 * [Carp](https://github.com/eriksvedang/Carp) is "a statically typed lisp, without a GC"
-* [newLISP](http://www.newlisp.org/) uses "One Reference Only" memory menagement
+* [newLISP](http://www.newlisp.org/) uses "One Reference Only" memory management
 * [MLKit](http://www.elsman.com/mlkit/) uses region inference (and a GC)
 * [Linear Lisp](http://home.pipeline.com/~hbaker1/LinearLisp.html) produces no garbage
 * [Dale](https://github.com/tomhrr/dale) is basically C in S-Exprs (but with macros)
