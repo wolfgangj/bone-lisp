@@ -362,7 +362,7 @@ my any read_str() { any curr, res = NIL;
 my any reader(); // for mutual recursion
 my any read_list() { any x = reader();
   if(x == READER_LIST_END) return NIL;
-  if(x == ENDOFFILE) parse_error("end of file in list");
+  if(x == ENDOFFILE) parse_error("end of file in list (use `M-x check-parens`)");
   if(x == s_dot) { x = reader(); if(reader() != READER_LIST_END) parse_error("invalid improper list"); return x; }
   return cons(x, read_list());
 }
@@ -395,7 +395,7 @@ my any reader() { int c = find_token(); switch(c) {
 }
 my any bone_read() {
   any x = reader();
-  if(x == READER_LIST_END) parse_error("unexpected closing parenthesis");
+  if(x == READER_LIST_END) parse_error("unexpected closing parenthesis (use `M-x check-parens`)");
   return x;
 }
 
@@ -511,7 +511,7 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
   sub_code sc = compile2sub_code(cons(s_do, body)); // FIXME: env+args
   emit(OP_PREPARE_SUB, state); emit((any) sc, state);
   foreach(x, env_of_sub) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
-    emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(pos, state); }
+    emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(pos, state); emit(OP_ADD_ENV, state); }
   emit(OP_MAKE_SUB, state);
 }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
