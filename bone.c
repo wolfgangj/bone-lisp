@@ -123,6 +123,9 @@ my any single(any x) { return cons(x, NIL); }
 
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
 my any assoq(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
+my any assoqc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
+my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); any p = res;
+  foreach(x, fdr(a)) { any n = precons(x); set_fdr(p, n); p = n; } set_fdr(p, b); return res; }
 
 //////////////// strs ////////////////
 
@@ -517,6 +520,16 @@ my sub_code compile2sub_code(any e) { any raw = compile2list(e);
   any *p = code->code; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
 
+my any collect_locals(any code, any locals) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env 0))
+  any res = NIL;
+  foreach(x, code) switch(tag_of(x)) {
+  case t_sym: { any local = assoqc(x, locals); if(is(local)) res = cons(local, res); break; }
+  case t_cons: res = cat2(res, collect_locals(x, locals)); break; // FIXME: cat2()->cat2_x()
+  default:; // nop
+  }
+  return res;
+}
+
 //////////////// library ////////////////
 
 #define DEFSUB(name) my void CSUB_ ## name(any *args)
@@ -561,13 +574,14 @@ DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_va
 DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
 DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0]) / any2int(last_value)); }
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
-DEFSUB(cat2) { if(is_nil(args[0])) { last_value = args[1]; return; } any res = precons(car(args[0])); any p = res;
-  foreach(x, fdr(args[0])) { any n = precons(x); set_fdr(p, n); p = n; } set_fdr(p, args[1]); last_value = res; }
+DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
 DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
   if(subr->code->argc + subr->code->has_rest) generic_error("expected sub without args, but got", args[0]);
   reg_push(reg_new()); call(subr, reg_alloc(subr->code->localc)); last_value = copy_back(last_value); reg_free(reg_pop());
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
+
+DEFSUB(test) { last_value = collect_locals(args[0], args[1]); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -618,6 +632,8 @@ my void init_csubs() {
   register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   register_csub(CSUB_bind, "_bind", 2, 0);
+
+  register_csub(CSUB_test, "test", 2, 0);
 }
 
 //////////////// misc ////////////////
