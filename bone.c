@@ -211,10 +211,10 @@ my any intern(const char *name) { size_t len; any id = string_hash(name, &len);
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
-my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot, s_do, s_stack, s_reg;
+my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot, s_do, s_arg, s_env;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(with);x(if);s_dot=intern(".");x(do);x(stack);x(reg); }
+  x(lambda);x(with);x(if);s_dot=intern(".");x(do);x(arg);x(env); }
 #undef x
 
 //////////////// subs ////////////////
@@ -496,18 +496,37 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   compile_expr(car(e), env, tail_context, state);
   set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
 }
+my any collect_locals(any code, any locals, any ignore) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env 0))
+  any res = NIL; foreach(x, code) switch(tag_of(x)) {
+  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is(assoqc(x, ignore))) res = cons(local, res); break; }
+  case t_cons: res = cat2(res, collect_locals(x, locals, ignore)); break; // FIXME: cat2()->cat2_x()
+  default:; } return res;
+}
+my int flatten_rest_x(any xs, int *len) { // returns whether there was a rest, store len w/o rest in `*len`.
+  foreach_cons(x, xs) { *len++; any tail = fdr(x); if(is_sym(tail)) { set_fdr(x, single(tail)); return 1; } } return 0; }
+my sub_code compile2sub_code(any e);
+my void compile_lambda(any args, any body, any env, compile_state *state) {
+  int argc = 0; int has_rest = flatten_rest_x(args, &argc);
+  any env_of_sub = collect_locals(cons(s_do, body), env, args);
+  sub_code sc = compile2sub_code(cons(s_do, body)); // FIXME: env+args
+  emit(OP_PREPARE_SUB, state); emit((any) sc, state);
+  foreach(x, env_of_sub) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
+    emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(pos, state); }
+  emit(OP_MAKE_SUB, state);
+}
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
   case t_num: case t_uniq: case t_str: emit(OP_CONST, state); emit(e, state); break;
-  case t_cons:; any first = far(e);
-    if(first==s_quote) { emit(OP_CONST, state); emit(fdr(e), state); break; } // FIXME: copy() to permanent?
-    if(first==s_do) { foreach_cons(x, fdr(e)) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
-    if(first==s_if) { compile_if(fdr(e), env, tail_context, state); break; }
+  case t_cons:; any first = far(e); any rest = fdr(e);
+    if(first==s_quote) { emit(OP_CONST, state); emit(rest, state); break; } // FIXME: copy() to permanent?
+    if(first==s_do) { foreach_cons(x, rest) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
+    if(first==s_if) { compile_if(rest, env, tail_context, state); break; }
+    if(first==s_lambda) { compile_lambda(car(rest), cdr(rest), env, state); break; }
     compile_expr(first, env, false, state); emit(OP_PREPARE_CALL, state);
-    foreach(arg, fdr(e)) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
+    foreach(arg, rest) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
   case t_sym:; any local = assoq(e, env);
-    if(is(local)) { emit(far(local) == s_stack ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
+    if(is(local)) { emit(far(local) == s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
     any global = get_binding(e); if(!is_cons(global)) generic_error("unbound sym", e);
     emit(OP_CONST, state); emit(fdr(global), state); break;
   }
@@ -519,16 +538,6 @@ my sub_code compile2sub_code(any e) { any raw = compile2list(e);
   reg_permanent(); sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); reg_pop(); // FIXME: we pass 0 as env size
   any *p = code->code; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
-
-my any collect_locals(any code, any locals) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env 0))
-  any res = NIL;
-  foreach(x, code) switch(tag_of(x)) {
-  case t_sym: { any local = assoqc(x, locals); if(is(local)) res = cons(local, res); break; }
-  case t_cons: res = cat2(res, collect_locals(x, locals)); break; // FIXME: cat2()->cat2_x()
-  default:; // nop
-  }
-  return res;
-}
 
 //////////////// library ////////////////
 
@@ -580,8 +589,7 @@ DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
   reg_push(reg_new()); call(subr, reg_alloc(subr->code->localc)); last_value = copy_back(last_value); reg_free(reg_pop());
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
-
-DEFSUB(test) { last_value = collect_locals(args[0], args[1]); }
+DEFSUB(assoqc) { last_value = assoqc(args[0], args[1]); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -632,8 +640,7 @@ my void init_csubs() {
   register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   register_csub(CSUB_bind, "_bind", 2, 0);
-
-  register_csub(CSUB_test, "test", 2, 0);
+  register_csub(CSUB_assoqc, "assoq-cons", 2, 0); // FIXME: assoq-w/key ?
 }
 
 //////////////// misc ////////////////
