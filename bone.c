@@ -516,7 +516,7 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
 }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
-  case t_num: case t_uniq: case t_str: emit(OP_CONST, state); emit(e, state); break;
+  case t_num: case t_uniq: case t_str: case t_sub: case t_other: case t_reg: emit(OP_CONST, state); emit(e, state); break;
   case t_cons:; any first = far(e); any rest = fdr(e);
     if(first==s_quote) { emit(OP_CONST, state); emit(rest, state); break; } // FIXME: copy() to permanent?
     if(first==s_do) { foreach_cons(x, rest) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
