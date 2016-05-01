@@ -142,6 +142,12 @@ my char *list2charp(any x) {
   *p = '\0'; return res;
 }
 
+my bool chr_eql(any chr1, any chr2) { return chr1 == chr2; } // FIXME: grapheme clusters
+my bool str_eql(any s1, any s2) { s1=unstr(s1); s2=unstr(s2);
+  foreach(chr, s1) { if(is_nil(s2) || !chr_eql(chr, far(s2))) return false; s2=fdr(s2); }
+  return is_nil(s2);
+}
+
 //////////////// hash tables ////////////////
 
 #define MAXLOAD 175 // Value between 0 and 255; 128 will cause an average of two probes.
@@ -593,6 +599,8 @@ DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
 DEFSUB(assoqc) { last_value = assoqc(args[0], args[1]); }
+DEFSUB(fast_str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
+DEFSUB(fast_str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -616,10 +624,10 @@ my void init_csubs() {
   register_csub(CSUB_subp, "sub?", 1, 0);
   register_csub(CSUB_nump, "num?", 1, 0);
   register_csub(CSUB_strp, "str?", 1, 0);
-  register_csub(CSUB_str, "str", 1, 0);
-  register_csub(CSUB_unstr, "unstr", 1, 0);
+  register_csub(CSUB_str, "str", 1, 0); register_csub(CSUB_str, "list->str", 1, 0);
+  register_csub(CSUB_unstr, "unstr", 1, 0); register_csub(CSUB_unstr, "str->list", 1, 0);
   register_csub(CSUB_len, "len", 1, 0); register_csub(CSUB_len, "length", 1, 0); register_csub(CSUB_len, "size", 1, 0);
-  register_csub(CSUB_assoq, "assoq", 2, 0);
+  register_csub(CSUB_assoq, "assoq?", 2, 0);
   register_csub(CSUB_intern, "intern", 1, 0); register_csub(CSUB_intern, "str->sym", 1, 0);
   register_csub(CSUB_copy, "copy", 1, 0);
   register_csub(CSUB_say, "say", 0, 1);
@@ -643,7 +651,10 @@ my void init_csubs() {
   register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   register_csub(CSUB_bind, "_bind", 2, 0);
-  register_csub(CSUB_assoqc, "assoq-cons", 2, 0); // FIXME: assoq-w/key ?
+  register_csub(CSUB_assoqc, "assoq-cons?", 2, 0); // FIXME: call it assoq-w/key ?
+  // FIXME: Add the full versions and bind canonical names to them
+  register_csub(CSUB_fast_str_eql, "_fast-str=?", 2, 0); register_csub(CSUB_fast_str_eql, "str=?", 2, 0);
+  register_csub(CSUB_fast_str_neql, "_fast-str<>?", 2, 0); register_csub(CSUB_fast_str_neql, "str<>?", 2, 0);
 }
 
 //////////////// misc ////////////////
