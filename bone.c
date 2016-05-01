@@ -127,6 +127,9 @@ my any assoqc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; retu
 my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); any p = res;
   foreach(x, fdr(a)) { any n = precons(x); set_fdr(p, n); p = n; } set_fdr(p, b); return res; }
 
+my any move_last_to_rest_x(any xs) { if(is_single(xs)) return far(xs);
+  foreach_cons(pair, xs) if(is_single(fdr(pair))) { set_fdr(pair, far(fdr(pair))); break; } return xs; }
+
 //////////////// strs ////////////////
 
 my any str(any chrs) { any *p = reg_alloc(1); *p = chrs; return tag((any) p, t_str); }
@@ -546,7 +549,7 @@ DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
 DEFSUB(fullplus) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
 DEFSUB(cons) { last_value = cons(args[0], args[1]); }
 DEFSUB(print) { print(args[0]); last_value = single(args[0]); }
-DEFSUB(apply) { apply(any2sub(args[0]), args[1]); } // FIXME: (apply foo a b c xs)
+DEFSUB(apply) { apply(any2sub(args[0]), move_last_to_rest_x(args[1])); }
 DEFSUB(id) { last_value = args[0]; }
 DEFSUB(nilp) { last_value = to_bool(args[0] == NIL); }
 DEFSUB(eqp) { last_value = to_bool(args[0] == args[1]); }
@@ -601,7 +604,7 @@ my void init_csubs() {
   register_csub(CSUB_fullplus, "_full+", 0, 1); register_csub(CSUB_fullplus, "+", 0, 1);
   register_csub(CSUB_cons, "cons", 2, 0);
   register_csub(CSUB_print, "print", 1, 0);
-  register_csub(CSUB_apply, "apply", 2, 0);
+  register_csub(CSUB_apply, "apply", 1, 1);
   register_csub(CSUB_id, "id", 1, 0); register_csub(CSUB_id, "list", 0, 1);
   register_csub(CSUB_nilp, "nil?", 1, 0); register_csub(CSUB_nilp, "no", 1, 0);
   register_csub(CSUB_eqp, "eq?", 2, 0);
