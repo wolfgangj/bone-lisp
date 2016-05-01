@@ -1,0 +1,136 @@
+;;;; core.bn -- Documentation for Bone Lisp core operations.
+;;;; Copyright (C) 2016 Wolfgang Jaehrling
+;;;;
+;;;; Permission to use, copy, modify, and/or distribute this software for any
+;;;; purpose with or without fee is hereby granted, provided that the above
+;;;; copyright notice and this permission notice appear in all copies.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+;;;; WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+;;;; MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+;;;; ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+;;;; WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+;;;; Note: This file just provides the docstrings for the operations
+;;;; in the core.  You will not find any implementation here.  This
+;;;; file should not be evaluated, it should only be parsed by a
+;;;; documentation generator.
+
+;; TODO: We are at `cons?` currently.
+
+;;;; Special forms
+
+(defspecial (if test then . else)
+  "If `test` yields true, evaluate `then`, otherwise `else`.
+
+The only value that does not count as true is `\f`, the booolean false
+value.  This means that the empty list as well as the number zero are
+considered to be true values.  See `nil?` and `zero?` if you want to
+check for those values.")
+
+(defspecial (quote . obj)
+  "Returns `obj`, unevaluated.")
+
+(defspecial (lambda args . body)
+  "Create an anonymous sub with arguments `args` and code `body`.
+
+`args` can be either a `sym` or a list of `sym`s; if it is a list, it
+may be improper, but only if it has a `sym` as rest.  This means:
+
+* `(lambda x ...)` will bind the list of arguments to `x`.
+* `(lambda (a b) ...)` will find two arguments to `a` and `b`, respectively.
+* `(lambda (a b . x) ...)` will bind two arguments to `a` and `b`,
+  as well as all remaining arguments to `x`.
+
+`body` is a list of expressions, which will be evaluated in order.
+
+The anonymous sub that is created will be lexically scoped,
+i.e. bindings defined in an outer scope may be used and are
+encapsulated if the sub is passed back as a return value.")
+
+;;;; General
+
+(defsub (eq? a b)
+  "Returns whether `a` and `b` are the same object.
+
+Don't use this for comparing numbers, use `=?` instead.  The most
+important use of `eq?` is as a quick way to compare `sym`s.")
+
+(defsub (not x)
+  "Boolean negation: Return whether `x` is false.
+
+Do not confuse this with `no` or `nil?`, which test for the empty list.")
+
+(defsub (apply sub . args)
+  "Apply `sub` to the given arguments, the last value in `args` must be a list.
+
+The exact behaviour is best explained with examples:
+* `(apply f)` is `(f)`
+* `(apply f '(1 2 3))` is `(f 1 2 3)`
+* `(apply f 1 2 '(3 4))` is `(f 1 2 3 4)`
+
+This allows to use a list as the arguments to a sub, while also having
+fixed arguments at the same time (without a need for consing them to
+the front of the list manually).")
+
+(defsub (id x)
+  "This is the identity sub; it simply returns `x`.
+
+This is sometimes useful in higher order programming.")
+
+;;;; Lists
+
+(defsub (cons a d)
+  "Create a cons cell containing `a` as car and `d` as cdr.")
+
+(defsub (car x)
+  "Return the car (first element) of the cons cell `x`.
+
+Note that `car` and `cdr` are low-level operations which usually
+should not appear in application code.  Instead, higher-level list
+operations should be used (which may be implemented in terms of `car`
+and `cdr`).")
+
+(defsub (cdr x)
+  "Return the cdr (second element) of the cons cell `x`.
+
+See `car` for additional usage information.")
+
+(defsub (cons? x)
+  "Return whether `x` is a `cons` cell.")
+
+(defsub (nil? x)
+  "Return whether `x` is the empty list.
+
+This is the same as `no`.")
+
+(defsub (no xs)
+  "Return whether `xs` is the empty list.
+
+This is the same as `nil?`, but often reads more naturally.")
+
+(defsub (list . xs)
+  "Returns `xs`.
+
+This is a basic list constructor; it's more convenient (and faster)
+than nested `cons` calls.")
+
+;;;; Numbers
+
+(defsub (+ . nums)
+  "Add all numbers in `nums` (which may not contain anything but numbers).")
+
+;;;; I/O
+
+(defsub (print x)
+  "Print `x` as an extended symbolic expression.
+
+This will print the object so that it can be read by humans and also
+read back by the Lisp reader, except if it contains objects which
+cannot be read back, like regions or `sub`s.  Reading back is possible
+as long as it only contains lists, `sym`s, numbers and bools.  The
+abbreviations for `quote`, `quasiquote`, `unquote`, `unquote-splicing`
+and `lambda` will be printed to keep the output short and as
+human-readable as possible.")
