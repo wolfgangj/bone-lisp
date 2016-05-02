@@ -1,4 +1,4 @@
-;;;; core.bn -- Documentation for Bone Lisp core operations.
+;;;; core.bn -- Documentation for Bone Lisp core operations.   -*- lisp -*-
 ;;;; Copyright (C) 2016 Wolfgang Jaehrling
 ;;;;
 ;;;; Permission to use, copy, modify, and/or distribute this software for any
@@ -16,13 +16,16 @@
 ;;;; Note: This file just provides the docstrings for the operations
 ;;;; in the core.  You will not find any implementation here.  This
 ;;;; file should not be evaluated, it should only be parsed by a
-;;;; documentation generator.
+;;;; documentation generator.  Besides `defsub`, this file uses
+;;;; `defspecial` to document special forms and `defalias` for
+;;;; alternative names of subs, as well as `section` to define the
+;;;; different sections.
 
-;; TODO: We are at `cons?` currently.
+;; TODO: We are at `copy` currently.
 
-;;;; Special forms
+(section "Special forms")
 
-(defspecial (if test then . else)
+(defspecial (if test then else)
   "If `test` yields true, evaluate `then`, otherwise `else`.
 
 The only value that does not count as true is `\f`, the booolean false
@@ -50,7 +53,7 @@ The anonymous sub that is created will be lexically scoped,
 i.e. bindings defined in an outer scope may be used and are
 encapsulated if the sub is passed back as a return value.")
 
-;;;; General
+(section "General utilities")
 
 (defsub (eq? a b)
   "Returns whether `a` and `b` are the same object.
@@ -58,10 +61,18 @@ encapsulated if the sub is passed back as a return value.")
 Don't use this for comparing numbers, use `=?` instead.  The most
 important use of `eq?` is as a quick way to compare `sym`s.")
 
+(defsub (copy x)
+  "Return a newly allocated copy of `x`.")
+
 (defsub (not x)
   "Boolean negation: Return whether `x` is false.
 
 Do not confuse this with `no` or `nil?`, which test for the empty list.")
+
+(section "Subroutines (`sub`s)")
+
+(defsub (sub? x)
+  "Return whether `x` is a sub.")
 
 (defsub (apply sub . args)
   "Apply `sub` to the given arguments, the last value in `args` must be a list.
@@ -73,14 +84,14 @@ The exact behaviour is best explained with examples:
 
 This allows to use a list as the arguments to a sub, while also having
 fixed arguments at the same time (without a need for consing them to
-the front of the list manually).")
+the front of the list manually).  See also `list*`.")
 
 (defsub (id x)
   "This is the identity sub; it simply returns `x`.
 
 This is sometimes useful in higher order programming.")
 
-;;;; Lists
+(section "Cons Cells and Lists")
 
 (defsub (cons a d)
   "Create a cons cell containing `a` as car and `d` as cdr.")
@@ -101,15 +112,13 @@ See `car` for additional usage information.")
 (defsub (cons? x)
   "Return whether `x` is a `cons` cell.")
 
+(defalias no nil?)
 (defsub (nil? x)
   "Return whether `x` is the empty list.
 
-This is the same as `no`.")
+This is the same as `no`, but `no` often reads more naturally, as in:
 
-(defsub (no xs)
-  "Return whether `xs` is the empty list.
-
-This is the same as `nil?`, but often reads more naturally.")
+    (if (no xs) ... ...)")
 
 (defsub (list . xs)
   "Returns `xs`.
@@ -117,12 +126,50 @@ This is the same as `nil?`, but often reads more naturally.")
 This is a basic list constructor; it's more convenient (and faster)
 than nested `cons` calls.")
 
-;;;; Numbers
+(defalias length len)
+(defalias size len)
+(defsub (len xs)
+  "Return the number of elements in `xs`.")
+
+(section "Association Lists")
+
+(defsub (assoq? x alist)
+  "Get the value corresponding to the key `x` in `alist` (`#f` if not found).
+
+An `alist` is an 'association list': Each of it elements is a cons
+cell with a key in its `car` and a corresponding value in the
+`cdr` (sometimes also the `cadr` - this is useful if you want to
+distinguish between a value being `#f` and no value being found).
+This sub will return the `cdr` where the `car` is `x`.")
+
+(section "Numbers")
+
+(defsub (num? x)
+  "Return whether `x` is a number.")
 
 (defsub (+ . nums)
   "Add all numbers in `nums` (which may not contain anything but numbers).")
 
-;;;; I/O
+(section "Strings (`str`s)")
+
+(defsub (str? x)
+  "Return whether `x` is a string (a `str`).")
+
+(defalias list->str str)
+(defsub (str chrs)
+  "Return a new `str` with the characters from the list `chrs`.
+
+A character in `chrs` may either be an integer specifying a UCS code
+points, or a list of UCS code points which represents a grapheme
+cluster (a 'user-perceived character' that may be combined from
+several code points).  A grapheme cluster always starts with a base
+code point, followed by zero or more continuing code points.")
+
+(defalias str->list unstr)
+(defsub (unstr s)
+  "Return the list of characters in `s`.")
+
+(section "Input/Output")
 
 (defsub (print x)
   "Print `x` as an extended symbolic expression.
@@ -134,3 +181,14 @@ as long as it only contains lists, `sym`s, numbers and bools.  The
 abbreviations for `quote`, `quasiquote`, `unquote`, `unquote-splicing`
 and `lambda` will be printed to keep the output short and as
 human-readable as possible.")
+
+(section "Symbols (`sym`s)")
+
+(defsub (sym? x)
+  "Return whether `x` is a sym.")
+
+(defalias str->sym intern)
+(defsub (intern s)
+  "Return the `sym` with the text of `str`.
+
+If it does not exist yet, it will be created.")
