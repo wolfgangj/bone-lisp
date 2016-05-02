@@ -18,26 +18,27 @@
 ;;;; file should not be evaluated, it should only be parsed by a
 ;;;; documentation generator.  Besides `defsub`, this file uses
 ;;;; `defspecial` to document special forms and `defalias` for
-;;;; alternative names of subs, as well as `section` to define the
+;;;; alternative names of subs, as well as `defsection` to define the
 ;;;; different sections.
 
 ;; TODO: We are at `copy` currently.
 
-(section "Special forms")
+(defsection "Special forms"
+  "Special forms are built-in forms with special evaluation rules."
 
-(defspecial (if test then else)
-  "If `test` yields true, evaluate `then`, otherwise `else`.
+  (defspecial (if test then else)
+    "If `test` yields true, evaluate `then`, otherwise `else`.
 
 The only value that does not count as true is `\f`, the booolean false
 value.  This means that the empty list as well as the number zero are
 considered to be true values.  See `nil?` and `zero?` if you want to
 check for those values.")
 
-(defspecial (quote . obj)
-  "Returns `obj`, unevaluated.")
+  (defspecial (quote . obj)
+    "Returns `obj`, unevaluated.")
 
-(defspecial (lambda args . body)
-  "Create an anonymous sub with arguments `args` and code `body`.
+  (defspecial (lambda args . body)
+    "Create an anonymous sub with arguments `args` and code `body`.
 
 `args` can be either a `sym` or a list of `sym`s; if it is a list, it
 may be improper, but only if it has a `sym` as rest.  This means:
@@ -53,29 +54,38 @@ The anonymous sub that is created will be lexically scoped,
 i.e. bindings defined in an outer scope may be used and are
 encapsulated if the sub is passed back as a return value.")
 
-(section "General utilities")
+);end of section
+(defsection "General utilities"
+  "This section defines basic operations on all objects."
 
-(defsub (eq? a b)
-  "Returns whether `a` and `b` are the same object.
+  (defsub (id x)
+    "This is the identity sub; it simply returns `x`.
+
+This is sometimes useful in higher order programming.")
+
+  (defsub (eq? a b)
+    "Returns whether `a` and `b` are the same object.
 
 Don't use this for comparing numbers, use `=?` instead.  The most
 important use of `eq?` is as a quick way to compare `sym`s.")
 
-(defsub (copy x)
-  "Return a newly allocated copy of `x`.")
+  (defsub (copy x)
+    "Return a newly allocated copy of `x`.")
 
-(defsub (not x)
-  "Boolean negation: Return whether `x` is false.
+  (defsub (not x)
+    "Boolean negation: Return whether `x` is false.
 
 Do not confuse this with `no` or `nil?`, which test for the empty list.")
 
-(section "Subroutines (`sub`s)")
+);end of section
+(defsection "Subroutines (`sub`s)"
+  "A `sub` is created with the special form `lambda`."
 
-(defsub (sub? x)
-  "Return whether `x` is a sub.")
+  (defsub (sub? x)
+    "Return whether `x` is a sub.")
 
-(defsub (apply sub . args)
-  "Apply `sub` to the given arguments, the last value in `args` must be a list.
+  (defsub (apply sub . args)
+    "Apply `sub` to the given arguments, the last value in `args` must be a list.
 
 The exact behaviour is best explained with examples:
 * `(apply f)` is `(f)`
@@ -86,93 +96,98 @@ This allows to use a list as the arguments to a sub, while also having
 fixed arguments at the same time (without a need for consing them to
 the front of the list manually).  See also `list*`.")
 
-(defsub (id x)
-  "This is the identity sub; it simply returns `x`.
+);end of section
+(defsection "Cons Cells and Lists"
+  "A `cons` is the building block of a list: It consists of the first
+element in the `car` field and the remaining list after the first
+element in the `cdr` field.  The names are Lisp tradition."
 
-This is sometimes useful in higher order programming.")
+  (defsub (cons a d)
+    "Create a cons cell containing `a` as car and `d` as cdr.")
 
-(section "Cons Cells and Lists")
-
-(defsub (cons a d)
-  "Create a cons cell containing `a` as car and `d` as cdr.")
-
-(defsub (car x)
-  "Return the car (first element) of the cons cell `x`.
+  (defsub (car x)
+    "Return the car (first element) of the cons cell `x`.
 
 Note that `car` and `cdr` are low-level operations which usually
 should not appear in application code.  Instead, higher-level list
 operations should be used (which may be implemented in terms of `car`
 and `cdr`).")
 
-(defsub (cdr x)
-  "Return the cdr (second element) of the cons cell `x`.
+  (defsub (cdr x)
+    "Return the cdr (second element) of the cons cell `x`.
 
 See `car` for additional usage information.")
 
-(defsub (cons? x)
-  "Return whether `x` is a `cons` cell.")
+  (defsub (cons? x)
+    "Return whether `x` is a `cons` cell.")
 
-(defalias no nil?)
-(defsub (nil? x)
-  "Return whether `x` is the empty list.
+  (defalias no nil?)
+  (defsub (nil? x)
+    "Return whether `x` is the empty list.
 
 This is the same as `no`, but `no` often reads more naturally, as in:
 
     (if (no xs) ... ...)")
 
-(defsub (list . xs)
-  "Returns `xs`.
+  (defsub (list . xs)
+    "Returns `xs`.
 
 This is a basic list constructor; it's more convenient (and faster)
 than nested `cons` calls.")
 
-(defalias length len)
-(defalias size len)
-(defsub (len xs)
-  "Return the number of elements in `xs`.")
+  (defalias length len)
+  (defalias size len)
+  (defsub (len xs)
+    "Return the number of elements in `xs`.")
 
-(section "Association Lists")
-
-(defsub (assoq? x alist)
-  "Get the value corresponding to the key `x` in `alist` (`#f` if not found).
-
-An `alist` is an 'association list': Each of it elements is a cons
+);end of section
+(defsection "Association Lists (`alists`)"
+  "An `alist` is an 'association list': Each of it elements is a cons
 cell with a key in its `car` and a corresponding value in the
 `cdr` (sometimes also the `cadr` - this is useful if you want to
-distinguish between a value being `#f` and no value being found).
+distinguish between a value being `#f` and no value being found)."
+
+  (defsub (assoq? x alist)
+    "Get the value corresponding to the key `x` in `alist` (`#f` if not found).
+
 This sub will return the `cdr` where the `car` is `x`.")
 
-(section "Numbers")
+);end of section
+(defsection "Numbers"
+  "Currently, only Fixnums (integers of limited range) are supported."
 
-(defsub (num? x)
-  "Return whether `x` is a number.")
+  (defsub (num? x)
+    "Return whether `x` is a number.")
 
-(defsub (+ . nums)
-  "Add all numbers in `nums` (which may not contain anything but numbers).")
+  (defsub (+ . nums)
+    "Add all numbers in `nums` (which may not contain anything but numbers).")
 
-(section "Strings (`str`s)")
+);end of section
+(defsection "Strings (`str`s)"
+  "A `str` is a sequence of characters representing a text.  A
+character may either be an integer specifying an UCS code points, or a
+list of UCS code points which represents a longer grapheme cluster (a
+'user-perceived character' that may be combined from several code
+points).  A grapheme cluster always starts with a base code point,
+followed by zero or more continuing code points.")
 
-(defsub (str? x)
-  "Return whether `x` is a string (a `str`).")
+  (defsub (str? x)
+    "Return whether `x` is a string (a `str`).")
 
-(defalias list->str str)
-(defsub (str chrs)
-  "Return a new `str` with the characters from the list `chrs`.
+  (defalias list->str str)
+  (defsub (str chrs)
+    "Return a new `str` with the characters from the list `chrs`.")
 
-A character in `chrs` may either be an integer specifying a UCS code
-points, or a list of UCS code points which represents a grapheme
-cluster (a 'user-perceived character' that may be combined from
-several code points).  A grapheme cluster always starts with a base
-code point, followed by zero or more continuing code points.")
+  (defalias str->list unstr)
+  (defsub (unstr s)
+    "Return the list of characters in `s`.")
 
-(defalias str->list unstr)
-(defsub (unstr s)
-  "Return the list of characters in `s`.")
+);end of section
+(defsection "Input/Output"
+  "Currently, the I/O facilities are rather limited."
 
-(section "Input/Output")
-
-(defsub (print x)
-  "Print `x` as an extended symbolic expression.
+  (defsub (print x)
+    "Print `x` as an extended symbolic expression.
 
 This will print the object so that it can be read by humans and also
 read back by the Lisp reader, except if it contains objects which
@@ -182,13 +197,19 @@ abbreviations for `quote`, `quasiquote`, `unquote`, `unquote-splicing`
 and `lambda` will be printed to keep the output short and as
 human-readable as possible.")
 
-(section "Symbols (`sym`s)")
+);end of section
+(defsection "Symbols (`sym`s)"
+  "A `sym` is similar to a `str`, but only a single `sym` object
+exists for each text.  This means that `sym`s can be effectively
+compared for equality with `eq?`."
 
-(defsub (sym? x)
-  "Return whether `x` is a sym.")
+  (defsub (sym? x)
+    "Return whether `x` is a sym.")
 
-(defalias str->sym intern)
-(defsub (intern s)
-  "Return the `sym` with the text of `str`.
+  (defalias str->sym intern)
+  (defsub (intern s)
+    "Return the `sym` with the text of `str`.
 
 If it does not exist yet, it will be created.")
+
+);end of section
