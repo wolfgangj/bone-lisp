@@ -601,6 +601,7 @@ DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
 DEFSUB(assoqc) { last_value = assoqc(args[0], args[1]); }
 DEFSUB(fast_str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
 DEFSUB(fast_str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
+DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -655,6 +656,7 @@ my void init_csubs() {
   // FIXME: Add the full versions and bind canonical names to them
   register_csub(CSUB_fast_str_eql, "_fast-str=?", 2, 0); register_csub(CSUB_fast_str_eql, "str=?", 2, 0);
   register_csub(CSUB_fast_str_neql, "_fast-str<>?", 2, 0); register_csub(CSUB_fast_str_neql, "str<>?", 2, 0);
+  register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
 }
 
 //////////////// misc ////////////////
