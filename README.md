@@ -4,10 +4,10 @@
 
     (defsub (len xs)
       "Calculate the length of the list `xs`."
-      (with loop | remaining n
-                 (if (nil? remaining)
+      (with loop | remain n
+                 (if (nil? remain)
                      n
-                   (loop (cdr remaining) (++ n)))
+                   (loop (cdr remain) (++ n)))
         (loop xs 0)))
 
 ## What?
@@ -17,31 +17,39 @@
 Bone is an interpreter for a lexically scoped Lisp-1.
 (Dynamic scoping will be added as an option.)
 It is based on immutable values and does tail-call elimination.
-The special feature that distinguishes it from other Lisps is: 
-It uses explicit regions for memory management (instead of garbage collection).
+The special feature that distinguishes it from other Lisps is the semi-automatic memory management: 
+It uses explicit regions instead of garbage collection.
 Currently, cons cells are the universal data structure;
 I have not decided yet whether I will add arrays, records and hash tables.
 
 It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp, Erlang and Ruby.
 
 It is currently written for 64 bit systems.
-It requires little-endian, though both issues are not that hard to fix if desired.
+It also requires little-endian, though both issues are not that hard to fix if desired.
 It runs on GNU/Linux and possibly on other Unices.
 
 ## Why?
 
-Garbage collection becomes extremely complex internally if you want to do it well (i.e. avoid to stop the world).
+Garbage collection becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
 But programming with `malloc()` and `free()` is just too error-prone.
 Using explicit regions is both very simple and very fast, but how far can one get with it?
 I want to find out, so I am developing this interpreter.
-I could have tried to do this with a more innovative language design as well, but:
-
-* building a Lisp is not too hard
-* it is well known how to build software in Lisp
-* I personally enjoy to use Lisp a lot
-* it allows me to concentrate on my main goals
 
 Bone Lisp could maybe become useful for soft real-time systems (e.g. as a scripting language for games), some kinds of multi-threaded servers and embedded systems.
+
+## Getting started
+
+To make embedding as easy as possible, the whole interpreter is in a single C file.
+I normally compile it with:
+
+    $ gcc -std=gnu99 -Wall -W -Wextra -Wno-unused -g bone.c -o bone
+
+
+## License
+
+This is Free Software distributed under the terms of the ISC license.
+(A very simple non-copyleft license.)
+See the file LICENSE for details.
 
 ## Who?
 
