@@ -576,16 +576,14 @@ DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
 DEFSUB(unaryminus) { last_value = int2any(-any2int(args[0])); }
 DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
-DEFSUB(fullminus) { int res = any2int(args[0]); foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
+DEFSUB(fullminus) { int res = any2int(args[0]); if(is_nil(args[1])) { last_value = int2any(-res); return; }
+  foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
 DEFSUB(fast_num_eqp)  { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
 DEFSUB(fast_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
 DEFSUB(fast_num_gtp)  { last_value = to_bool(any2int(args[0]) >  any2int(args[1])); }
 DEFSUB(fast_num_ltp)  { last_value = to_bool(any2int(args[0]) <  any2int(args[1])); }
 DEFSUB(fast_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
 DEFSUB(fast_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
-// FIXME: the set_far() in `each` may be dangerous when we have `car!`, because a sub that takes only
-// rest args will see the cons `arg` directly and could let it escape.  In the sense of:
-//   (each xs (lambda rest (car! elsewhere rest))) ;; but taking rest args here is not sane.
 DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
 DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_value = int2any(ires); }
@@ -652,10 +650,11 @@ my void init_csubs() {
   register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   register_csub(CSUB_bind, "_bind", 2, 0);
-  register_csub(CSUB_assoqc, "assoq-cons?", 2, 0); // FIXME: call it assoq-w/key ?
+  register_csub(CSUB_assoqc, "assoq-cons?", 2, 0); // FIXME: call it assoq-w/key? ?
   // FIXME: Add the full versions and bind canonical names to them
   register_csub(CSUB_fast_str_eql, "_fast-str=?", 2, 0); register_csub(CSUB_fast_str_eql, "str=?", 2, 0);
   register_csub(CSUB_fast_str_neql, "_fast-str<>?", 2, 0); register_csub(CSUB_fast_str_neql, "str<>?", 2, 0);
+
   register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
 }
 
