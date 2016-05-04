@@ -129,16 +129,33 @@ This is the same as `no`, but `no` often reads more naturally, as in:
 
     (if (no xs) ... ...)")
 
+  (defsub (list? x)
+    "Return whether `x` is a list (i.e. either a `cons` or nil).")
+
   (defsub (list . xs)
     "Returns `xs`.
 
 This is a basic list constructor; it's more convenient (and faster)
 than nested `cons` calls.")
 
+  (defalias cons* list*)
+  (defsub (list* . xs)
+    "Create a list consisting of the elements of `xs`, but using the last element as rest.
+
+This means that `(list* 1 2 3)` returns `(1 2 . 3)`.")
+
   (defalias length len)
   (defalias size len)
   (defsub (len xs)
     "Return the number of elements in `xs`.")
+
+  (defsub (cat list1 list2)
+    "Concatenate `list1` and `list2`.")
+
+  (defsub (each sub xs)
+    "Apply `sub` to every element of the list `xs` in sequence.
+
+The result should be ignored, but will be the result of the last call to `sub`.")
 
 );end of section
 (defsection "Association Lists (`alists`)"
@@ -152,6 +169,9 @@ distinguish between a value being `#f` and no value being found)."
 
 This sub will return the `cdr` where the `car` is `x`.")
 
+  (defsub (assoq-cons? x alist)
+    "Returns the key/value entry from `alist` with the key `x` (`#f` if not found).")
+
 );end of section
 (defsection "Numbers"
   "Currently, only Fixnums (integers of limited range) are supported."
@@ -160,7 +180,51 @@ This sub will return the `cdr` where the `car` is `x`.")
     "Return whether `x` is a number.")
 
   (defsub (+ . nums)
-    "Add all numbers in `nums` (which may not contain anything but numbers).")
+    "Return the sum of the numbers in `nums` (which may not contain anything but numbers).")
+
+  (defsub (- n . nums)
+    "Arithmetic minus (unary or n-ary).
+
+When `nums` is empty, `-n` will be returned.  Otherwise, the sum of
+`nums` will be subtracted from `n` and the result gets returned.
+
+This is the traditional behaviour of `-` in Lisp, which allows
+both `(- x)` and `(- a b c)` to work as one would expect normally.
+However, this has one problem you have to be careful about: When you
+do
+
+    (apply - num xs)
+
+the result will be `-num` if `xs` is empty (instead of `num`, as is
+probably intended).  For the desired behaviour, you can use:
+
+    (- num (apply + xs))")
+
+  (defsub (* . nums)
+    "Return the product of the numbers in `nums` (which may not contain anything but numbers).
+
+When applied to the empty list (as in `(*)` or `(apply * ())`), the result is 1.")
+
+  (defsub (/ dividend . divisors)
+    "Devide the `dividend` by the product of all `divisors`.")
+
+  (defsub (=? a b)
+    "Return whether the numbers `a` and `b` are equal.")
+
+  (defsub (<>? a b)
+    "Return whether the numbers `a` and `b` are different.")
+
+  (defsub (>? a b)
+    "Return whether the number `a` is greater than `b`.")
+
+  (defsub (<? a b)
+    "Return whether the number `a` is less than `b`.")
+
+  (defsub (>=? a b)
+    "Return whether the number `a` is greater than or equal to `b`.")
+
+  (defsub (<=? a b)
+    "Return whether the number `a` is less than or equal to`b`.")
 
 );end of section
 (defsection "Strings (`str`s)"
@@ -182,6 +246,12 @@ followed by zero or more continuing code points.")
   (defsub (unstr s)
     "Return the list of characters in `s`.")
 
+(defsub (str=? s1 s2)
+  "Return whether `str1` and `str2` consist of the same characters.")
+
+(defsub (str<>? s1 s2)
+  "Return whether `str1` and `str2` consist of different characters.")
+
 );end of section
 (defsection "Input/Output"
   "Currently, the I/O facilities are rather limited."
@@ -196,6 +266,14 @@ as long as it only contains lists, `sym`s, numbers and bools.  The
 abbreviations for `quote`, `quasiquote`, `unquote`, `unquote-splicing`
 and `lambda` will be printed to keep the output short and as
 human-readable as possible.")
+
+  (defsub (say . xs)
+    "Print all `xs`.
+
+The differences to the `print` sub are:
+* A `str` is printed without the quote signs and without escape sequences.
+* A list is printed by applying it to `say`.
+* All other objects are printed as with `print`.")
 
 );end of section
 (defsection "Symbols (`sym`s)"
