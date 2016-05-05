@@ -508,7 +508,7 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
 }
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
   any res = NIL; foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
-  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is(find(x, ignore))) { res = cons(local, res); (*cnt)++; } break; }
+  case t_sym: { any local = assoqc(x, locals); if(is(local) && !find(x, ignore)) { res = cons(local, res); (*cnt)++; } break; }
   case t_cons: res = cat2(res, collect_locals(x, locals, ignore, cnt)); break; // FIXME: cat2()->cat2_x()
   default:; } return res; // FIXME: handle special forms like quote
 }
