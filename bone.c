@@ -612,6 +612,7 @@ DEFSUB(fast_str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
 DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
 DEFSUB(memberp) { last_value = to_bool(is_member(args[0], args[1])); }
 DEFSUB(reverse) { last_value = reverse(args[0]); }
+DEFSUB(mod) { last_value = int2any(any2int(args[0]) % any2int(args[1])); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -670,6 +671,7 @@ my void init_csubs() {
   register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
   register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0); // FIXME: add doc
   register_csub(CSUB_reverse, "reverse", 1, 0);
+  register_csub(CSUB_mod, "mod", 2, 0); register_csub(CSUB_mod, "modulo", 2, 0); register_csub(CSUB_mod, "%", 2, 0);
 }
 
 //////////////// misc ////////////////
