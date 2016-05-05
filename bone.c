@@ -122,6 +122,7 @@ my any single(any x) { return cons(x, NIL); }
 #define foreach_cons(var, lst) for(any var = (lst); !is_nil(var); var = fdr(var))
 
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
+my bool find(any a, any xs) { foreach(x, xs) if(x == a) return true; return false; }
 my any assoq(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
 my any assoqc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
 my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); any p = res;
@@ -506,8 +507,8 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
 }
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
-  any res = NIL; foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env 0))
-  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is(assoqc(x, ignore))) { res = cons(local, res); (*cnt)++; } break; }
+  any res = NIL; foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
+  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is(find(x, ignore))) { res = cons(local, res); (*cnt)++; } break; }
   case t_cons: res = cat2(res, collect_locals(x, locals, ignore, cnt)); break; // FIXME: cat2()->cat2_x()
   default:; } return res; // FIXME: handle special forms like quote
 }
