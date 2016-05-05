@@ -505,21 +505,28 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   compile_expr(car(e), env, tail_context, state);
   set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
 }
-my any collect_locals(any code, any locals, any ignore) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env 0))
-  any res = NIL; foreach(x, code) switch(tag_of(x)) {
-  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is(assoqc(x, ignore))) res = cons(local, res); break; }
-  case t_cons: res = cat2(res, collect_locals(x, locals, ignore)); break; // FIXME: cat2()->cat2_x()
-  default:; } return res;
+my any collect_locals(any code, any locals, any ignore, int *cnt) {
+  any res = NIL; foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env 0))
+  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is(assoqc(x, ignore))) { res = cons(local, res); (*cnt)++; } break; }
+  case t_cons: res = cat2(res, collect_locals(x, locals, ignore, cnt)); break; // FIXME: cat2()->cat2_x()
+  default:; } return res; // FIXME: handle special forms like quote
 }
-my int flatten_rest_x(any xs, int *len) { // returns whether there was a rest, store len w/o rest in `*len`.
-  foreach_cons(x, xs) { *len++; any tail = fdr(x); if(is_sym(tail)) { set_fdr(x, single(tail)); return 1; } } return 0; }
-my sub_code compile2sub_code(any e);
+any locals_of_inner_lambda(any env, any args) { any res = NIL; int cnt = 0;
+  foreach(x, env) res = cons(cons(far(x), cons(s_env, int2any(cnt++))), res); cnt = 0;
+  foreach(x, args) res = cons(cons(x, cons(s_arg, int2any(cnt++))), res); return res;
+}
+my any flatten_rest_x(any xs, int *len, int *has_rest) { // stores len w/o rest in `*len`.
+  if(is_sym(xs)) { *has_rest = 1; return single(xs); } // only rest args
+  foreach_cons(x, xs) { (*len)++; any tail = fdr(x); if(is_sym(tail)) { set_fdr(x, single(tail)); *has_rest = 1; return xs; } }
+  *has_rest = 0; return xs; }
+my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_size);
 my void compile_lambda(any args, any body, any env, compile_state *state) {
-  int argc = 0; int has_rest = flatten_rest_x(args, &argc);
-  any env_of_sub = collect_locals(cons(s_do, body), env, args);
-  sub_code sc = compile2sub_code(cons(s_do, body)); // FIXME: env+args
+  int argc = 0; int has_rest; args = flatten_rest_x(args, &argc, &has_rest);
+  int collected_env_len = 0; any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
+  any env_of_sub = locals_of_inner_lambda(collected_env, args);
+  sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, has_rest, collected_env_len);
   emit(OP_PREPARE_SUB, state); emit((any) sc, state);
-  foreach(x, env_of_sub) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
+  foreach(x, collected_env) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
     emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(pos, state); emit(OP_ADD_ENV, state); }
   emit(OP_MAKE_SUB, state);
 }
@@ -540,13 +547,14 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     emit(OP_CONST, state); emit(fdr(global), state); break;
   }
 }
-my any compile2list(any expr) { any res = single(BFALSE); compile_state state = {res,0};
-  compile_expr(expr, NIL, true, &state); emit(OP_RET, &state); return fdr(res);
+my any compile2list(any expr, any env) { any res = single(BFALSE); compile_state state = {res,0};
+  compile_expr(expr, env, true, &state); emit(OP_RET, &state); return fdr(res);
 }
-my sub_code compile2sub_code(any e) { any raw = compile2list(e);
-  reg_permanent(); sub_code code = make_sub_code(BFALSE, 0, false, 0, 0, len(raw)); reg_pop(); // FIXME: we pass 0 as env size
+my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_size) { any raw = compile2list(expr, env);
+  reg_permanent(); sub_code code = make_sub_code(BFALSE, argc, has_rest, 0, env_size, len(raw)); reg_pop();
   any *p = code->code; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
+my sub_code compile_toplevel_expr(any e) { return compile2sub_code(e, NIL, 0, 0, 0); }
 
 //////////////// library ////////////////
 
@@ -684,7 +692,7 @@ void bone_init() {
 }
 void bone_repl() { int line = 0;
   while(1) { printf("\n@%d: ", line++);
-    any e = bone_read(); sub_code code = compile2sub_code(e); call((sub) &code, NULL); print(last_value);
+    any e = bone_read(); sub_code code = compile_toplevel_expr(e); call((sub) &code, NULL); print(last_value);
   }
 }
 
