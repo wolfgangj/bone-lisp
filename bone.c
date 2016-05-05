@@ -122,7 +122,7 @@ my any single(any x) { return cons(x, NIL); }
 #define foreach_cons(var, lst) for(any var = (lst); !is_nil(var); var = fdr(var))
 
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
-my bool find(any a, any xs) { foreach(x, xs) if(x == a) return true; return false; }
+my bool is_member(any a, any xs) { foreach(x, xs) if(x == a) return true; return false; }
 my any assoq(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
 my any assoqc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
 my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); any p = res;
@@ -508,7 +508,7 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
 }
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
   any res = NIL; foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
-  case t_sym: { any local = assoqc(x, locals); if(is(local) && !find(x, ignore)) { res = cons(local, res); (*cnt)++; } break; }
+  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is_member(x, ignore)) { res = cons(local, res); (*cnt)++; } break; }
   case t_cons: res = cat2(res, collect_locals(x, locals, ignore, cnt)); break; // FIXME: cat2()->cat2_x()
   default:; } return res; // FIXME: handle special forms like quote
 }
@@ -609,7 +609,7 @@ DEFSUB(assoqc) { last_value = assoqc(args[0], args[1]); }
 DEFSUB(fast_str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
 DEFSUB(fast_str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
 DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
-DEFSUB(find) { last_value = to_bool(find(args[0], args[1])); }
+DEFSUB(memberp) { last_value = to_bool(is_member(args[0], args[1])); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -666,7 +666,7 @@ my void init_csubs() {
   register_csub(CSUB_fast_str_neql, "_fast-str<>?", 2, 0); register_csub(CSUB_fast_str_neql, "str<>?", 2, 0);
 
   register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
-  register_csub(CSUB_find, "find?", 2, 0); register_csub(CSUB_find, "contains?", 2, 0); // FIXME: add doc
+  register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0); // FIXME: add doc
 }
 
 //////////////// misc ////////////////
