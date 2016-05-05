@@ -122,6 +122,7 @@ my any single(any x) { return cons(x, NIL); }
 #define foreach_cons(var, lst) for(any var = (lst); !is_nil(var); var = fdr(var))
 
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
+my any reverse(any xs) { any res = NIL; foreach(x, xs) res = cons(x, res); return res; }
 my bool is_member(any a, any xs) { foreach(x, xs) if(x == a) return true; return false; }
 my any assoq(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
 my any assoqc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
@@ -610,6 +611,7 @@ DEFSUB(fast_str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
 DEFSUB(fast_str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
 DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
 DEFSUB(memberp) { last_value = to_bool(is_member(args[0], args[1])); }
+DEFSUB(reverse) { last_value = reverse(args[0]); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
@@ -667,6 +669,7 @@ my void init_csubs() {
 
   register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
   register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0); // FIXME: add doc
+  register_csub(CSUB_reverse, "reverse", 1, 0);
 }
 
 //////////////// misc ////////////////
