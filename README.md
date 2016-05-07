@@ -49,17 +49,18 @@ I normally compile it with:
 It is being developed by
 Wolfgang Jaehrling (wolfgang at conseptizer dot org)
 
-# Quick Intro
+## Quick Intro
 
 Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure).
-I hope you'll like the things Bone does different than traditional Lisps.
+I hope you'll like the few things Bone does different than traditional Lisps.
 
 We change one important piece of terminology:
-We speak about subroutines, not about functions (and reserve the term "function" for pure functions without side-effects).
-Usually, we abbreviate "subroutine" as "sub".
-This is similar to Schemes use of "procedure".
+Keeping with the times, we reserve the term "function" for pure functions without side-effects.
+Since Bone Lisp allows some side-effets (like I/O), we speak about subroutines.
+(This is similar to Schemes use of "procedure", actually.)
+Usually, we abbreviate "subroutine" as "sub", as is common in BASIC.
 
-To the common syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs with a single expression in the body:
+To the usual syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs with a single expression in the body:
 
     | a b c (foo)   ; => (lambda (a b c) (foo))
 
