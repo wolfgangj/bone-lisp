@@ -52,11 +52,14 @@ Wolfgang Jaehrling (wolfgang at conseptizer dot org)
 # Quick Intro
 
 Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure).
-However, we change one important piece of terminology:
-We speak about subroutines, not about functions (and reserve the term `function` for pure functions without side-effects).
-Usually, we abbreviate this to subs.
+I hope you'll like the things Bone does different than traditional Lisps.
 
-To the common syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs:
+We change one important piece of terminology:
+We speak about subroutines, not about functions (and reserve the term "function" for pure functions without side-effects).
+Usually, we abbreviate "subroutine" as "sub".
+This is similar to Schemes use of "procedure".
+
+To the common syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs with a single expression in the body:
 
     | a b c (foo)   ; => (lambda (a b c) (foo))
 
@@ -66,8 +69,9 @@ Rest arguments work like they do in Scheme:
     (lambda (a b c . args) foo)
 
 Booleans and the empty list work almost like they do in Scheme:
-The empty list is written as `()` and is self-evaluating.
-While we still call it "nil", it is not the symbol `nil` (which isn't special in any way).
+The empty list is written as `()` and is self-evaluating (whereas in Scheme it can't be evaluated).
+While we still call the empty list "nil", it is not the symbol `nil` (which isn't special in any way).
+You cannot take the `car` and `cdr` of the empty list.
 Only the value `#f` is false.
 The cannonical value for `true` is `#t`.
 
@@ -89,7 +93,7 @@ A subroutine can be defined with `_bind`:
 
 The use of regions is also available only via an internal sub:
 
-    (w/new-reg (lambda () foo))
+    (_w/new-reg (lambda () foo))
 
 The given thunk will be evaluated with objects allocated in a new region.
 On return, the return value will be copied to the previous region.
