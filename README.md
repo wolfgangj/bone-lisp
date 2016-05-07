@@ -44,17 +44,62 @@ I normally compile it with:
 
     $ gcc -std=gnu99 -Wall -W -Wextra -Wno-unused -g bone.c -o bone
 
+## Who?
+
+It is being developed by
+Wolfgang Jaehrling (wolfgang at conseptizer dot org)
+
+# Quick Intro
+
+Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure).
+However, we change one important piece of terminology:
+We speak about subroutines, not about functions (and reserve the term `function` for pure functions without side-effects).
+Usually, we abbreviate this to subs.
+
+To the common syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs:
+
+    | a b c (foo)   ; => (lambda (a b c) (foo))
+
+Rest arguments work like they do in Scheme:
+
+    (lambda args foo)
+    (lambda (a b c . args) foo)
+
+Booleans and the empty list work almost like they do in Scheme:
+The empty list is written as `()` and is self-evaluating.
+While we still call it "nil", it is not the symbol `nil` (which isn't special in any way).
+Only the value `#f` is false.
+The cannonical value for `true` is `#t`.
+
+The names of predicates end with a question mark (e.g. `nil?`).
+Subs which may return a useful value or `#f` (false) also follow this convention (eg. `assoq?`).
+This helps to prevent forgetting about the possbility of returning `#f`.
+
+Most library names are taken from Scheme and Common Lisp.
+Often, we provide several names for the same thing (like Ruby does).
+For example, `len`, `length` and `size` are the same.
+See `core.bn` for docstrings describing the builtins.
+(In the future we'll have a program that extracts the docstrings and generates a markdown file from them.)
+
+Currently, we have no macros yet, so you'll need to use some internal subroutines.
+A subroutine can be defined with `_bind`:
+
+    (_bind 'sum | xs (apply + xs))
+    (sum '(1 2 3))  ; => 6
+
+The use of regions is also available only via an internal sub:
+
+    (w/new-reg (lambda () foo))
+
+The given thunk will be evaluated with objects allocated in a new region.
+On return, the return value will be copied to the previous region.
+Then, the region will be freed.
 
 ## License
 
 This is Free Software distributed under the terms of the ISC license.
 (A very simple non-copyleft license.)
 See the file LICENSE for details.
-
-## Who?
-
-It is being developed by
-Wolfgang Jaehrling (wolfgang at conseptizer dot org)
 
 ## Links
 
