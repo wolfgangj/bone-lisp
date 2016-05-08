@@ -246,6 +246,7 @@ my sub_code make_sub_code(any name, int argc, int has_rest, int localc, int size
 #undef x
   return code;
 }
+my int count_locals(sub_code sc) { return sc->argc + sc->has_rest + sc->localc; }
 
 typedef struct { sub_code code; any env[0]; } *sub;
 my bool is_sub(any x) { return is_tagged(x, t_sub); }
@@ -418,11 +419,16 @@ typedef enum {
 } opcode;
 
 my any last_value;
+my any locals_stack[1024];
+my any *locals_sp;
+my any *alloc_locals(int n) { any *res = locals_sp; locals_sp += n; return res; }
+my void drop_locals(int n) { locals_sp -= n; }
 struct call_stack_entry { sub subr; int tail_calls; } call_stack[256], *call_stack_sp;
 struct upcoming_call {
   sub to_be_called;
+  int locals_cnt;
   int nonrest_args_left; any rest_constructor;
-  any *the_args, *next_arg; // `next_arg` points into `the_args`.
+  any *args, *next_arg; // `next_arg` points into `args`.
 } upcoming_calls[256], *next_call; // stack pointer
 
 my void args_error(sub_code sc, any xs) { generic_error("wrong number of args", cons(sc->name, xs)); }
@@ -432,7 +438,7 @@ my void add_nonrest_arg() { *(next_call->next_arg++) = last_value; }
 my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
   if(!sc->has_rest) args_error_unspecific(sc);
   if(next_call->rest_constructor == NIL) { // first rest arg
-    next_call->rest_constructor = next_call->the_args[sc->argc] = single(last_value);
+    next_call->rest_constructor = next_call->args[sc->argc] = single(last_value);
   } else { // adding another rest arg
     any next = single(last_value); set_fdr(next_call->rest_constructor, next); next_call->rest_constructor = next;
   }
@@ -440,8 +446,8 @@ my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
 my void verify_argc(struct upcoming_call *the_call) {
   if(the_call->nonrest_args_left) args_error_unspecific(the_call->to_be_called->code);
 }
-my void call(sub subr, any *args) { // FIXME: move call_stack_sp++ into OP_CALL?
-  call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr; sub lambda; any *lambda_envp;
+my void call(sub subr, any *args, int locals_cnt) {
+  call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr;  sub lambda; any *lambda_envp;
 start:;
   any *env = subr->env; any *ip = subr->code->code;
   while(1) switch(*ip++) {
@@ -453,19 +459,21 @@ start:;
     case OP_PREPARE_CALL: { sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
 	next_call++; next_call->to_be_called = to_be_called;
 	next_call->nonrest_args_left = sc->argc;
-	next_call->next_arg = next_call->the_args = reg_alloc(sc->argc+sc->has_rest+sc->localc);
-	if(sc->has_rest) { next_call->rest_constructor = next_call->the_args[sc->argc] = NIL; }
+	next_call->locals_cnt = count_locals(sc);
+	next_call->next_arg = next_call->args = alloc_locals(next_call->locals_cnt);
+	if(sc->has_rest) { next_call->rest_constructor = next_call->args[sc->argc] = NIL; }
 	break; }
     case OP_CALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call);
-	call(the_call->to_be_called, the_call->the_args); break; }
-    case OP_TAILCALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call);
-	subr = the_call->to_be_called; args = the_call->the_args; call_stack_sp->tail_calls++; goto start; }
+	call(the_call->to_be_called, the_call->args, the_call->locals_cnt); break; }
+    case OP_TAILCALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call); locals_cnt = the_call->locals_cnt;
+	for(int i = 0; i < locals_cnt; i++) args[i] = the_call->args[i]; locals_sp = &args[locals_cnt];
+	subr = the_call->to_be_called; call_stack_sp->tail_calls++; goto start; }
     case OP_ADD_ARG:
       if(next_call->nonrest_args_left) { next_call->nonrest_args_left--; add_nonrest_arg(); } else add_rest_arg();
       break;
     case OP_JMP_IFN: if(is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
-    case OP_RET: return;
+    case OP_RET: drop_locals(locals_cnt); return;
     case OP_PREPARE_SUB: { sub_code lc = (sub_code) *ip++; lambda = (sub) reg_alloc(1+lc->size_of_env);
 	lambda->code = lc; lambda_envp = lambda->env; break; }
     case OP_ADD_ENV: *(lambda_envp++) = last_value; break;
@@ -473,9 +481,10 @@ start:;
     default: printf("unknown vm instruction\n"); abort(); // FIXME
   }
 }
+my void call0(sub subr) { int localc = subr->code->localc; call(subr, alloc_locals(localc), localc); }
 
 my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
-  any *args = reg_alloc(argc + sc->has_rest + sc->localc); // FIXME: allocate on stack
+  int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt);
   foreach(x, xs) {
     if(pos <  argc) { args[pos] = x; pos++; continue; } // non-rest arg
     if(pos == argc) { // starting rest args
@@ -485,7 +494,7 @@ my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc,
   }
   if(pos < argc) args_error(sc, xs);
   if(pos == argc) args[argc] = NIL; else set_fdr(p, NIL);
-  call(subr, args);
+  call(subr, args, locals_cnt);
 }
 
 //////////////// bindings ////////////////
@@ -603,7 +612,7 @@ DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
 DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
   if(subr->code->argc + subr->code->has_rest) generic_error("expected sub without args, but got", args[0]);
-  reg_push(reg_new()); call(subr, reg_alloc(subr->code->localc)); last_value = copy_back(last_value); reg_free(reg_pop());
+  reg_push(reg_new()); call0(subr); last_value = copy_back(last_value); reg_free(reg_pop());
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
 DEFSUB(assoqc) { last_value = assoqc(args[0], args[1]); }
@@ -687,6 +696,7 @@ my any copy(any x) {
 
 my void bone_init_thread() {
   call_stack_sp = call_stack; call_stack->subr = NULL; call_stack->tail_calls = 0; // FIXME: all needed?
+  locals_sp = locals_stack;
   next_call = upcoming_calls;
 }
 
@@ -700,7 +710,7 @@ void bone_init() {
 }
 void bone_repl() { int line = 0;
   while(1) { printf("\n@%d: ", line++);
-    any e = bone_read(); sub_code code = compile_toplevel_expr(e); call((sub) &code, NULL); print(last_value);
+    any e = bone_read(); sub_code code = compile_toplevel_expr(e); call0((sub) &code); print(last_value);
   }
 }
 
