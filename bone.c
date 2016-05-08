@@ -455,7 +455,7 @@ start:;
     case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
     case OP_GET_ARG: last_value = args[any2int(*ip++)]; break; // args+locals
     case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
-    case OP_WRAP: ((csub) *ip)(args); return;
+    case OP_WRAP: ((csub) *ip)(args); goto cleanup;
     case OP_PREPARE_CALL: { sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
 	next_call++; next_call->to_be_called = to_be_called;
 	next_call->nonrest_args_left = sc->argc;
@@ -473,13 +473,16 @@ start:;
       break;
     case OP_JMP_IFN: if(is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
-    case OP_RET: drop_locals(locals_cnt); return;
+    case OP_RET: goto cleanup;
     case OP_PREPARE_SUB: { sub_code lc = (sub_code) *ip++; lambda = (sub) reg_alloc(1+lc->size_of_env);
 	lambda->code = lc; lambda_envp = lambda->env; break; }
     case OP_ADD_ENV: *(lambda_envp++) = last_value; break;
     case OP_MAKE_SUB: last_value = sub2any(lambda); break;
     default: printf("unknown vm instruction\n"); abort(); // FIXME
   }
+cleanup:
+  call_stack_sp--;
+  drop_locals(locals_cnt); 
 }
 my void call0(sub subr) { int localc = subr->code->localc; call(subr, alloc_locals(localc), localc); }
 
