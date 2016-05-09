@@ -29,6 +29,10 @@
 typedef uint64_t any; // we only support 64 bit currently
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
+#define x(tag, name) case tag: return name
+my const char *type_name(type_tag tag) { switch(tag) {
+    x(t_cons,"cons");x(t_sym,"sym");x(t_str,"str");x(t_reg,"reg");x(t_sub,"sub");x(t_num,"num");default:return "<?>"; } }
+#undef x
 
 #define UNIQ(n) (t_uniq | (010*(n)))
 #define NIL       UNIQ(0)
@@ -44,9 +48,10 @@ my bool is_nil(any x) { return x == NIL; }
 my bool is(any x) { return x != BFALSE; }
 my any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
-my void print(any x);
-my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); abort(); }
-my void type_error(any x, type_tag t) { generic_error("type error", x); } // FIXME: show more info
+my void print(any x); my void backtrace();
+my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); backtrace(); abort(); }
+my void type_error(any x, type_tag t) { 
+  printf("ERR: typecheck failed: (%s? ", type_name(t)); print(x); printf(")\n"); backtrace(); abort(); }
 my type_tag tag_of(any x) { return x & 7; }
 my bool is_tagged(any x, type_tag t) { return tag_of(x) == t; }
 my void check(any x, type_tag t) { if(!is_tagged(x, t)) type_error(x, t); }
@@ -239,12 +244,12 @@ typedef struct sub_code { // fields are in the order in which we access them.
   any code[1]; // can be longer
 } *sub_code;
 #define sub_code_header_size (bytes2words(sizeof(struct sub_code))-1)
-my sub_code make_sub_code(any name, int argc, int has_rest, int localc, int size_of_env, int code_size) {
+my sub_code make_sub_code(int argc, int has_rest, int localc, int size_of_env, int code_size) {
   sub_code code = (sub_code) reg_alloc(sub_code_header_size + code_size);
 #define x(f) code->f = f
-  x(name); x(argc); x(has_rest); x(localc); x(size_of_env);
+  x(argc); x(has_rest); x(localc); x(size_of_env);
 #undef x
-  return code;
+   code->name = BFALSE; return code;
 }
 my int count_locals(sub_code sc) { return sc->argc + sc->has_rest + sc->localc; }
 
@@ -257,6 +262,7 @@ my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
   any *p = reg_alloc(1+envsize); *p++ = (any) s->code; for(int i = 0; i != envsize; i++) *p++ = copy(s->env[i]);
   return tag((any) p, t_sub);
 }
+my void name_sub(sub subr, any name) { if(!is(subr->code->name)) subr->code->name = name; }
 typedef void (*csub)(any *);
 
 //////////////// print ////////////////
@@ -267,7 +273,7 @@ my void print_args(any x) {
 }
 my void print(any x) { switch(tag_of(x)) {
   case t_cons:; any a = far(x);
-    if(is_sym(far(x))) {
+    if(is_sym(a)) {
       if(a == s_quote)            { printf("'");  print(fdr(x)); break; }
       if(a == s_quasiquote)       { printf("`");  print(fdr(x)); break; }
       if(a == s_unquote)          { printf(",");  print(fdr(x)); break; }
@@ -424,6 +430,13 @@ my any *locals_sp;
 my any *alloc_locals(int n) { any *res = locals_sp; locals_sp += n; return res; }
 my void drop_locals(int n) { locals_sp -= n; }
 struct call_stack_entry { sub subr; int tail_calls; } call_stack[256], *call_stack_sp;
+my void backtrace() {
+  for(struct call_stack_entry *e = call_stack_sp; e > call_stack; e--) {
+    print(e->subr->code->name); printf("\n");
+    if(e->tail_calls) printf(";; hidden tail calls: %d\n", e->tail_calls);
+  }
+}
+
 struct upcoming_call {
   sub to_be_called;
   int locals_cnt;
@@ -467,7 +480,7 @@ start:;
 	call(the_call->to_be_called, the_call->args, the_call->locals_cnt); break; }
     case OP_TAILCALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call); locals_cnt = the_call->locals_cnt;
 	for(int i = 0; i < locals_cnt; i++) args[i] = the_call->args[i]; locals_sp = &args[locals_cnt];
-	subr = the_call->to_be_called; call_stack_sp->tail_calls++; goto start; }
+	subr = the_call->to_be_called; call_stack_sp->subr = subr; call_stack_sp->tail_calls++; goto start; }
     case OP_ADD_ARG:
       if(next_call->nonrest_args_left) { next_call->nonrest_args_left--; add_nonrest_arg(); } else add_rest_arg();
       break;
@@ -503,7 +516,8 @@ my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc,
 //////////////// bindings ////////////////
 
 my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
-my void bind(any name, any subr) { reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); }
+my void bind(any name, any subr) { name_sub(any2sub(subr), name);
+  reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); }
 my any get_binding(any name) { return hash_get(bindings, name); }
 
 //////////////// compiler ////////////////
@@ -565,7 +579,7 @@ my any compile2list(any expr, any env) { any res = single(BFALSE); compile_state
   compile_expr(expr, env, true, &state); emit(OP_RET, &state); return fdr(res);
 }
 my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_size) { any raw = compile2list(expr, env);
-  reg_permanent(); sub_code code = make_sub_code(BFALSE, argc, has_rest, 0, env_size, len(raw)); reg_pop();
+  reg_permanent(); sub_code code = make_sub_code(argc, has_rest, 0, env_size, len(raw)); reg_pop();
   any *p = code->code; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
 my sub_code compile_toplevel_expr(any e) { return compile2sub_code(e, NIL, 0, 0, 0); }
@@ -627,7 +641,7 @@ DEFSUB(reverse) { last_value = reverse(args[0]); }
 DEFSUB(mod) { last_value = int2any(any2int(args[0]) % any2int(args[1])); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
-  any name_sym = intern(name); sub_code code = make_sub_code(name_sym, argc, has_rest, 0, 0, 2);
+  any name_sym = intern(name); sub_code code = make_sub_code(argc, has_rest, 0, 0, 2);
   code->code[0] = OP_WRAP; code->code[1] = (any) cptr;
   sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
 }
