@@ -429,11 +429,15 @@ my any locals_stack[1024];
 my any *locals_sp;
 my any *alloc_locals(int n) { any *res = locals_sp; locals_sp += n; return res; }
 my void drop_locals(int n) { locals_sp -= n; }
-struct call_stack_entry { sub subr; int tail_calls; } call_stack[256], *call_stack_sp;
+struct call_stack_entry { sub subr; any *args; int tail_calls; } call_stack[256], *call_sp;
+my bool is_self_evaluating(any x) { return !(is_sym(x) || is_cons(x)); }
+my void print_arg(any x) { if(!is_self_evaluating(x)) printf("'"); print(x); }
 my void backtrace() {
-  for(struct call_stack_entry *e = call_stack_sp; e > call_stack; e--) {
-    print(e->subr->code->name); printf("\n");
-    if(e->tail_calls) printf(";; hidden tail calls: %d\n", e->tail_calls);
+  for(struct call_stack_entry *e = call_sp; e > call_stack; e--) { int i = 0;
+    printf("("); print(e->subr->code->name);
+    for(i = 0; i != e->subr->code->argc; i++) { printf(" "); print_arg(e->args[i]); }
+    if(e->subr->code->has_rest) foreach(x, e->args[0]) { printf(" "); print_arg(x); }
+    printf(")\n"); if(e->tail_calls) printf(";; hidden tail calls: %d\n", e->tail_calls);
   }
 }
 
@@ -459,8 +463,8 @@ my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
 my void verify_argc(struct upcoming_call *the_call) {
   if(the_call->nonrest_args_left) args_error_unspecific(the_call->to_be_called->code);
 }
-my void call(sub subr, any *args, int locals_cnt) {
-  call_stack_sp++; call_stack_sp->tail_calls = 0; call_stack_sp->subr = subr;  sub lambda; any *lambda_envp;
+my void call(sub subr, any *args, int locals_cnt) { sub lambda; any *lambda_envp;
+  call_sp++; call_sp->subr = subr; call_sp->args = args; call_sp->tail_calls = 0;
 start:;
   any *env = subr->env; any *ip = subr->code->code;
   while(1) switch(*ip++) {
@@ -480,7 +484,7 @@ start:;
 	call(the_call->to_be_called, the_call->args, the_call->locals_cnt); break; }
     case OP_TAILCALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call); locals_cnt = the_call->locals_cnt;
 	for(int i = 0; i < locals_cnt; i++) args[i] = the_call->args[i]; locals_sp = &args[locals_cnt];
-	subr = the_call->to_be_called; call_stack_sp->subr = subr; call_stack_sp->tail_calls++; goto start; }
+	subr = the_call->to_be_called; call_sp->subr = subr; call_sp->args = args; call_sp->tail_calls++; goto start; }
     case OP_ADD_ARG:
       if(next_call->nonrest_args_left) { next_call->nonrest_args_left--; add_nonrest_arg(); } else add_rest_arg();
       break;
@@ -494,7 +498,7 @@ start:;
     default: printf("unknown vm instruction\n"); abort(); // FIXME
   }
 cleanup:
-  call_stack_sp--;
+  call_sp--;
   drop_locals(locals_cnt); 
 }
 my void call0(sub subr) { int localc = subr->code->localc; call(subr, alloc_locals(localc), localc); }
@@ -712,7 +716,7 @@ my any copy(any x) {
 }
 
 my void bone_init_thread() {
-  call_stack_sp = call_stack; call_stack->subr = NULL; call_stack->tail_calls = 0; // FIXME: all needed?
+  call_sp = call_stack; call_stack->subr = NULL; call_stack->tail_calls = 0; // FIXME: all needed?
   locals_sp = locals_stack;
   next_call = upcoming_calls;
 }
