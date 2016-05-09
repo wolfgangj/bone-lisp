@@ -238,20 +238,20 @@ my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=inter
 typedef struct sub_code { // fields are in the order in which we access them.
   int argc; // number of required args
   int has_rest; // accepting rest args? 0=no, 1=yes
-  int localc; // for `let` etc.
+  int extra_localc; // the ones introduced by `with`
   any name; // sym for backtraces
   int size_of_env; // so that we can copy subs
-  any code[1]; // can be longer
+  any ops[1]; // can be longer
 } *sub_code;
 #define sub_code_header_size (bytes2words(sizeof(struct sub_code))-1)
-my sub_code make_sub_code(int argc, int has_rest, int localc, int size_of_env, int code_size) {
+my sub_code make_sub_code(int argc, int has_rest, int extra_localc, int size_of_env, int code_size) {
   sub_code code = (sub_code) reg_alloc(sub_code_header_size + code_size);
 #define x(f) code->f = f
-  x(argc); x(has_rest); x(localc); x(size_of_env);
+  x(argc); x(has_rest); x(extra_localc); x(size_of_env);
 #undef x
    code->name = BFALSE; return code;
 }
-my int count_locals(sub_code sc) { return sc->argc + sc->has_rest + sc->localc; }
+my int count_locals(sub_code sc) { return sc->argc + sc->has_rest + sc->extra_localc; }
 
 typedef struct { sub_code code; any env[0]; } *sub;
 my bool is_sub(any x) { return is_tagged(x, t_sub); }
@@ -466,7 +466,7 @@ my void verify_argc(struct upcoming_call *the_call) {
 my void call(sub subr, any *args, int locals_cnt) { sub lambda; any *lambda_envp;
   call_sp++; call_sp->subr = subr; call_sp->args = args; call_sp->tail_calls = 0;
 start:;
-  any *env = subr->env; any *ip = subr->code->code;
+  any *env = subr->env; any *ip = subr->code->ops;
   while(1) switch(*ip++) {
     case OP_CONST: last_value = *ip++; break;
     case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
@@ -501,7 +501,7 @@ cleanup:
   call_sp--;
   drop_locals(locals_cnt); 
 }
-my void call0(sub subr) { int localc = subr->code->localc; call(subr, alloc_locals(localc), localc); }
+my void call0(sub subr) { int localc = subr->code->extra_localc; call(subr, alloc_locals(localc), localc); }
 
 my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
   int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt);
@@ -584,7 +584,7 @@ my any compile2list(any expr, any env) { any res = single(BFALSE); compile_state
 }
 my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_size) { any raw = compile2list(expr, env);
   reg_permanent(); sub_code code = make_sub_code(argc, has_rest, 0, env_size, len(raw)); reg_pop();
-  any *p = code->code; foreach(x, raw) *p++ = x; return code;
+  any *p = code->ops; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
 my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(e, NIL, 0, 0, 0); name_sub((sub) &res, intern("<top>")); return res; }
 
@@ -646,7 +646,7 @@ DEFSUB(mod) { last_value = int2any(any2int(args[0]) % any2int(args[1])); }
 
 my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(argc, has_rest, 0, 0, 2);
-  code->code[0] = OP_WRAP; code->code[1] = (any) cptr;
+  code->ops[0] = OP_WRAP; code->ops[1] = (any) cptr;
   sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
 }
 my void init_csubs() {
