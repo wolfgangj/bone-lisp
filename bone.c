@@ -436,7 +436,7 @@ my void backtrace() { printf("BACKTRACE:\n");
   for(struct call_stack_entry *e = call_sp; e > call_stack; e--) { int i = 0;
     printf("("); if(is(e->subr->code->name)) print(e->subr->code->name); else printf("<unknown>");
     for(i = 0; i != e->subr->code->argc; i++) { printf(" "); print_arg(e->args[i]); }
-    if(e->subr->code->has_rest) foreach(x, e->args[0]) { printf(" "); print_arg(x); }
+    if(e->subr->code->has_rest) foreach(x, e->args[i]) { printf(" "); print_arg(x); }
     printf(")\n"); if(e->tail_calls) printf(";; hidden tail calls: %d\n", e->tail_calls);
   }
 }
