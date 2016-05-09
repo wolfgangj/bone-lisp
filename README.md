@@ -51,14 +51,13 @@ Wolfgang Jaehrling (wolfgang at conseptizer dot org)
 
 ## Quick Intro
 
-Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure).
+Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure), nor does it try hard to be compatible.
 I hope you'll like the few things Bone does different than traditional Lisps.
 
-We change one important piece of terminology:
+One important piece of terminology is changed:
 Keeping with the times, we reserve the term "function" for pure functions without side-effects.
-Since Bone Lisp allows some side-effets (like I/O), we speak about subroutines.
-(This is similar to Schemes use of "procedure", actually.)
-Usually, we abbreviate "subroutine" as "sub", as is common in BASIC.
+Since Bone Lisp allows some side-effects (like I/O), we mostly speak about using subroutines in our code.
+Usually, we abbreviate "subroutine" as "sub", like it is done in modern BASIC dialects.
 
 To the usual syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs with a single expression in the body:
 
@@ -70,17 +69,18 @@ Rest arguments work like they do in Scheme:
     (lambda (a b c . args) foo)
 
 Booleans and the empty list work almost like they do in Scheme:
-The empty list is written as `()` and is self-evaluating (whereas in Scheme it can't be evaluated).
-While we still call the empty list "nil", it is not the symbol `nil` (which isn't special in any way).
-You cannot take the `car` and `cdr` of the empty list.
-Only the value `#f` is false.
-The cannonical value for `true` is `#t`.
+
+* The empty list is written as `()` and is self-evaluating (whereas in Scheme it can't be evaluated).
+* While we still call the empty list "nil", it is not the symbol `nil` (which isn't special in any way).
+* You cannot take the `car` and `cdr` of the empty list.
+* Only the value `#f` is false.
+* The cannonical value for true is `#t`.
 
 The names of predicates end with a question mark (e.g. `nil?`).
 Subs which may return a useful value or `#f` (false) also follow this convention (eg. `assoq?`).
 This helps to prevent forgetting about the possbility of returning `#f`.
 
-Most library names are taken from Scheme and Common Lisp.
+Most names in the library are taken from Scheme and Common Lisp.
 Often, we provide several names for the same thing (like Ruby does).
 For example, `len`, `length` and `size` are the same.
 See `core.bn` for docstrings describing the builtins.
@@ -97,8 +97,8 @@ The use of regions is also available only via an internal sub:
     (_w/new-reg (lambda () foo))
 
 The given thunk will be evaluated with objects allocated in a new region.
-On return, the return value will be copied to the previous region.
-Then, the region will be freed.
+The return value will be copied to the previous region.
+Finally, the new region will be freed.
 
 ## License
 
@@ -116,7 +116,7 @@ Bone Lisp is influenced by:
 * [Erlang](http://www.erlang.org/) is a functional language for building scalable real-time systems
 * [Ruby](https://www.ruby-lang.org/) is a scripting language with great usability
 
-Somewhat related projects:
+Somewhat related Free Software projects:
 * [Pre-Scheme](https://en.wikipedia.org/wiki/PreScheme) is a GC-free (LIFO) subset of Scheme
 * [Carp](https://github.com/eriksvedang/Carp) is "a statically typed lisp, without a GC"
 * [newLISP](http://www.newlisp.org/) uses "One Reference Only" memory management
