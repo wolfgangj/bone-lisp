@@ -730,9 +730,9 @@ void bone_init() {
   bone_init_thread();
 }
 void bone_repl() { int line = 0;
-  while(1) { printf("\n@%d: ", line++);
-    any e = bone_read(); sub_code code = compile_toplevel_expr(e); call0((sub) &code); print(last_value);
-  }
+  while(1) { printf("\n@%d: ", line++); any e = bone_read();
+    if (e == ENDOFFILE) break; sub_code code = compile_toplevel_expr(e); call0((sub) &code); print(last_value);
+  } printf("\n");
 }
 
 // FIXME: should have its own file, to allow embedding.
