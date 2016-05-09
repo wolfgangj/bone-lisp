@@ -432,9 +432,9 @@ my void drop_locals(int n) { locals_sp -= n; }
 struct call_stack_entry { sub subr; any *args; int tail_calls; } call_stack[256], *call_sp;
 my bool is_self_evaluating(any x) { return !(is_sym(x) || is_cons(x)); }
 my void print_arg(any x) { if(!is_self_evaluating(x)) printf("'"); print(x); }
-my void backtrace() {
+my void backtrace() { printf("BACKTRACE:\n");
   for(struct call_stack_entry *e = call_sp; e > call_stack; e--) { int i = 0;
-    printf("("); print(e->subr->code->name);
+    printf("("); if(is(e->subr->code->name)) print(e->subr->code->name); else printf("<unknown>");
     for(i = 0; i != e->subr->code->argc; i++) { printf(" "); print_arg(e->args[i]); }
     if(e->subr->code->has_rest) foreach(x, e->args[0]) { printf(" "); print_arg(x); }
     printf(")\n"); if(e->tail_calls) printf(";; hidden tail calls: %d\n", e->tail_calls);
@@ -586,7 +586,7 @@ my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_
   reg_permanent(); sub_code code = make_sub_code(argc, has_rest, 0, env_size, len(raw)); reg_pop();
   any *p = code->code; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
-my sub_code compile_toplevel_expr(any e) { return compile2sub_code(e, NIL, 0, 0, 0); }
+my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(e, NIL, 0, 0, 0); name_sub((sub) &res, intern("<top>")); return res; }
 
 //////////////// library ////////////////
 
