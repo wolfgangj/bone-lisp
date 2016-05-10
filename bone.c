@@ -543,18 +543,23 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   compile_expr(car(e), env, tail_context, state);
   set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
 }
+my any lambda_ignore_list(any old, any args) { listgen lg = listgen_new();
+  foreach_cons(x, args) { listgen_add(&lg, far(x)); if(!is_cons(fdr(x)) && !is_nil(fdr(x))) listgen_add(&lg, fdr(x)); }
+  if(is_nil(lg.last)) return old; set_fdr(lg.last, old); return lg.xs; }
 my void found_local(any local, listgen *lg, int *cnt) { if(!is(assoq(far(local), lg->xs))) { (*cnt)++; listgen_add(lg, local); } }
 my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *lg) {
   foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
   case t_sym: { any local = assoqc(x, locals); if(is(local) && !is_member(x, ignore)) { found_local(local, lg, cnt); } break; }
-  case t_cons: if(far(x) == s_quote) continue;  // FIXME: also handle special forms `with` & `lambda`
+  case t_cons: if(far(x)==s_quote) continue;
+    if(far(x)==s_with) { collect_locals_rec(cdr(fdr(x)), locals, cons(car(fdr(x)), ignore), cnt, lg); continue; }
+    if(far(x)==s_lambda) { collect_locals_rec(fdr(fdr(x)), locals, lambda_ignore_list(ignore, car(fdr(x))), cnt, lg); continue; }
     collect_locals_rec(x, locals, ignore, cnt, lg); break;
   default:; }
 }
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
   listgen res = listgen_new(); collect_locals_rec(code, locals, ignore, cnt, &res); return res.xs;
 }
-any locals_of_inner_lambda(any env, any args) { any res = NIL; int cnt = 0;
+any locals_for_lambda(any env, any args) { any res = NIL; int cnt = 0;
   foreach(x, env) res = cons(cons(far(x), cons(s_env, int2any(cnt++))), res); cnt = 0;
   foreach(x, args) res = cons(cons(x, cons(s_arg, int2any(cnt++))), res); return res;
 }
@@ -566,7 +571,7 @@ my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_
 my void compile_lambda(any args, any body, any env, compile_state *state) {
   int argc = 0; int has_rest; args = flatten_rest_x(args, &argc, &has_rest);
   int collected_env_len = 0; any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
-  any env_of_sub = locals_of_inner_lambda(collected_env, args);
+  any env_of_sub = locals_for_lambda(collected_env, args);
   sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, has_rest, collected_env_len);
   emit(OP_PREPARE_SUB, state); emit((any) sc, state);
   foreach(x, collected_env) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
