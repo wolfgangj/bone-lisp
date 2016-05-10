@@ -137,6 +137,12 @@ my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); a
 my any move_last_to_rest_x(any xs) { if(is_single(xs)) return far(xs);
   foreach_cons(pair, xs) if(is_single(fdr(pair))) { set_fdr(pair, far(fdr(pair))); break; } return xs; }
 
+typedef struct { any xs, last; } listgen;
+my listgen listgen_new() { listgen res = { NIL, NIL }; return res; }
+my void listgen_add(listgen *lg, any x) {
+  if(is_nil(lg->xs)) lg->xs = lg->last = single(x); else { any new = single(x); set_fdr(lg->last, new); lg->last = new; }
+}
+
 //////////////// strs ////////////////
 
 my any str(any chrs) { any *p = reg_alloc(1); *p = chrs; return tag((any) p, t_str); }
@@ -537,12 +543,16 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   compile_expr(car(e), env, tail_context, state);
   set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
 }
-my any collect_locals(any code, any locals, any ignore, int *cnt) {
-  any res = NIL; foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
-  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is_member(x, ignore)) { res = cons(local, res); (*cnt)++; } break; }
+my void found_local(any local, listgen *lg, int *cnt) { if(!is(assoq(far(local), lg->xs))) { (*cnt)++; listgen_add(lg, local); } }
+my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *lg) {
+  foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
+  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is_member(x, ignore)) { found_local(local, lg, cnt); } break; }
   case t_cons: if(far(x) == s_quote) continue;  // FIXME: also handle special forms `with` & `lambda`
-    res = cat2(res, collect_locals(x, locals, ignore, cnt)); break; // FIXME: cat2()->cat2_x()
-  default:; } return res;
+    collect_locals_rec(x, locals, ignore, cnt, lg); break;
+  default:; }
+}
+my any collect_locals(any code, any locals, any ignore, int *cnt) {
+  listgen res = listgen_new(); collect_locals_rec(code, locals, ignore, cnt, &res); return res.xs;
 }
 any locals_of_inner_lambda(any env, any args) { any res = NIL; int cnt = 0;
   foreach(x, env) res = cons(cons(far(x), cons(s_env, int2any(cnt++))), res); cnt = 0;
