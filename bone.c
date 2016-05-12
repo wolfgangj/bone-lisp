@@ -506,9 +506,6 @@ cleanup:
   call_sp--;
   drop_locals(locals_cnt); 
 }
-my void call0(sub subr) { if(subr->code->argc) generic_error("expected sub without args, but got", sub2any(subr));
-  int localc = subr->code->extra_localc; any *locals = alloc_locals(localc + subr->code->take_rest);
-  if(subr->code->take_rest) locals[0] = NIL; call(subr, locals, localc); }
 
 my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
   int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt);
@@ -523,6 +520,7 @@ my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc,
   if(pos == argc) args[argc] = NIL; else set_fdr(p, NIL);
   call(subr, args, locals_cnt);
 }
+my void call0(sub subr) { apply(subr, NIL); }
 
 //////////////// bindings ////////////////
 
