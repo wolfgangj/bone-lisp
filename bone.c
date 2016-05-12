@@ -23,7 +23,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/mman.h>
-
 #define my static
 
 typedef uint64_t any; // we only support 64 bit currently
@@ -243,21 +242,21 @@ my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=inter
 
 typedef struct sub_code { // fields are in the order in which we access them.
   int argc; // number of required args
-  int has_rest; // accepting rest args? 0=no, 1=yes
+  int take_rest; // accepting rest args? 0=no, 1=yes
   int extra_localc; // the ones introduced by `with`
   any name; // sym for backtraces
   int size_of_env; // so that we can copy subs
   any ops[1]; // can be longer
 } *sub_code;
 #define sub_code_header_size (bytes2words(sizeof(struct sub_code))-1)
-my sub_code make_sub_code(int argc, int has_rest, int extra_localc, int size_of_env, int code_size) {
+my sub_code make_sub_code(int argc, int take_rest, int extra_localc, int size_of_env, int code_size) {
   sub_code code = (sub_code) reg_alloc(sub_code_header_size + code_size);
 #define x(f) code->f = f
-  x(argc); x(has_rest); x(extra_localc); x(size_of_env);
+  x(argc); x(take_rest); x(extra_localc); x(size_of_env);
 #undef x
    code->name = BFALSE; return code;
 }
-my int count_locals(sub_code sc) { return sc->argc + sc->has_rest + sc->extra_localc; }
+my int count_locals(sub_code sc) { return sc->argc + sc->take_rest + sc->extra_localc; }
 
 typedef struct { sub_code code; any env[0]; } *sub;
 my bool is_sub(any x) { return is_tagged(x, t_sub); }
@@ -311,7 +310,7 @@ my void print(any x) { switch(tag_of(x)) {
     printf("\""); break;
   case t_reg: printf("#reg(%p)", (void *) x); break;
   case t_sub: printf("#sub(id=%p name=", (void *) x); sub_code code = any2sub(x)->code; print(code->name);
-    printf(" argc=%d take-rest?=", code->argc); print(code->has_rest ? BTRUE : BFALSE); printf(")");
+    printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(")");
     break;
   case t_other: default: abort(); }
 }
@@ -442,7 +441,7 @@ my void backtrace() { printf("BACKTRACE:\n");
   for(struct call_stack_entry *e = call_sp; e > call_stack; e--) { int i = 0;
     printf("("); if(is(e->subr->code->name)) print(e->subr->code->name); else printf("<unknown>");
     for(i = 0; i != e->subr->code->argc; i++) { printf(" "); print_arg(e->args[i]); }
-    if(e->subr->code->has_rest) foreach(x, e->args[i]) { printf(" "); print_arg(x); }
+    if(e->subr->code->take_rest) foreach(x, e->args[i]) { printf(" "); print_arg(x); }
     printf(")\n"); if(e->tail_calls) printf(";; hidden tail calls: %d\n", e->tail_calls);
   }
 }
@@ -459,7 +458,7 @@ my void args_error_unspecific(sub_code sc) { args_error(sc, single(intern("...")
 
 my void add_nonrest_arg() { *(next_call->next_arg++) = last_value; }
 my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
-  if(!sc->has_rest) args_error_unspecific(sc);
+  if(!sc->take_rest) args_error_unspecific(sc);
   if(next_call->rest_constructor == NIL) { // first rest arg
     next_call->rest_constructor = next_call->args[sc->argc] = single(last_value);
   } else { // adding another rest arg
@@ -484,7 +483,7 @@ start:;
 	next_call->nonrest_args_left = sc->argc;
 	next_call->locals_cnt = count_locals(sc);
 	next_call->next_arg = next_call->args = alloc_locals(next_call->locals_cnt);
-	if(sc->has_rest) { next_call->rest_constructor = next_call->args[sc->argc] = NIL; }
+	if(sc->take_rest) { next_call->rest_constructor = next_call->args[sc->argc] = NIL; }
 	break; }
     case OP_CALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call);
 	call(the_call->to_be_called, the_call->args, the_call->locals_cnt); break; }
@@ -514,7 +513,7 @@ my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc,
   foreach(x, xs) {
     if(pos <  argc) { args[pos] = x; pos++; continue; } // non-rest arg
     if(pos == argc) { // starting rest args
-      if(sc->has_rest) { args[pos] = precons(x); p = args[pos]; pos++; continue; } else args_error(sc, xs);
+      if(sc->take_rest) { args[pos] = precons(x); p = args[pos]; pos++; continue; } else args_error(sc, xs);
     }
     any next = precons(x); set_fdr(p, next); p = next; pos++; // adding another rest arg
   }
@@ -563,16 +562,16 @@ any locals_for_lambda(any env, any args) { any res = NIL; int cnt = 0;
   foreach(x, env) res = cons(cons(far(x), cons(s_env, int2any(cnt++))), res); cnt = 0;
   foreach(x, args) res = cons(cons(x, cons(s_arg, int2any(cnt++))), res); return res;
 }
-my any flatten_rest_x(any xs, int *len, int *has_rest) { // stores len w/o rest in `*len`.
-  if(is_sym(xs)) { *has_rest = 1; return single(xs); } // only rest args
-  foreach_cons(x, xs) { (*len)++; any tail = fdr(x); if(is_sym(tail)) { set_fdr(x, single(tail)); *has_rest = 1; return xs; } }
-  *has_rest = 0; return xs; }
-my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_size);
+my any flatten_rest_x(any xs, int *len, int *take_rest) { // stores len w/o rest in `*len`.
+  if(is_sym(xs)) { *take_rest = 1; return single(xs); } // only rest args
+  foreach_cons(x, xs) { (*len)++; any tail = fdr(x); if(is_sym(tail)) { set_fdr(x, single(tail)); *take_rest = 1; return xs; } }
+  *take_rest = 0; return xs; }
+my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size);
 my void compile_lambda(any args, any body, any env, compile_state *state) {
-  int argc = 0; int has_rest; args = flatten_rest_x(args, &argc, &has_rest);
+  int argc = 0; int take_rest; args = flatten_rest_x(args, &argc, &take_rest);
   int collected_env_len = 0; any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
   any env_of_sub = locals_for_lambda(collected_env, args);
-  sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, has_rest, collected_env_len);
+  sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, take_rest, collected_env_len);
   emit(OP_PREPARE_SUB, state); emit((any) sc, state);
   foreach(x, collected_env) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
     emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(pos, state); emit(OP_ADD_ENV, state); }
@@ -598,8 +597,8 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
 my any compile2list(any expr, any env) { any res = single(BFALSE); compile_state state = {res,0};
   compile_expr(expr, env, true, &state); emit(OP_RET, &state); return fdr(res);
 }
-my sub_code compile2sub_code(any expr, any env, int argc, int has_rest, int env_size) { any raw = compile2list(expr, env);
-  reg_permanent(); sub_code code = make_sub_code(argc, has_rest, 0, env_size, len(raw)); reg_pop();
+my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) { any raw = compile2list(expr, env);
+  reg_permanent(); sub_code code = make_sub_code(argc, take_rest, 0, env_size, len(raw)); reg_pop();
   any *p = code->ops; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
 my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(e, NIL, 0, 0, 0); name_sub((sub) &res, intern("<top>")); return res; }
@@ -648,7 +647,7 @@ DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0])
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
 DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
-  if(subr->code->argc + subr->code->has_rest) generic_error("expected sub without args, but got", args[0]);
+  if(subr->code->argc + subr->code->take_rest) generic_error("expected sub without args, but got", args[0]);
   reg_push(reg_new()); call0(subr); last_value = copy_back(last_value); reg_free(reg_pop());
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
@@ -660,8 +659,8 @@ DEFSUB(memberp) { last_value = to_bool(is_member(args[0], args[1])); }
 DEFSUB(reverse) { last_value = reverse(args[0]); }
 DEFSUB(mod) { last_value = int2any(any2int(args[0]) % any2int(args[1])); }
 
-my void register_csub(csub cptr, const char *name, int argc, int has_rest) {
-  any name_sym = intern(name); sub_code code = make_sub_code(argc, has_rest, 0, 0, 2);
+my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
+  any name_sym = intern(name); sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
   code->ops[0] = OP_WRAP; code->ops[1] = (any) cptr;
   sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
 }
