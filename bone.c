@@ -506,7 +506,9 @@ cleanup:
   call_sp--;
   drop_locals(locals_cnt); 
 }
-my void call0(sub subr) { int localc = subr->code->extra_localc; call(subr, alloc_locals(localc), localc); }
+my void call0(sub subr) { if(subr->code->argc) generic_error("expected sub without args, but got", sub2any(subr));
+  int localc = subr->code->extra_localc; any *locals = alloc_locals(localc + subr->code->take_rest);
+  if(subr->code->take_rest) locals[0] = NIL; call(subr, locals, localc); }
 
 my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
   int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt);
@@ -647,7 +649,6 @@ DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0])
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
 DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
-  if(subr->code->argc + subr->code->take_rest) generic_error("expected sub without args, but got", args[0]);
   reg_push(reg_new()); call0(subr); last_value = copy_back(last_value); reg_free(reg_pop());
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
