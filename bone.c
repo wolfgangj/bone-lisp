@@ -128,8 +128,8 @@ my any single(any x) { return cons(x, NIL); }
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
 my any reverse(any xs) { any res = NIL; foreach(x, xs) res = cons(x, res); return res; }
 my bool is_member(any a, any xs) { foreach(x, xs) if(x == a) return true; return false; }
-my any assoq(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
-my any assoqc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
+my any assoc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
+my any assoc_entry(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
 my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); any p = res;
   foreach(x, fdr(a)) { any n = precons(x); set_fdr(p, n); p = n; } set_fdr(p, b); return res; }
 
@@ -270,7 +270,7 @@ my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
 my void name_sub(sub subr, any name) { if(!is(subr->code->name)) subr->code->name = name; }
 typedef void (*csub)(any *);
 
-//////////////// print ////////////////
+//////////////// printer ////////////////
 
 my void print_args(any x) {
   if(!is_cons(x)) { if(!is_nil(x)) { printf(". "); print(x); printf(" "); } return; }
@@ -296,7 +296,7 @@ my void print(any x) { switch(tag_of(x)) {
     case NIL: printf("()"); break;
     case BTRUE: printf("#t"); break;
     case BFALSE: printf("#f"); break;
-    case ENDOFFILE: printf("#{eof}"); break; // FIXME: should we keep this?
+    case ENDOFFILE: printf("#{eof}"); break;
     default: abort(); }
     break;
   case t_str: printf("\"");
@@ -310,7 +310,8 @@ my void print(any x) { switch(tag_of(x)) {
     printf("\""); break;
   case t_reg: printf("#reg(%p)", (void *) x); break;
   case t_sub: printf("#sub(id=%p name=", (void *) x); sub_code code = any2sub(x)->code; print(code->name);
-    printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(")");
+    //printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(")");
+    printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(" localc=%d)", code->extra_localc);
     break;
   case t_other: default: abort(); }
 }
@@ -545,10 +546,10 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
 my any lambda_ignore_list(any old, any args) { listgen lg = listgen_new();
   foreach_cons(x, args) { listgen_add(&lg, far(x)); if(!is_cons(fdr(x)) && !is_nil(fdr(x))) listgen_add(&lg, fdr(x)); }
   if(is_nil(lg.last)) return old; set_fdr(lg.last, old); return lg.xs; }
-my void found_local(any local, listgen *lg, int *cnt) { if(!is(assoq(far(local), lg->xs))) { (*cnt)++; listgen_add(lg, local); } }
+my void found_local(any local, listgen *lg, int *cnt) { if(!is(assoc(far(local), lg->xs))) { (*cnt)++; listgen_add(lg, local); } }
 my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *lg) {
   foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
-  case t_sym: { any local = assoqc(x, locals); if(is(local) && !is_member(x, ignore)) { found_local(local, lg, cnt); } break; }
+  case t_sym: { any local = assoc_entry(x, locals); if(is(local) && !is_member(x, ignore)) { found_local(local, lg, cnt); } break; }
   case t_cons: if(far(x)==s_quote) continue;
     if(far(x)==s_with) { collect_locals_rec(cdr(fdr(x)), locals, cons(car(fdr(x)), ignore), cnt, lg); continue; }
     if(far(x)==s_lambda) { collect_locals_rec(fdr(fdr(x)), locals, lambda_ignore_list(ignore, car(fdr(x))), cnt, lg); continue; }
@@ -588,7 +589,7 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     compile_expr(first, env, false, state); emit(OP_PREPARE_CALL, state);
     foreach(arg, rest) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
-  case t_sym:; any local = assoq(e, env);
+  case t_sym:; any local = assoc(e, env);
     if(is(local)) { emit(far(local) == s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
     any global = get_binding(e); if(!is_cons(global)) generic_error("unbound sym", e);
     emit(OP_CONST, state); emit(fdr(global), state); break;
@@ -625,7 +626,7 @@ DEFSUB(strp)  { last_value = to_bool(is_tagged(args[0], t_str)); }
 DEFSUB(str) { last_value = str(args[0]); }
 DEFSUB(unstr) { last_value = unstr(args[0]); }
 DEFSUB(len) { last_value = int2any(len(args[0])); }
-DEFSUB(assoq) { last_value = assoq(args[0], args[1]); }
+DEFSUB(assoc) { last_value = assoc(args[0], args[1]); }
 DEFSUB(intern) { last_value = intern_from_chars(unstr(args[0])); }
 DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
@@ -650,7 +651,7 @@ DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
   reg_push(reg_new()); call0(subr); last_value = copy_back(last_value); reg_free(reg_pop());
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
-DEFSUB(assoqc) { last_value = assoqc(args[0], args[1]); }
+DEFSUB(assoc_entry) { last_value = assoc_entry(args[0], args[1]); }
 DEFSUB(fast_str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
 DEFSUB(fast_str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
 DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
@@ -683,7 +684,7 @@ my void init_csubs() {
   register_csub(CSUB_str, "str", 1, 0); register_csub(CSUB_str, "list->str", 1, 0);
   register_csub(CSUB_unstr, "unstr", 1, 0); register_csub(CSUB_unstr, "str->list", 1, 0);
   register_csub(CSUB_len, "len", 1, 0); register_csub(CSUB_len, "length", 1, 0); register_csub(CSUB_len, "size", 1, 0);
-  register_csub(CSUB_assoq, "assoq?", 2, 0);
+  register_csub(CSUB_assoc, "assoc?", 2, 0);
   register_csub(CSUB_intern, "intern", 1, 0); register_csub(CSUB_intern, "str->sym", 1, 0);
   register_csub(CSUB_copy, "copy", 1, 0);
   register_csub(CSUB_say, "say", 0, 1);
@@ -707,7 +708,7 @@ my void init_csubs() {
   register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   register_csub(CSUB_bind, "_bind", 2, 0);
-  register_csub(CSUB_assoqc, "assoq-cons?", 2, 0); // FIXME: call it assoq-w/key? ?
+  register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
   // FIXME: Add the full versions and bind canonical names to them
   register_csub(CSUB_fast_str_eql, "_fast-str=?", 2, 0); register_csub(CSUB_fast_str_eql, "str=?", 2, 0);
   register_csub(CSUB_fast_str_neql, "_fast-str<>?", 2, 0); register_csub(CSUB_fast_str_neql, "str<>?", 2, 0);
