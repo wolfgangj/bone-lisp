@@ -15,7 +15,6 @@
 *Note: This software is currently in pre-alpha status.*
 
 Bone is an interpreter for a lexically scoped Lisp-1.
-(Dynamic scoping will be added as an option.)
 It is based on immutable values and does tail-call elimination.
 The special feature that distinguishes it from other Lisps is the semi-automatic memory management: 
 It uses explicit regions instead of garbage collection.
@@ -32,7 +31,7 @@ It runs on GNU/Linux and possibly on other Unices.
 
 Garbage collection becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
 But programming with `malloc()` and `free()` is just too error-prone.
-Using explicit regions is both very simple and very fast, but how far can one get with it?
+Explicit regions are both very simple and very fast, but how far can one get with it?
 I want to find out, so I am developing this interpreter.
 
 Bone Lisp could maybe become useful for soft real-time systems (e.g. as a scripting language for games), some kinds of multi-threaded servers and embedded systems.
@@ -77,7 +76,7 @@ Booleans and the empty list work almost like they do in Scheme:
 * The cannonical value for true is `#t`.
 
 The names of predicates end with a question mark (e.g. `nil?`).
-Subs which may return a useful value or `#f` (false) also follow this convention (eg. `assoq?`).
+Subs which may return a useful value or `#f` (false) also follow this convention (eg. `assoc?`).
 This helps to prevent forgetting about the possbility of returning `#f`.
 
 Most names in the library are taken from Scheme and Common Lisp.
