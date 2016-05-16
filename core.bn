@@ -21,7 +21,7 @@
 ;;;; alternative names of subs, as well as `defsection` to define the
 ;;;; different sections.
 
-;; TODO: We are at `copy` currently.
+;; TODO: Currently this file is up to date.
 
 (defsection "Special forms"
   "Special forms are built-in forms with special evaluation rules."
@@ -152,6 +152,13 @@ This means that `(list* 1 2 3)` returns `(1 2 . 3)`.")
   (defsub (cat list1 list2)
     "Concatenate `list1` and `list2`.")
 
+  (defsub (reverse xs)
+    "Return a list with the elements of `xs`, but in opposite order.")
+
+  (defalias contains? member?)
+  (defsub (member? x xs)
+    "Return whether `x` is in the list `xs`")
+
   (defsub (each sub xs)
     "Apply `sub` to every element of the list `xs` in sequence.
 
@@ -164,12 +171,12 @@ cell with a key in its `car` and a corresponding value in the
 `cdr` (sometimes also the `cadr` - this is useful if you want to
 distinguish between a value being `#f` and no value being found)."
 
-  (defsub (assoq? x alist)
+  (defsub (assoc? x alist)
     "Get the value corresponding to the key `x` in `alist` (`#f` if not found).
 
 This sub will return the `cdr` where the `car` is `x`.")
 
-  (defsub (assoq-cons? x alist)
+  (defsub (assoc-entry? x alist)
     "Returns the key/value entry from `alist` with the key `x` (`#f` if not found).")
 
 );end of section
@@ -207,6 +214,11 @@ When applied to the empty list (as in `(*)` or `(apply * ())`), the result is 1.
 
   (defsub (/ dividend . divisors)
     "Devide the `dividend` by the product of all `divisors`.")
+
+  (defalias modulo mod)
+  (defalias % mod)
+  (defsub (mod dividend divisor)
+    "Return the remainder of dividing `dividend` by `divisor`.")
 
   (defsub (=? a b)
     "Return whether the numbers `a` and `b` are equal.")
