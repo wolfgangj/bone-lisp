@@ -328,10 +328,10 @@ my void parse_error(const char *text) { printf("parse error: %s\n", text); abort
 
 my bool allowed_chars[] = { // these can be used for syms in s-exprs
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0,1,0,0,1,1,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,
+  0,1,0,0,1,1,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,1,
   0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,0
-}; // disallowed are the first 32 and " #'(),@;[]`{}|
+}; // disallowed are the first 32 and " #'(),@:;[]`{}|
 my bool is_symchar(int c) { return (c >= 0 && c < 256) ? allowed_chars[c] : c!=EOF; }
 
 #define nextc getchar // FIXME: allow input from other sources
@@ -714,7 +714,7 @@ my void init_csubs() {
   register_csub(CSUB_fast_str_neql, "_fast-str<>?", 2, 0); register_csub(CSUB_fast_str_neql, "str<>?", 2, 0);
 
   register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
-  register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0); // FIXME: add doc
+  register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0);
   register_csub(CSUB_reverse, "reverse", 1, 0);
   register_csub(CSUB_mod, "mod", 2, 0); register_csub(CSUB_mod, "modulo", 2, 0); register_csub(CSUB_mod, "%", 2, 0);
 }
