@@ -58,7 +58,7 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 
 ### What it does not (unsure whether it ever will)
 
-These are open for discussion.
+These are open for discussion, but I currently have no plans for these.
 
 * Arrays
 * Hash tables
@@ -68,9 +68,15 @@ These are open for discussion.
 
 ### What it does not (and won't)
 
-* Garbage collection, obviously
+I have no interest at all in adding these features to Bone Lisp.
+
+* Garbage collection
+  (obviously, since the whole point of Bone Lisp is to avoid it)
 * Continuations
+  (I don't think they make sense with explicit regions)
 * Being compatible to other Lisp dialects
+* Object oriented programming
+  (doing it well is hard and thus takes a lot of time I'd rather spend for other features)
 
 ## Getting started
 
