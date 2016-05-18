@@ -18,23 +18,59 @@ Bone is an interpreter for a lexically scoped Lisp-1.
 It is based on immutable values and does tail-call elimination.
 The special feature that distinguishes it from other Lisps is the semi-automatic memory management: 
 It uses explicit regions instead of garbage collection.
-Currently, cons cells are the universal data structure;
-I have not decided yet whether I will add arrays, records and hash tables.
 
 It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp, Erlang and Ruby.
 
 It is currently written for 64 bit systems.
-It also requires little-endian, though both issues are not that hard to fix if desired.
-It runs on GNU/Linux and possibly on other Unices.
+It also requires little-endian, though this can be easiely fixed if desired.
+It runs on GNU/Linux and should also work on other Unices.
 
 ## Why?
 
 Garbage collection becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
-But programming with `malloc()` and `free()` is just too error-prone.
+But doing manual memory management is an annoying waste of time for the programmer and usually also error-prone.
 Explicit regions are both very simple and very fast, but how far can one get with it?
 I want to find out, so I am developing this interpreter.
 
 Bone Lisp could maybe become useful for soft real-time systems (e.g. as a scripting language for games), some kinds of multi-threaded servers and embedded systems.
+
+## Status
+
+### What it does
+
+* Lexical scoping & closures
+* Explicit regions memory management
+* Tail call elimination
+* Lists, strings, fixnums, symbols
+
+### What it does not (yet)
+
+* Macros (highest priority)
+* Reader macros
+* Multithreading
+* Keywords
+* Optional dynamic scoping
+* I/O streams
+* Floating point numbers
+* Unicode
+* Records / structures
+* POSIX bindings
+
+### What it does not (unsure whether it ever will)
+
+These are open for discussion.
+
+* Arrays
+* Hash tables
+* Exceptions
+* Module system
+* Bignums
+
+### What it does not (and won't)
+
+* Garbage collection, obviously
+* Continuations
+* Being compatible to other Lisp dialects
 
 ## Getting started
 
@@ -90,6 +126,9 @@ A subroutine can be defined with `_bind`:
 
     (_bind 'sum | xs (apply + xs))
     (sum '(1 2 3))  ; => 6
+
+Note that the environment is hyperstatic (as in Forth):
+If you redefine something, the subs previously defined will continue to use the old definition.
 
 The use of regions is also available only via an internal sub:
 
