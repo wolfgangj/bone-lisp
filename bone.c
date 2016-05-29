@@ -658,16 +658,16 @@ DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
 DEFSUB(memberp) { last_value = to_bool(is_member(args[0], args[1])); }
 DEFSUB(reverse) { last_value = reverse(args[0]); }
 DEFSUB(mod) { last_value = int2any(any2int(args[0]) % any2int(args[1])); }
-DEFSUB(full_num_eqp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
+DEFSUB(full_num_eqp) { last_value = BTRUE; if(is_nil(args[0])) return; int32_t n = any2int(far(args[0]));
   foreach(x, fdr(args[0])) if(n != any2int(x)) { last_value = BFALSE; return; } }
-DEFSUB(full_num_gtp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) { int m = any2int(x); if(n <= m) { last_value = BFALSE; return; } n = m; } }
-DEFSUB(full_num_ltp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) { int m = any2int(x); if(n >= m) { last_value = BFALSE; return; } n = m; } }
-DEFSUB(full_num_geqp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) { int m = any2int(x); if(n < m) { last_value = BFALSE; return; } n = m; } }
-DEFSUB(full_num_leqp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) { int m = any2int(x); if(n > m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(full_num_gtp) { last_value = BTRUE; if(is_nil(args[0])) return; int32_t n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int32_t m = any2int(x); if(n <= m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(full_num_ltp) { last_value = BTRUE; if(is_nil(args[0])) return; int32_t n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int32_t m = any2int(x); if(n >= m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(full_num_geqp) { last_value = BTRUE; if(is_nil(args[0])) return; int32_t n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int32_t m = any2int(x); if(n < m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(full_num_leqp) { last_value = BTRUE; if(is_nil(args[0])) return; int32_t n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int32_t m = any2int(x); if(n > m) { last_value = BFALSE; return; } n = m; } }
 
 my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
