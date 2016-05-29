@@ -652,8 +652,8 @@ DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
 }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
 DEFSUB(assoc_entry) { last_value = assoc_entry(args[0], args[1]); }
-DEFSUB(fast_str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
-DEFSUB(fast_str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
+DEFSUB(str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
+DEFSUB(str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
 DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
 DEFSUB(memberp) { last_value = to_bool(is_member(args[0], args[1])); }
 DEFSUB(reverse) { last_value = reverse(args[0]); }
@@ -717,9 +717,8 @@ my void init_csubs() {
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   register_csub(CSUB_bind, "_bind", 2, 0);
   register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
-  // FIXME: Add the full versions and bind canonical names to them
-  register_csub(CSUB_fast_str_eql, "_fast-str=?", 2, 0); register_csub(CSUB_fast_str_eql, "str=?", 2, 0);
-  register_csub(CSUB_fast_str_neql, "_fast-str<>?", 2, 0); register_csub(CSUB_fast_str_neql, "str<>?", 2, 0);
+  register_csub(CSUB_str_eql, "str=?", 2, 0);
+  register_csub(CSUB_str_neql, "str<>?", 2, 0);
 
   register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
   register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0);
