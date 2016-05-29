@@ -21,8 +21,6 @@
 ;;;; alternative names of subs, as well as `defsection` to define the
 ;;;; different sections.
 
-;; TODO: Currently this file is up to date.
-
 (defsection "Special forms"
   "Special forms are built-in forms with special evaluation rules."
 
@@ -220,23 +218,26 @@ When applied to the empty list (as in `(*)` or `(apply * ())`), the result is 1.
   (defsub (mod dividend divisor)
     "Return the remainder of dividing `dividend` by `divisor`.")
 
-  (defsub (=? a b)
-    "Return whether the numbers `a` and `b` are equal.")
+  (defsub (=? . nums)
+    "Return whether the numbers in `nums` are all equal.")
 
   (defsub (<>? a b)
-    "Return whether the numbers `a` and `b` are different.")
+    "Return whether the numbers `a` and `b` are different.
 
-  (defsub (>? a b)
-    "Return whether the number `a` is greater than `b`.")
+Note that this sub accepts only two arguments, while similar subs like
+`=?` accept an arbitrary number of args.")
 
-  (defsub (<? a b)
-    "Return whether the number `a` is less than `b`.")
+  (defsub (>? . nums)
+    "Return whether each number in `nums` is greater than the next.")
 
-  (defsub (>=? a b)
-    "Return whether the number `a` is greater than or equal to `b`.")
+  (defsub (<? . nums)
+    "Return whether each number in `nums` is less than the next.")
 
-  (defsub (<=? a b)
-    "Return whether the number `a` is less than or equal to`b`.")
+  (defsub (>=? . nums)
+    "Return whether each number in `nums` is greater than or equal to the next.")
+
+  (defsub (<=? . nums)
+    "Return whether each number in `nums` is less than or equal to the next.")
 
 );end of section
 (defsection "Strings (`str`s)"

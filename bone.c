@@ -658,6 +658,16 @@ DEFSUB(list_star) { last_value = move_last_to_rest_x(args[0]); }
 DEFSUB(memberp) { last_value = to_bool(is_member(args[0], args[1])); }
 DEFSUB(reverse) { last_value = reverse(args[0]); }
 DEFSUB(mod) { last_value = int2any(any2int(args[0]) % any2int(args[1])); }
+DEFSUB(full_num_eqp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) if(n != any2int(x)) { last_value = BFALSE; return; } }
+DEFSUB(full_num_gtp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int m = any2int(x); if(n <= m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(full_num_ltp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int m = any2int(x); if(n >= m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(full_num_geqp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int m = any2int(x); if(n < m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(full_num_leqp) { last_value = BTRUE; if(is_nil(args[0])) return; int n = any2int(far(args[0]));
+  foreach(x, fdr(args[0])) { int m = any2int(x); if(n > m) { last_value = BFALSE; return; } n = m; } }
 
 my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -691,14 +701,12 @@ my void init_csubs() {
   register_csub(CSUB_unaryminus, "_unary-", 1, 0);
   register_csub(CSUB_fastminus, "_fast-", 2, 0);
   register_csub(CSUB_fullminus, "_full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
-  // FIXME: Add the full versions and bind canonical names to them
-  register_csub(CSUB_fast_num_eqp, "_fast=?", 2, 0); register_csub(CSUB_fast_num_eqp, "=?", 2, 0);
+  register_csub(CSUB_fast_num_eqp, "_fast=?", 2, 0);
   register_csub(CSUB_fast_num_neqp, "_fast<>?", 2, 0); register_csub(CSUB_fast_num_neqp, "<>?", 2, 0);
-  register_csub(CSUB_fast_num_gtp, "_fast>?", 2, 0); register_csub(CSUB_fast_num_gtp, ">?", 2, 0);
-  register_csub(CSUB_fast_num_ltp, "_fast<?", 2, 0); register_csub(CSUB_fast_num_ltp, "<?", 2, 0);
-  register_csub(CSUB_fast_num_geqp, "_fast>=?", 2, 0); register_csub(CSUB_fast_num_geqp, ">=?", 2, 0);
-  register_csub(CSUB_fast_num_leqp, "_fast<=?", 2, 0); register_csub(CSUB_fast_num_leqp, "<=?", 2, 0);
-
+  register_csub(CSUB_fast_num_gtp, "_fast>?", 2, 0);
+  register_csub(CSUB_fast_num_ltp, "_fast<?", 2, 0);
+  register_csub(CSUB_fast_num_geqp, "_fast>=?", 2, 0);
+  register_csub(CSUB_fast_num_leqp, "_fast<=?", 2, 0);
   register_csub(CSUB_each, "each", 2, 0);
   register_csub(CSUB_fastmult, "_fast*", 2, 0);
   register_csub(CSUB_fullmult, "_full*", 0, 1); register_csub(CSUB_fullmult, "*", 0, 1);
@@ -717,6 +725,11 @@ my void init_csubs() {
   register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0);
   register_csub(CSUB_reverse, "reverse", 1, 0);
   register_csub(CSUB_mod, "mod", 2, 0); register_csub(CSUB_mod, "modulo", 2, 0); register_csub(CSUB_mod, "%", 2, 0);
+  register_csub(CSUB_full_num_eqp, "_full=?", 0, 1); register_csub(CSUB_full_num_eqp, "=?", 0, 1);
+  register_csub(CSUB_full_num_gtp, "_full>?", 0, 1); register_csub(CSUB_full_num_gtp, ">?", 0, 1);
+  register_csub(CSUB_full_num_ltp, "_full<?", 0, 1); register_csub(CSUB_full_num_ltp, "<?", 0, 1);
+  register_csub(CSUB_full_num_geqp, "_full>=?", 0, 1); register_csub(CSUB_full_num_geqp, ">=?", 0, 1);
+  register_csub(CSUB_full_num_leqp, "_full<=?", 0, 1); register_csub(CSUB_full_num_leqp, "<=?", 0, 1);
 }
 
 //////////////// misc ////////////////
