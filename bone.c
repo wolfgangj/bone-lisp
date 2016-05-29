@@ -390,13 +390,13 @@ my any read_list() { any x = reader();
   if(x == s_dot) { x = reader(); if(reader() != READER_LIST_END) parse_error("invalid improper list"); return x; }
   return cons(x, read_list());
 }
-my any lambda_parser(any *body) { any x = reader();
+my any short_lambda_parser(any *body) { any x = reader();
   if(is_cons(x)) { *body = x; return NIL; }
   if(!is_sym(x)) { parse_error("invalid lambda short form (expected sym)"); }
   if(x == s_dot) { any rest = reader(); *body = reader(); return rest; }
-  return cons(x, lambda_parser(body));
+  return cons(x, short_lambda_parser(body));
 }
-my any read_lambda_short_form() { any body, args = lambda_parser(&body); return cons(s_lambda, cons(args, single(body))); }
+my any read_lambda_short_form() { any body, args = short_lambda_parser(&body); return cons(s_lambda, cons(args, single(body))); }
 my any read_unquote() { any q = s_unquote; int c = look();
   if(c == '@') { nextc(); q = s_unquote_splicing; }
   return cons(q, reader());
