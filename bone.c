@@ -232,10 +232,10 @@ my any intern(const char *name) { size_t len; any id = string_hash(name, &len);
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
 
-my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_dot, s_do, s_arg, s_env;
+my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_list, s_cat, s_dot, s_do, s_arg, s_env;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
-  x(lambda);x(with);x(if);s_dot=intern(".");x(do);x(arg);x(env); }
+  x(lambda);x(with);x(if);x(list);x(cat);s_dot=intern(".");x(do);x(arg);x(env); }
 #undef x
 
 //////////////// subs ////////////////
@@ -301,16 +301,13 @@ my void print(any x) { switch(tag_of(x)) {
     break;
   case t_str: printf("\"");
     foreach(c, unstr(x))
-      switch(any2int(c)) { // FIXME: add more (and add them to reader, too) | FIXME: handle grapheme clusters
-      case '"':  printf("\\\""); break;
-      case '\\': printf("\\\\"); break;
-      case '\n': printf("\\n");  break;
-      case '\t': printf("\\t");  break;
+      switch(any2int(c)) { // FIXME: handle grapheme clusters
+      case '"':  printf("\\\""); break; case '\\': printf("\\\\"); break; case '\n': printf("\\n"); break; case '\t': printf("\\t"); break;
       default: putchar(any2int(c)); }
     printf("\""); break;
   case t_reg: printf("#reg(%p)", (void *) x); break;
   case t_sub: printf("#sub(id=%p name=", (void *) x); sub_code code = any2sub(x)->code; print(code->name);
-    //printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(")");
+    //FIXME: printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(")");
     printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(" localc=%d)", code->extra_localc);
     break;
   case t_other: default: abort(); }
@@ -604,6 +601,23 @@ my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env
 } // result is in permanent region.
 my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(e, NIL, 0, 0, 0); name_sub((sub) &res, intern("<top>")); return res; }
 
+//////////////// quasiquote ////////////////
+
+my any quasiquote(any x);
+my any qq_list(any x) { if(!is_cons(x)) return cons(s_quote, single(x));
+  if(far(x)==s_unquote) return cons(s_list, single(fdr(x)));
+  if(far(x)==s_unquote_splicing) return fdr(x);
+  if(far(x)==s_quasiquote) return qq_list(quasiquote(fdr(x)));
+  return cons(s_list, single(cons(s_cat, cons(qq_list(far(x)), single(quasiquote(fdr(x)))))));
+}
+my any qq_id(any x) { return !is_sym(x) ? x : cons(s_quote, x); }
+my any quasiquote(any x) { if(!is_cons(x)) return qq_id(x);
+  if(far(x)==s_unquote) return x;
+  if(far(x)==s_unquote_splicing) generic_error("invalid quasiquote form", x);
+  if(far(x)==s_quasiquote) return quasiquote(quasiquote(x));
+  return cons(s_cat, cons(qq_list(far(x)), single(quasiquote(fdr(x)))));
+}
+
 //////////////// library ////////////////
 
 #define DEFSUB(name) my void CSUB_ ## name(any *args)
@@ -672,6 +686,7 @@ DEFSUB(bit_not) { last_value = int2any(~any2int(args[0])); }
 DEFSUB(bit_and) { last_value = int2any(any2int(args[0])&any2int(args[1])); }
 DEFSUB(bit_or)  { last_value = int2any(any2int(args[0])|any2int(args[1])); }
 DEFSUB(bit_xor) { last_value = int2any(any2int(args[0])^any2int(args[1])); }
+DEFSUB(quasiquote) { last_value = quasiquote(args[0]); }
 
 my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -737,6 +752,7 @@ my void init_csubs() {
   register_csub(CSUB_bit_and, "bit-and", 2, 0);
   register_csub(CSUB_bit_or, "bit-or", 2, 0);
   register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
+  register_csub(CSUB_quasiquote, "qq", 1, 0); // FIXME: remove
 }
 
 //////////////// misc ////////////////
