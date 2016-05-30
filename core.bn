@@ -239,6 +239,18 @@ Note that this sub accepts only two arguments, while similar subs like
   (defsub (<=? . nums)
     "Return whether each number in `nums` is less than or equal to the next.")
 
+  (defsub (bit-not n)
+    "Return the bitwise negation of `n` (i.e. flip each bit).")
+
+  (defsub (bit-and n1 n2)
+    "Return the bitwise AND of `n1` and `n2`.")
+
+  (defsub (bit-or n1 n2)
+    "Return the bitwise OR (inclusive or) of `n1` and `n2`.")
+
+  (defsub (bit-xor n1 n2)
+    "Return the bitwise XOR (exclusive or) of `n1` and `n2`.")
+
 );end of section
 (defsection "Strings (`str`s)"
   "A `str` is a sequence of characters representing a text.  A

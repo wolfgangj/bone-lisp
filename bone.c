@@ -668,6 +668,10 @@ DEFSUB(full_num_geqp) { last_value = BTRUE; if(is_nil(args[0])) return; int32_t 
   foreach(x, fdr(args[0])) { int32_t m = any2int(x); if(n < m) { last_value = BFALSE; return; } n = m; } }
 DEFSUB(full_num_leqp) { last_value = BTRUE; if(is_nil(args[0])) return; int32_t n = any2int(far(args[0]));
   foreach(x, fdr(args[0])) { int32_t m = any2int(x); if(n > m) { last_value = BFALSE; return; } n = m; } }
+DEFSUB(bit_not) { last_value = int2any(~any2int(args[0])); }
+DEFSUB(bit_and) { last_value = int2any(any2int(args[0])&any2int(args[1])); }
+DEFSUB(bit_or)  { last_value = int2any(any2int(args[0])|any2int(args[1])); }
+DEFSUB(bit_xor) { last_value = int2any(any2int(args[0])^any2int(args[1])); }
 
 my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
   any name_sym = intern(name); sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -729,6 +733,10 @@ my void init_csubs() {
   register_csub(CSUB_full_num_ltp, "_full<?", 0, 1); register_csub(CSUB_full_num_ltp, "<?", 0, 1);
   register_csub(CSUB_full_num_geqp, "_full>=?", 0, 1); register_csub(CSUB_full_num_geqp, ">=?", 0, 1);
   register_csub(CSUB_full_num_leqp, "_full<=?", 0, 1); register_csub(CSUB_full_num_leqp, "<=?", 0, 1);
+  register_csub(CSUB_bit_not, "bit-not", 1, 0);
+  register_csub(CSUB_bit_and, "bit-and", 2, 0);
+  register_csub(CSUB_bit_or, "bit-or", 2, 0);
+  register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
 }
 
 //////////////// misc ////////////////
