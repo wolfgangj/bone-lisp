@@ -612,7 +612,7 @@ my any qq_list(any x) { if(!is_cons(x)) return cons(s_quote, single(x));
 }
 my any qq_id(any x) { return !is_sym(x) ? x : cons(s_quote, x); }
 my any quasiquote(any x) { if(!is_cons(x)) return qq_id(x);
-  if(far(x)==s_unquote) return x;
+  if(far(x)==s_unquote) return fdr(x);
   if(far(x)==s_unquote_splicing) generic_error("invalid quasiquote form", x);
   if(far(x)==s_quasiquote) return quasiquote(quasiquote(x));
   return cons(s_cat, cons(qq_list(far(x)), single(quasiquote(fdr(x)))));
