@@ -28,8 +28,8 @@ It runs on GNU/Linux and should also work on other Unices.
 ## Why?
 
 Garbage collection becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
-But doing manual memory management is an annoying waste of time for the programmer and usually also error-prone.
-Explicit regions are both very simple and very fast, but how far can one get with it?
+But doing manual memory management is time-consuming and usually also error-prone.
+Explicit regions are both very simple and very fast, but how far can one get with them?
 I want to find out, so I am developing this interpreter.
 
 Bone Lisp could maybe become useful for soft real-time systems (e.g. as a scripting language for games), some kinds of multi-threaded servers and embedded systems.
@@ -76,7 +76,7 @@ I have no interest at all in adding these features to Bone Lisp.
   (I don't think they make sense with explicit regions)
 * Being compatible to other Lisp dialects
 * Object oriented programming
-  (doing it well is hard and thus takes a lot of time I'd rather spend for other features)
+  (creating a good object system is hard and thus takes a lot of time I'd rather spend on other features)
 
 ## Getting started
 
@@ -92,7 +92,7 @@ Wolfgang Jaehrling (wolfgang at conseptizer dot org)
 
 ## Quick Intro
 
-Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure), nor does it try hard to be compatible.
+Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure), nor does it try hard to be compatible with tradition.
 I hope you'll like the few things Bone does different than traditional Lisps.
 
 One important piece of terminology is changed:
