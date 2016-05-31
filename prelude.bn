@@ -1,0 +1,68 @@
+;;;; prelude.bn -- Basic definitions of Bone Lisp.   -*- lisp -*-
+;;;; Copyright (C) 2016 Wolfgang Jaehrling
+;;;;
+;;;; Permission to use, copy, modify, and/or distribute this software for any
+;;;; purpose with or without fee is hereby granted, provided that the above
+;;;; copyright notice and this permission notice appear in all copies.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+;;;; WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+;;;; MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+;;;; ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+;;;; WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+;; FIXME: defmac has no docstring...
+(_mac-bind 'defmac
+  (lambda (spec doc . body)
+    `(_mac-bind ',(car spec)
+       (lambda ,(cdr spec) ,@body))))
+
+(defmac (internmac spec . body)
+  "Define an internal macro."
+  `(_mac-bind ',(car spec)
+     (lambda ,(cdr spec) ,@body)))
+
+(defmac (defsub spec doc . body)
+  "Define a sub with name/args as in `spec`, docstring `doc` and code `body`."
+  `(_bind ',(car spec)
+     (lambda ,(cdr spec) ,@body)))
+
+(defsub (caar x) "The `car` of the `car` of `x`." (car (car x)))
+(defsub (cadr x) "The `car` of the `cdr` of `x`." (car (cdr x)))
+(defsub (cdar x) "The `cdr` of the `car` of `x`." (cdr (car x)))
+(defsub (cddr x) "The `cdr` of the `cdr` of `x`." (cdr (cdr x)))
+
+(defmac (cond . clauses)
+  "Shortcut for nested `if` clauses.
+
+Each clause in `clauses` is of the form `(condition . body)`.  The
+clauses are processed in order.  The condition of a clause is
+evaluated and if it gives a true value, all the expressions in the
+body are evaluated; no further clauses will be processed in this case.
+If the condition was false, however, the next clause will be
+processedin the same way.  If no condition was true, `#f` will be
+returned.
+
+It is common to have an else-clause in the end which has `#t` as its
+condition."
+  (if (nil? clauses)
+      #f
+    (if (eq? #t (caar clauses))
+	`(do ,@(cdar clauses))
+      `(if ,(caar clauses)
+	   (do ,@(cdar clauses))
+	 (cond ,@(cdr clauses))))))
+
+(defmac (and . args)
+  "Logical short-circuit AND.
+
+The `args` are evaluated in order until one yields `#f`, in which case
+`#f` will also be returned. Otherwise, the result of the last argument
+will be returned."
+  (cond ((nil? args) #t)
+	((nil? (cdr args)) (car args))
+	(#t `(if ,(car args) (and ,@(cdr args)) #f))))
+
+
