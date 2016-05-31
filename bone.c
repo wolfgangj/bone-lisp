@@ -530,17 +530,17 @@ my void bind(any name, any subr) { name_sub(any2sub(subr), name);
 my any get_binding(any name) { return hash_get(bindings, name); }
 
 my hash macros; // FIXME: needs mutex protection, see above
-my void macro_bind(any name, any subr) { name_sub(any2sub(subr), name); hash_set(macros, name, subr); }
-my any get_macro(any name) { return hash_get(macros, name); }
+my void mac_bind(any name, any subr) { name_sub(any2sub(subr), name); hash_set(macros, name, subr); }
+my any get_mac(any name) { return hash_get(macros, name); }
 
 //////////////// macro expansion ////////////////
 
-my any macroexpand_1(any x) { if(!is_cons(x)) return x;
-  if(is_sym(far(x))) { any mac = get_macro(far(x)); if(is(mac)) { apply(mac, fdr(x)); return last_value; } }
+my any mac_expand_1(any x) { if(!is_cons(x)) return x;
+  if(is_sym(far(x))) { any mac = get_mac(far(x)); if(is(mac)) { apply(mac, fdr(x)); return last_value; } }
   bool changed = false; listgen lg = listgen_new();
-  foreach(e, x) { any new = macroexpand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
+  foreach(e, x) { any new = mac_expand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
   return changed ? lg.xs : x; }
-my any macroexpand(any x) { any res; while(1) { res = macroexpand_1(x); if(res==x) return res; x = res; } }
+my any mac_expand(any x) { any res; while(1) { res = mac_expand_1(x); if(res==x) return res; x = res; } }
 
 //////////////// compiler ////////////////
 
@@ -614,7 +614,7 @@ my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env
   reg_permanent(); sub_code code = make_sub_code(argc, take_rest, 0, env_size, len(raw)); reg_pop();
   any *p = code->ops; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
-my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(macroexpand(e), NIL, 0, 0, 0);
+my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(mac_expand(e), NIL, 0, 0, 0);
   name_sub((sub) &res, intern("<top>")); return res; }
 
 //////////////// quasiquote ////////////////
@@ -701,9 +701,9 @@ DEFSUB(bit_and) { last_value = int2any(any2int(args[0])&any2int(args[1])); }
 DEFSUB(bit_or)  { last_value = int2any(any2int(args[0])|any2int(args[1])); }
 DEFSUB(bit_xor) { last_value = int2any(any2int(args[0])^any2int(args[1])); }
 DEFSUB(quasiquote) { last_value = quasiquote(args[0]); }
-DEFSUB(macroexpand_1) { last_value = macroexpand_1(args[0]); }
-DEFSUB(macro_bind) { macro_bind(args[0], args[1]); } // FIXME: check for overwrites
-DEFSUB(macroexpand) { last_value = macroexpand(args[0]); }
+DEFSUB(mac_expand_1) { last_value = mac_expand_1(args[0]); }
+DEFSUB(mac_bind) { mac_bind(args[0], args[1]); } // FIXME: check for overwrites
+DEFSUB(mac_expand) { last_value = mac_expand(args[0]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -714,7 +714,7 @@ my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
   bind(intern(name), make_csub(cptr, argc, take_rest));
 }
 my void register_cmac(csub cptr, const char *name, int argc, int take_rest) {
-  macro_bind(intern(name), make_csub(cptr, argc, take_rest));
+  mac_bind(intern(name), make_csub(cptr, argc, take_rest));
 }
 my void init_csubs() {
   register_csub(CSUB_fastplus, "_fast+", 2, 0);
@@ -775,9 +775,9 @@ my void init_csubs() {
   register_csub(CSUB_bit_or, "bit-or", 2, 0);
   register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
   register_cmac(CSUB_quasiquote, "quasiquote", 0, 1);
-  register_csub(CSUB_macroexpand_1, "macroexpand-1", 1, 0);
-  register_csub(CSUB_macro_bind, "_macro_bind", 2, 0);
-  register_csub(CSUB_macroexpand, "macroexpand", 1, 0);
+  register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0); register_csub(CSUB_mac_expand_1, "macroexpand-1", 1, 0);
+  register_csub(CSUB_mac_bind, "_mac-bind", 2, 0);
+  register_csub(CSUB_mac_expand, "mac-expand", 1, 0); register_csub(CSUB_mac_expand, "macroexpand", 1, 0);
 }
 
 //////////////// misc ////////////////
