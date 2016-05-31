@@ -539,8 +539,8 @@ my any macroexpand_1(any x) { if(!is_cons(x)) return x;
   if(is_sym(far(x))) { any mac = get_macro(far(x)); if(is(mac)) { apply(mac, fdr(x)); return last_value; } }
   bool changed = false; listgen lg = listgen_new();
   foreach(e, x) { any new = macroexpand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
-  return changed ? lg.xs : x;
-}
+  return changed ? lg.xs : x; }
+my any macroexpand(any x) { any res; while(1) { res = macroexpand_1(x); if(res==x) return res; x = res; } }
 
 //////////////// compiler ////////////////
 
@@ -614,7 +614,8 @@ my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env
   reg_permanent(); sub_code code = make_sub_code(argc, take_rest, 0, env_size, len(raw)); reg_pop();
   any *p = code->ops; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
-my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(e, NIL, 0, 0, 0); name_sub((sub) &res, intern("<top>")); return res; }
+my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(macroexpand(e), NIL, 0, 0, 0);
+  name_sub((sub) &res, intern("<top>")); return res; }
 
 //////////////// quasiquote ////////////////
 
@@ -701,6 +702,8 @@ DEFSUB(bit_or)  { last_value = int2any(any2int(args[0])|any2int(args[1])); }
 DEFSUB(bit_xor) { last_value = int2any(any2int(args[0])^any2int(args[1])); }
 DEFSUB(quasiquote) { last_value = quasiquote(args[0]); }
 DEFSUB(macroexpand_1) { last_value = macroexpand_1(args[0]); }
+DEFSUB(macro_bind) { macro_bind(args[0], args[1]); } // FIXME: check for overwrites
+DEFSUB(macroexpand) { last_value = macroexpand(args[0]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -752,13 +755,12 @@ my void init_csubs() {
   register_csub(CSUB_fastdiv, "_fast/", 2, 0);
   register_csub(CSUB_fulldiv, "_full/", 1, 1); register_csub(CSUB_fulldiv, "/", 1, 1);
   register_csub(CSUB_listp, "list?", 1, 0);
-  register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: aliases list+ & append
+  register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: n-ary; aliases list+ & append
   register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   register_csub(CSUB_bind, "_bind", 2, 0);
   register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
   register_csub(CSUB_str_eql, "str=?", 2, 0);
   register_csub(CSUB_str_neql, "str<>?", 2, 0);
-
   register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
   register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0);
   register_csub(CSUB_reverse, "reverse", 1, 0);
@@ -774,6 +776,8 @@ my void init_csubs() {
   register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
   register_cmac(CSUB_quasiquote, "quasiquote", 0, 1);
   register_csub(CSUB_macroexpand_1, "macroexpand-1", 1, 0);
+  register_csub(CSUB_macro_bind, "_macro_bind", 2, 0);
+  register_csub(CSUB_macroexpand, "macroexpand", 1, 0);
 }
 
 //////////////// misc ////////////////
