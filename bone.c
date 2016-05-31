@@ -205,6 +205,8 @@ my void hash_rm(hash h, any key) { unsigned pos; if(find_slot(h, key, &pos)) { h
 my void hash_each(hash h, hash_iter fn, void *hook) {
   for(unsigned i = 0; i != h->size; i++) if(slot_used(h->keys[i])) fn(hook, h->keys[i], h->vals[i]);
 }
+my void hash_print(hash h) { // useful for debugging
+  for(unsigned i = 0; i != h->size; i++) if(slot_used(h->keys[i])) { print(h->keys[i]); putchar('='); print(h->vals[i]); putchar('\n'); } }
 #endif
 
 //////////////// syms ////////////////
@@ -505,7 +507,7 @@ cleanup:
   drop_locals(locals_cnt); 
 }
 
-my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
+my void apply(any s, any xs) { sub subr = any2sub(s); sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
   int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt);
   foreach(x, xs) {
     if(pos <  argc) { args[pos] = x; pos++; continue; } // non-rest arg
@@ -518,7 +520,7 @@ my void apply(sub subr, any xs) { sub_code sc = subr->code; int argc = sc->argc,
   if(pos == argc) args[argc] = NIL; else set_fdr(p, NIL);
   call(subr, args, locals_cnt);
 }
-my void call0(sub subr) { apply(subr, NIL); }
+my void call0(any subr) { apply(subr, NIL); }
 
 //////////////// bindings ////////////////
 
@@ -526,6 +528,19 @@ my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it
 my void bind(any name, any subr) { name_sub(any2sub(subr), name);
   reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); }
 my any get_binding(any name) { return hash_get(bindings, name); }
+
+my hash macros; // FIXME: needs mutex protection, see above
+my void macro_bind(any name, any subr) { name_sub(any2sub(subr), name); hash_set(macros, name, subr); }
+my any get_macro(any name) { return hash_get(macros, name); }
+
+//////////////// macro expansion ////////////////
+
+my any macroexpand_1(any x) { if(!is_cons(x)) return x;
+  if(is_sym(far(x))) { any mac = get_macro(far(x)); if(is(mac)) { apply(mac, fdr(x)); return last_value; } }
+  bool changed = false; listgen lg = listgen_new();
+  foreach(e, x) { any new = macroexpand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
+  return changed ? lg.xs : x;
+}
 
 //////////////// compiler ////////////////
 
@@ -625,7 +640,7 @@ DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
 DEFSUB(fullplus) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
 DEFSUB(cons) { last_value = cons(args[0], args[1]); }
 DEFSUB(print) { print(args[0]); last_value = single(args[0]); }
-DEFSUB(apply) { apply(any2sub(args[0]), move_last_to_rest_x(args[1])); }
+DEFSUB(apply) { apply(args[0], move_last_to_rest_x(args[1])); }
 DEFSUB(id) { last_value = args[0]; }
 DEFSUB(nilp) { last_value = to_bool(args[0] == NIL); }
 DEFSUB(eqp) { last_value = to_bool(args[0] == args[1]); }
@@ -654,16 +669,14 @@ DEFSUB(fast_num_gtp)  { last_value = to_bool(any2int(args[0]) >  any2int(args[1]
 DEFSUB(fast_num_ltp)  { last_value = to_bool(any2int(args[0]) <  any2int(args[1])); }
 DEFSUB(fast_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
 DEFSUB(fast_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
-DEFSUB(each) { sub subr = any2sub(args[1]); any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(subr, arg); } }
+DEFSUB(each) { any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(args[1], arg); } } // FIXME: call1
 DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_value = int2any(ires); }
 DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
 DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0]) / any2int(last_value)); }
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
-DEFSUB(w_new_reg) { sub subr = any2sub(args[0]);
-  reg_push(reg_new()); call0(subr); last_value = copy_back(last_value); reg_free(reg_pop());
-}
+DEFSUB(w_new_reg) { reg_push(reg_new()); call0(args[0]); last_value = copy_back(last_value); reg_free(reg_pop()); }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
 DEFSUB(assoc_entry) { last_value = assoc_entry(args[0], args[1]); }
 DEFSUB(str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
@@ -687,11 +700,18 @@ DEFSUB(bit_and) { last_value = int2any(any2int(args[0])&any2int(args[1])); }
 DEFSUB(bit_or)  { last_value = int2any(any2int(args[0])|any2int(args[1])); }
 DEFSUB(bit_xor) { last_value = int2any(any2int(args[0])^any2int(args[1])); }
 DEFSUB(quasiquote) { last_value = quasiquote(args[0]); }
+DEFSUB(macroexpand_1) { last_value = macroexpand_1(args[0]); }
 
-my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
-  any name_sym = intern(name); sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
+my any make_csub(csub cptr, int argc, int take_rest) {
+  sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
   code->ops[0] = OP_WRAP; code->ops[1] = (any) cptr;
-  sub subr = (sub) reg_alloc(1); subr->code = code; bind(name_sym, sub2any(subr));
+  sub subr = (sub) reg_alloc(1); subr->code = code; return sub2any(subr);
+}
+my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
+  bind(intern(name), make_csub(cptr, argc, take_rest));
+}
+my void register_cmac(csub cptr, const char *name, int argc, int take_rest) {
+  macro_bind(intern(name), make_csub(cptr, argc, take_rest));
 }
 my void init_csubs() {
   register_csub(CSUB_fastplus, "_fast+", 2, 0);
@@ -752,7 +772,8 @@ my void init_csubs() {
   register_csub(CSUB_bit_and, "bit-and", 2, 0);
   register_csub(CSUB_bit_or, "bit-or", 2, 0);
   register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
-  register_csub(CSUB_quasiquote, "qq", 1, 0); // FIXME: remove
+  register_cmac(CSUB_quasiquote, "quasiquote", 0, 1);
+  register_csub(CSUB_macroexpand_1, "macroexpand-1", 1, 0);
 }
 
 //////////////// misc ////////////////
@@ -777,12 +798,12 @@ void bone_init() {
   free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
   sym_ht = hash_new(997, (any) NULL); init_syms();
-  bindings = hash_new(997, BFALSE); init_csubs();
+  bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs();
   bone_init_thread();
 }
 void bone_repl() { int line = 0;
   while(1) { printf("\n@%d: ", line++); any e = bone_read();
-    if (e == ENDOFFILE) break; sub_code code = compile_toplevel_expr(e); call0((sub) &code); print(last_value);
+    if (e == ENDOFFILE) break; sub_code code = compile_toplevel_expr(e); call0(sub2any((sub) &code)); print(last_value);
   } printf("\n");
 }
 
