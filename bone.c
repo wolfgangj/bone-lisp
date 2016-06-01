@@ -333,8 +333,9 @@ my bool allowed_chars[] = { // these can be used for syms in s-exprs
 }; // disallowed are the first 32 and " #'(),@:;[]`{}|
 my bool is_symchar(int c) { return (c >= 0 && c < 256) ? allowed_chars[c] : c!=EOF; }
 
-#define nextc getchar // FIXME: allow input from other sources
-my int look() { int c = getchar(); ungetc(c, stdin); return c; }
+my FILE *src;
+#define nextc() getc(src) // FIXME: should be a defvar
+my int look() { int c = nextc(); ungetc(c, src); return c; }
 
 my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
 my int find_token() {
@@ -797,17 +798,25 @@ my void bone_init_thread() {
   next_call = upcoming_calls;
 }
 
+my void bone_load(const char *file);
 void bone_init() {
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
   sym_ht = hash_new(997, (any) NULL); init_syms();
   bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs();
+  src = stdin;
   bone_init_thread();
+  bone_load("prelude.bn");
+}
+my void eval_toplevel_expr(any e) { sub_code code = compile_toplevel_expr(e); call0(sub2any((sub) &code)); }
+my void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); any e;
+  while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
+  fclose(src); src = old;
 }
 void bone_repl() { int line = 0;
   while(1) { printf("\n@%d: ", line++); any e = bone_read();
-    if (e == ENDOFFILE) break; sub_code code = compile_toplevel_expr(e); call0(sub2any((sub) &code)); print(last_value);
+    if (e == ENDOFFILE) break; eval_toplevel_expr(e); print(last_value);
   } printf("\n");
 }
 
