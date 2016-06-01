@@ -529,10 +529,12 @@ my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it
 my void bind(any name, any subr) { name_sub(any2sub(subr), name);
   reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); }
 my any get_binding(any name) { return hash_get(bindings, name); }
+my bool is_bound(any name) { return get_binding(name) != BFALSE; }
 
 my hash macros; // FIXME: needs mutex protection, see above
 my void mac_bind(any name, any subr) { name_sub(any2sub(subr), name); hash_set(macros, name, subr); }
 my any get_mac(any name) { return hash_get(macros, name); }
+my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
 
 //////////////// macro expansion ////////////////
 
@@ -617,6 +619,7 @@ my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env
 } // result is in permanent region.
 my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(mac_expand(e), NIL, 0, 0, 0);
   name_sub((sub) &res, intern("<top>")); return res; }
+my void eval_toplevel_expr(any e) { sub_code code = compile_toplevel_expr(e); call0(sub2any((sub) &code)); }
 
 //////////////// quasiquote ////////////////
 
@@ -703,6 +706,9 @@ DEFSUB(quasiquote) { last_value = quasiquote(args[0]); }
 DEFSUB(mac_expand_1) { last_value = mac_expand_1(args[0]); }
 DEFSUB(mac_bind) { mac_bind(args[0], args[1]); } // FIXME: check for overwrites
 DEFSUB(mac_expand) { last_value = mac_expand(args[0]); }
+DEFSUB(boundp) { last_value = to_bool(is_bound(args[0])); }
+DEFSUB(mac_bound_p) { last_value = to_bool(is_mac_bound(args[0])); }
+DEFSUB(eval) { eval_toplevel_expr(args[0]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -776,6 +782,9 @@ my void init_csubs() {
   register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0); register_csub(CSUB_mac_expand_1, "macroexpand-1", 1, 0);
   register_csub(CSUB_mac_bind, "_mac-bind", 2, 0);
   register_csub(CSUB_mac_expand, "mac-expand", 1, 0); register_csub(CSUB_mac_expand, "macroexpand", 1, 0);
+  register_csub(CSUB_boundp, "bound?", 1, 0);
+  register_csub(CSUB_mac_bound_p, "mac-bound?", 1, 0);
+  register_csub(CSUB_eval, "eval", 1, 0);
 }
 
 //////////////// misc ////////////////
@@ -805,7 +814,6 @@ void bone_init() {
   src = stdin;
   bone_init_thread();
 }
-my void eval_toplevel_expr(any e) { sub_code code = compile_toplevel_expr(e); call0(sub2any((sub) &code)); }
 my void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); any e;
   while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
   fclose(src); src = old; }
