@@ -73,6 +73,20 @@ will be returned."
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_w/new-reg (lambda () ,@body)))
 
+(internmac (optimize name binary n-ary)
+  `(internmac (,name . args)
+     (cons (if (=? 2 (len args)) ',binary ',n-ary) args)))
+(optimize + _fast+ _full+)
+(optimize - _fast- _full-) ; FIXME: unary
+(optimize * _fast* _full*)
+(optimize / _fast/ _full/)
+(optimize =? _fast=? _full=?)
+(optimize >? _fast>? _full>?)
+(optimize <? _fast<? _full<?)
+(optimize >=? _fast>=? _full>=?)
+(optimize <=? _fast<=? _full<=?)
+
+
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
 
