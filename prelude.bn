@@ -65,4 +65,50 @@ will be returned."
 	((nil? (cdr args)) (car args))
 	(#t `(if ,(car args) (and ,@(cdr args)) #f))))
 
+(defmac (when expr . body)
+  "When `expr` is true, evaluate all expressions in `body`."
+  `(if ,expr (do ,@body) #f))
+
+(defmac (w/new-reg . body)
+  "Evaluate `body` while using a new memory region; copy back the result."
+  `(_w/new-reg (lambda () ,@body)))
+
+(defsub (xcons d a)
+  "Like `cons`, but order of arguments is reversed.
+
+This can be useful for passing to higher order functions."
+  (cons a d))
+
+(defsub (single? x)
+  "Check whether `x` is a list of exactly one element.
+
+`x` may be any object, it does not have to be a list."
+  (and (cons? x) (nil? (cdr x))))
+
+(defsub (acons key value alist)
+  "Put `(key value)` in front of the `alist`."
+  (cons (list key value) alist))
+
+(defsub (++ n)
+  "Increment `n` by one.  Short for `(+ n 1)`.
+
+The name `++` is inspired by the operator of the same name in the C
+programming language, but while the C operator mutates its operand,
+the `++` sub obviously does not.  The same is true for `--`.
+
+The traditional Lisp name for this operation was `1+`, which is mostly
+fine, but the negative counter part `1-` was a very odd name (inverse
+infix?) and thus was rejected in favor of the C notation."
+  (+ n 1))
+
+(defsub (-- n)
+  "Decrement `n` by one.  Short for `(- n 1)`.
+
+See `++` for background information."
+  (- n 1))
+
+(defsub (str-len s)
+  "The number of characters in the str `s`."
+  (len (unstr s)))
+
 
