@@ -33,6 +33,14 @@
 (defsub (cadr x) "The `car` of the `cdr` of `x`." (car (cdr x)))
 (defsub (cdar x) "The `cdr` of the `car` of `x`." (cdr (car x)))
 (defsub (cddr x) "The `cdr` of the `cdr` of `x`." (cdr (cdr x)))
+(defsub (caaar x) "The `car` of the `car` of the `car` of `x`." (caar (car x)))
+(defsub (caadr x) "The `car` of the `car` of the `cdr` of `x`." (caar (cdr x)))
+(defsub (cadar x) "The `car` of the `cdr` of the `car` of `x`." (cadr (car x)))
+(defsub (caddr x) "The `car` of the `cdr` of the `cdr` of `x`." (cadr (cdr x)))
+(defsub (cdaar x) "The `cdr` of the `car` of the `car` of `x`." (cdar (car x)))
+(defsub (cdadr x) "The `cdr` of the `car` of the `cdr` of `x`." (cdar (cdr x)))
+(defsub (cddar x) "The `cdr` of the `cdr` of the `car` of `x`." (cddr (car x)))
+(defsub (cdddr x) "The `cdr` of the `cdr` of the `cdr` of `x`." (cddr (cdr x)))
 
 (defmac (cond . clauses)
   "Shortcut for nested `if` clauses.
@@ -69,22 +77,28 @@ will be returned."
   "When `expr` is true, evaluate all expressions in `body`."
   `(if ,expr (do ,@body) #f))
 
+(defmac (let bindings . body)
+  "let"
+  (if (nil? bindings)
+      (cons 'do body)
+    `(with ,(caar bindings) ,(cadar bindings) (let ,(cdr bindings) . ,body))))
+
 (defmac (w/new-reg . body)
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_w/new-reg (lambda () ,@body)))
 
-(internmac (optimize name binary n-ary)
+(internmac (_optimize name binary n-ary)
   `(internmac (,name . args)
      (cons (if (=? 2 (len args)) ',binary ',n-ary) args)))
-(optimize + _fast+ _full+)
-(optimize - _fast- _full-)
-(optimize * _fast* _full*)
-(optimize / _fast/ _full/)
-(optimize =? _fast=? _full=?)
-(optimize >? _fast>? _full>?)
-(optimize <? _fast<? _full<?)
-(optimize >=? _fast>=? _full>=?)
-(optimize <=? _fast<=? _full<=?)
+(_optimize + _fast+ _full+)
+(_optimize - _fast- _full-)
+(_optimize * _fast* _full*)
+(_optimize / _fast/ _full/)
+(_optimize =? _fast=? _full=?)
+(_optimize >? _fast>? _full>?)
+(_optimize <? _fast<? _full<?)
+(_optimize >=? _fast>=? _full>=?)
+(_optimize <=? _fast<=? _full<=?)
 
 
 (defsub (xcons d a)
