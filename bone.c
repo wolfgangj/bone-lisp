@@ -807,13 +807,11 @@ void bone_init() {
   bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs();
   src = stdin;
   bone_init_thread();
-  bone_load("prelude.bn");
 }
 my void eval_toplevel_expr(any e) { sub_code code = compile_toplevel_expr(e); call0(sub2any((sub) &code)); }
 my void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); any e;
   while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
-  fclose(src); src = old;
-}
+  fclose(src); src = old; }
 void bone_repl() { int line = 0;
   while(1) { printf("\n@%d: ", line++); any e = bone_read();
     if (e == ENDOFFILE) break; eval_toplevel_expr(e); print(last_value);
@@ -822,7 +820,7 @@ void bone_repl() { int line = 0;
 
 // FIXME: should have its own file, to allow embedding.
 int main() {
-  printf("Bone Lisp 0.1"); bone_init(); bone_repl();
+  printf("Bone Lisp 0.1"); bone_init(); bone_load("prelude.bn"); bone_repl();
   return 0;
 }
 

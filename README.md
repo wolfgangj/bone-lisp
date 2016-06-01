@@ -42,10 +42,10 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Explicit regions memory management
 * Tail call elimination
 * Lists, strings, fixnums, symbols
+* Classic Lisp Macros
 
 ### What it does not (yet)
 
-* Macros (highest priority)
 * Reader macros
 * Multithreading
 * Keywords
@@ -85,11 +85,6 @@ I normally compile it with:
 
     $ gcc -std=gnu99 -Wall -W -Wextra -Wno-unused -g bone.c -o bone
 
-## Who?
-
-It is being developed by
-Wolfgang Jaehrling (wolfgang at conseptizer dot org)
-
 ## Quick Intro
 
 Bone Lisp doesn't try to be an overly innovative Lisp (like e.g. Clojure), nor does it try hard to be compatible with tradition.
@@ -127,21 +122,29 @@ For example, `len`, `length` and `size` are the same.
 See `core.bn` for docstrings describing the builtins.
 (In the future we'll have a program that extracts the docstrings and generates a markdown file from them.)
 
-Currently, we have no macros yet, so you'll need to use some internal subroutines.
-A subroutine can be defined with `_bind`:
+A subroutine can be defined with `defsub`; note that the docstring is required!
 
-    (_bind 'sum | xs (apply + xs))
+    (defsub (sum xs)
+      "Add all numbers in `xs`."
+      (apply + xs))
+    
     (sum '(1 2 3))  ; => 6
 
-Note that the environment is hyperstatic (as in Forth):
+The environment is hyperstatic (as in Forth):
 If you redefine something, the subs previously defined will continue to use the old definition.
 
-The use of regions is also available only via an internal sub:
+Quasiquoting works as usual, so you can define macros:
 
-    (_w/new-reg (lambda () foo))
+    (defmac (when expr . body)
+      "Evaluate all of `body` if `expr` is true."
+      `(if ,expr (do ,@body) #f))
 
-The given thunk will be evaluated with objects allocated in a new region.
-The return value will be copied to the previous region.
+The use of regions is available via:
+
+    (w/new-reg expr1 expr2 ...)
+
+The given `expr`s will be evaluated with objects allocated in a new region.
+The return value (of the last `expr`) will be copied to the previous region.
 Finally, the new region will be freed.
 
 ## License
@@ -149,6 +152,11 @@ Finally, the new region will be freed.
 This is Free Software distributed under the terms of the ISC license.
 (A very simple non-copyleft license.)
 See the file LICENSE for details.
+
+## Who?
+
+It is being developed by
+Wolfgang Jaehrling (wolfgang at conseptizer dot org)
 
 ## Links
 
