@@ -77,7 +77,7 @@ will be returned."
   `(internmac (,name . args)
      (cons (if (=? 2 (len args)) ',binary ',n-ary) args)))
 (optimize + _fast+ _full+)
-(optimize - _fast- _full-) ; FIXME: unary
+(optimize - _fast- _full-)
 (optimize * _fast* _full*)
 (optimize / _fast/ _full/)
 (optimize =? _fast=? _full=?)

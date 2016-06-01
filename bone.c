@@ -661,10 +661,8 @@ DEFSUB(assoc) { last_value = assoc(args[0], args[1]); }
 DEFSUB(intern) { last_value = intern_from_chars(unstr(args[0])); }
 DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
-DEFSUB(unaryminus) { last_value = int2any(-any2int(args[0])); }
 DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
-DEFSUB(fullminus) { int res = any2int(args[0]); if(is_nil(args[1])) { last_value = int2any(-res); return; }
-  foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
+DEFSUB(fullminus) { int res = any2int(args[0]); foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
 DEFSUB(fast_num_eqp)  { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
 DEFSUB(fast_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
 DEFSUB(fast_num_gtp)  { last_value = to_bool(any2int(args[0]) >  any2int(args[1])); }
@@ -741,7 +739,6 @@ my void init_csubs() {
   register_csub(CSUB_intern, "intern", 1, 0); register_csub(CSUB_intern, "str->sym", 1, 0);
   register_csub(CSUB_copy, "copy", 1, 0);
   register_csub(CSUB_say, "say", 0, 1);
-  register_csub(CSUB_unaryminus, "_unary-", 1, 0);
   register_csub(CSUB_fastminus, "_fast-", 2, 0);
   register_csub(CSUB_fullminus, "_full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
   register_csub(CSUB_fast_num_eqp, "_fast=?", 2, 0);

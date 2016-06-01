@@ -188,22 +188,13 @@ This sub will return the `cdr` where the `car` is `x`.")
     "Return the sum of the numbers in `nums` (which may not contain anything but numbers).")
 
   (defsub (- n . nums)
-    "Arithmetic minus (unary or n-ary).
+    "Arithmetic minus: The sum of `nums` will be subtracted from `n`.
 
-When `nums` is empty, `-n` will be returned.  Otherwise, the sum of
-`nums` will be subtracted from `n` and the result gets returned.
-
-This is the traditional behaviour of `-` in Lisp, which allows
-both `(- x)` and `(- a b c)` to work as one would expect normally.
-However, this has one problem you have to be careful about: When you
-do
-
-    (apply - num xs)
-
-the result will be `-num` if `xs` is empty (instead of `num`, as is
-probably intended).  For the desired behaviour, you can use:
-
-    (- num (apply + xs))")
+This is not the traditional behaviour of `-` in Lisp, which did allow
+the unary minus `(- x)` as an alias for `(- 0 x)`.  This was removed
+from Bone Lisp because it would cause trouble with constructs
+like `(apply - num xs)` giving unexpected results when `xs` is
+empty.")
 
   (defsub (* . nums)
     "Return the product of the numbers in `nums` (which may not contain anything but numbers).
