@@ -233,6 +233,8 @@ my any intern(const char *name) { size_t len; any id = string_hash(name, &len);
   }
 }
 my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
+my any gensym() { static int gensyms = 0; reg_permanent(); char *new = (char *) reg_alloc(1); reg_pop();
+  snprintf(new, sizeof(any), "_g%05d", gensyms++); return as_sym(new); }
 
 my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_list, s_cat, s_dot, s_do, s_arg, s_env;
 #define x(name) s_ ## name = intern(#name)
@@ -709,6 +711,7 @@ DEFSUB(mac_expand) { last_value = mac_expand(args[0]); }
 DEFSUB(boundp) { last_value = to_bool(is_bound(args[0])); }
 DEFSUB(mac_bound_p) { last_value = to_bool(is_mac_bound(args[0])); }
 DEFSUB(eval) { eval_toplevel_expr(args[0]); }
+DEFSUB(gensym) { last_value = gensym(); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -785,6 +788,7 @@ my void init_csubs() {
   register_csub(CSUB_boundp, "bound?", 1, 0);
   register_csub(CSUB_mac_bound_p, "mac-bound?", 1, 0);
   register_csub(CSUB_eval, "eval", 1, 0);
+  register_csub(CSUB_gensym, "gensym", 0, 0);
 }
 
 //////////////// misc ////////////////
