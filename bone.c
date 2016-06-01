@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include "bone.h"
 #define my static
 
 typedef uint64_t any; // we only support 64 bit currently
@@ -577,7 +578,7 @@ my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
   listgen res = listgen_new(); collect_locals_rec(code, locals, ignore, cnt, &res); return res.xs;
 }
-any locals_for_lambda(any env, any args) { any res = NIL; int cnt = 0;
+my any locals_for_lambda(any env, any args) { any res = NIL; int cnt = 0;
   foreach(x, env) res = cons(cons(far(x), cons(s_env, int2any(cnt++))), res); cnt = 0;
   foreach(x, args) res = cons(cons(x, cons(s_arg, int2any(cnt++))), res); return res;
 }
@@ -809,7 +810,6 @@ my void bone_init_thread() {
   next_call = upcoming_calls;
 }
 
-my void bone_load(const char *file);
 void bone_init() {
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   free_block = fresh_blocks();
@@ -819,18 +819,12 @@ void bone_init() {
   src = stdin;
   bone_init_thread();
 }
-my void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); any e;
+void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); any e;
   while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
   fclose(src); src = old; }
 void bone_repl() { int line = 0;
   while(1) { printf("\n@%d: ", line++); any e = bone_read();
     if (e == ENDOFFILE) break; eval_toplevel_expr(e); print(last_value);
   } printf("\n");
-}
-
-// FIXME: should have its own file, to allow embedding.
-int main() {
-  printf("Bone Lisp 0.1"); bone_init(); bone_load("prelude.bn"); bone_repl();
-  return 0;
 }
 
