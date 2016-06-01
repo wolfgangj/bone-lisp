@@ -540,10 +540,11 @@ my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
 
 //////////////// macro expansion ////////////////
 
-my any mac_expand_1(any x) { if(!is_cons(x)) return x;
+my any mac_expand_1(any x) { if(!is_cons(x) || far(x)==s_quote) return x;
   if(is_sym(far(x))) { any mac = get_mac(far(x)); if(is(mac)) { apply(mac, fdr(x)); return last_value; } }
-  bool changed = false; listgen lg = listgen_new();
-  foreach(e, x) { any new = mac_expand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
+  bool changed = false; listgen lg = listgen_new(); any lst = x;
+  if(far(x)==s_lambda) { listgen_add(&lg, s_lambda); listgen_add(&lg, car(fdr(x))); lst = fdr(fdr(x)); } 
+  foreach(e, lst) { any new = mac_expand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
   return changed ? lg.xs : x; }
 my any mac_expand(any x) { any res; while(1) { res = mac_expand_1(x); if(res==x) return res; x = res; } }
 
