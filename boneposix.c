@@ -15,15 +15,18 @@
  */
 
 #include <stdlib.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "bone.h"
 
-DEFSUB(errno) { bone_result(int2any(errno)); }
-DEFSUB(errname) { switch(errno) {
+my int my_errno; // b/c we might alloc mem to store result after syscall
+my void ses() { my_errno = errno; } // Safe Error Status
+DEFSUB(errno) { bone_result(int2any(my_errno)); }
+DEFSUB(errname) { switch(my_errno) {
 #define x(n) case n: bone_result(intern(#n)); break
     x(EDOM); x(EILSEQ); x(ERANGE); // C99 + POSIX
 
@@ -54,22 +57,24 @@ DEFSUB(getuid) { bone_result(int2any(getuid())); }
 DEFSUB(geteuid) { bone_result(int2any(geteuid())); }
 DEFSUB(getgid) { bone_result(int2any(getgid())); }
 DEFSUB(getegid) { bone_result(int2any(getegid())); }
-my void getenv_any(char *name) { char *res = getenv(name); bone_result(res ? charp2str(res) : BFALSE); }
+my void getenv_any(char *name) { char *res = getenv(name); ses(); bone_result(res ? charp2str(res) : BFALSE); }
 my void getenv_str(any x) { char *name = str2charp(x); getenv_any(name); free(name); }
 my void getenv_sym(any x) { getenv_any(symtext(x)); }
 DEFSUB(getenv) { if(is_str(args[0])) getenv_str(args[0]); else getenv_sym(args[0]); }
-my void setenv_any(char *name, char *val, any ow) { bone_result(to_bool(!setenv(name, val, is(ow)))); }
+my void setenv_any(char *name, char *val, any ow) { bone_result(to_bool(!setenv(name, val, is(ow)))); ses(); }
 my void setenv_str(any x, char *val, any ow) { char *name = str2charp(x); setenv_any(name, val, ow); free(name); }
 my void setenv_sym(any x, char *val, any ow) { setenv_any(symtext(x), val, ow); }
 DEFSUB(setenv) { char *val = str2charp(args[1]);
   if(is_str(args[0])) setenv_str(args[0], val, args[2]); else setenv_sym(args[0], val, args[2]); free(val); }
-DEFSUB(chdir) { char *d = str2charp(args[0]); bone_result(to_bool(!chdir(d))); free(d); }
-DEFSUB(getcwd) { char d[1024]; bone_result((getcwd(d, 1024) == d) ? charp2str(d) : BFALSE); }
-DEFSUB(time) { time_t t = time(NULL); bone_result((t!=-1) ? int2any(t) : BFALSE); } // FIXME: not Y2038-safe w/ 32bit-fixnums
+DEFSUB(chdir) { char *d = str2charp(args[0]); bone_result(to_bool(!chdir(d))); ses(); free(d); }
+DEFSUB(getcwd) { char d[1024], *r = getcwd(d, 1024); ses(); bone_result((r == d) ? charp2str(d) : BFALSE); } // FIXME: 1024
+DEFSUB(time) { time_t t = time(NULL); ses(); bone_result((t!=-1) ? int2any(t) : BFALSE); } // FIXME: not Y2038-safe w/ 32bit-fixnums
+DEFSUB(mkdir) { char *d = str2charp(args[0]); int res = mkdir(d, any2int(args[1])); ses(); free(d); bone_result(to_bool(!res)); }
+DEFSUB(rmdir) { char *d = str2charp(args[0]); int res = rmdir(d); ses(); free(d); bone_result(to_bool(!res)); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "errno", 0, 0);
-  bone_register_csub(CSUB_errname, "errname", 0, 0);
+  bone_register_csub(CSUB_errname, "errname?", 0, 0);
   bone_register_csub(CSUB_getpid, "getpid", 0, 0);
   bone_register_csub(CSUB_getuid, "getuid", 0, 0);
   bone_register_csub(CSUB_geteuid, "geteuid", 0, 0);
@@ -80,4 +85,6 @@ void bone_posix_init() {
   bone_register_csub(CSUB_chdir, "chdir?", 1, 0);
   bone_register_csub(CSUB_getcwd, "getcwd?", 0, 0);
   bone_register_csub(CSUB_time, "time?", 0, 0);
+  bone_register_csub(CSUB_mkdir, "mkdir?", 2, 0);
+  bone_register_csub(CSUB_rmdir, "rmdir?", 1, 0);
 }
