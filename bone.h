@@ -48,6 +48,10 @@ any to_bool(int x);
 int32_t any2int(any x);
 any int2any(int32_t n);
 
+typedef struct { any xs, last; } listgen;
+listgen listgen_new();
+void listgen_add(listgen *lg, any x);
+
 bool is_str(any x);
 any charp2str(const char *p);
 char *str2charp(any x); // created w/ malloc()

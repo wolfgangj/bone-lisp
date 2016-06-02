@@ -129,9 +129,8 @@ my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); a
 my any move_last_to_rest_x(any xs) { if(is_single(xs)) return far(xs);
   foreach_cons(pair, xs) if(is_single(fdr(pair))) { set_fdr(pair, far(fdr(pair))); break; } return xs; }
 
-typedef struct { any xs, last; } listgen;
-my listgen listgen_new() { listgen res = { NIL, NIL }; return res; }
-my void listgen_add(listgen *lg, any x) {
+listgen listgen_new() { listgen res = { NIL, NIL }; return res; }
+void listgen_add(listgen *lg, any x) {
   if(is_nil(lg->xs)) lg->xs = lg->last = single(x); else { any new = single(x); set_fdr(lg->last, new); lg->last = new; }
 }
 

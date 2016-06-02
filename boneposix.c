@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -81,6 +82,10 @@ DEFSUB(rename) { char *old = str2charp(args[0]); char *new = str2charp(args[1]);
 DEFSUB(unlink) { char *f = str2charp(args[0]); int res = unlink(f); ses(); free(f); bone_result(to_bool(!res)); }
 DEFSUB(chmod) { char *f = str2charp(args[0]); int res = chmod(f, any2int(args[1])); ses(); free(f); bone_result(to_bool(!res)); }
 DEFSUB(umask) { bone_result(int2any(umask(any2int(args[0])))); }
+DEFSUB(dir_entries) { char *d = str2charp(args[0]); struct dirent **ents;
+  int n = scandir(d, &ents, NULL, alphasort); ses(); free(d); if(n == -1) { bone_result(BFALSE); return; }
+  listgen lg = listgen_new(); for(int i=0; i < n; i++) { listgen_add(&lg, charp2str(ents[i]->d_name)); free(ents[i]); }
+  free(ents); bone_result(lg.xs); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
@@ -103,4 +108,5 @@ void bone_posix_init() {
   bone_register_csub(CSUB_unlink, "sys.unlink?", 1, 0);
   bone_register_csub(CSUB_chmod, "sys.chmod?", 2, 0);
   bone_register_csub(CSUB_umask, "sys.umask", 1, 0);
+  bone_register_csub(CSUB_dir_entries, "sys.dir-entries?", 1, 0);
 }
