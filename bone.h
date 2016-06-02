@@ -52,6 +52,7 @@ bool is_str(any x);
 any charp2str(const char *p);
 char *str2charp(any x); // created w/ malloc()
 
+any intern(const char *name);
 char *symtext(any sym);
 
 #endif /* BONE_H */

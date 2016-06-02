@@ -219,7 +219,7 @@ my any add_sym(const char *name, size_t len, any id) {
   reg_permanent(); char *new = (char *) reg_alloc(bytes2words(len+1)); reg_pop();
   memcpy(new, name, len); hash_set(sym_ht, id, (any) new); return as_sym(new);
 }
-my any intern(const char *name) { size_t len; any id = string_hash(name, &len);
+any intern(const char *name) { size_t len; any id = string_hash(name, &len);
   while(1) {
     char *candidate = (char *) hash_get(sym_ht, id);
     if(candidate == NULL) return add_sym(name, len, id);
