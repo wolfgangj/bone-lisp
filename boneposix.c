@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#include <signal.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,7 +32,6 @@ DEFSUB(errno) { bone_result(int2any(my_errno)); }
 DEFSUB(errname) { switch(my_errno) {
 #define x(n) case n: bone_result(intern(#n)); break
     x(EDOM); x(EILSEQ); x(ERANGE); // C99 + POSIX
-
     x(E2BIG); x(EACCES); x(EADDRINUSE); x(EADDRNOTAVAIL); x(EAFNOSUPPORT); x(EAGAIN); x(EALREADY); x(EBADF); x(EBADMSG); x(EBUSY);
     x(ECANCELED); x(ECHILD); x(ECONNABORTED); x(ECONNREFUSED); x(ECONNRESET); x(EDEADLK); x(EDESTADDRREQ); x(EDQUOT); x(EEXIST);
     x(EFAULT);x(EFBIG); x(EHOSTUNREACH); x(EIDRM); x(EINPROGRESS); x(EINTR); x(EINVAL); x(EIO); x(EISCONN); x(EISDIR); x(ELOOP);
@@ -86,6 +86,8 @@ DEFSUB(dir_entries) { char *d = str2charp(args[0]); struct dirent **ents;
   int n = scandir(d, &ents, NULL, alphasort); ses(); free(d); if(n == -1) { bone_result(BFALSE); return; }
   listgen lg = listgen_new(); for(int i=0; i < n; i++) { listgen_add(&lg, charp2str(ents[i]->d_name)); free(ents[i]); }
   free(ents); bone_result(lg.xs); }
+DEFSUB(kill) { int res = kill(any2int(args[0]), any2int(args[1])); ses(); bone_result(to_bool(!res)); }
+DEFSUB(exit) { exit(any2int(args[0])); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
@@ -109,4 +111,6 @@ void bone_posix_init() {
   bone_register_csub(CSUB_chmod, "sys.chmod?", 2, 0);
   bone_register_csub(CSUB_umask, "sys.umask", 1, 0);
   bone_register_csub(CSUB_dir_entries, "sys.dir-entries?", 1, 0);
+  bone_register_csub(CSUB_kill, "sys.kill?", 2, 0);
+  bone_register_csub(CSUB_exit, "sys.exit", 1, 0);
 }
