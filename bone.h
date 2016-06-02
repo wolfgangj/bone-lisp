@@ -17,10 +17,23 @@
 #ifndef BONE_H
 #define BONE_H
 
+#include <stdint.h>
+
 #define BONE_VERSION "0.1"
+
+#define my static
+typedef uint64_t any; // we only support 64 bit currently
+typedef void (*csub)(any *);
 
 void bone_init();
 void bone_load(const char *file);
 void bone_repl();
+void bone_result(any x);
+void bone_register_csub(csub cptr, const char *name, int argc, int take_rest);
+
+#define DEFSUB(name) my void CSUB_ ## name(any *args)
+
+int32_t any2int(any x);
+any int2any(int32_t n);
 
 #endif /* BONE_H */

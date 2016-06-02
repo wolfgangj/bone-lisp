@@ -1,4 +1,4 @@
-/* main.c -- Entry point for standalone Bone Lisp interpreter.
+/* boneposix.h -- POSIX bindings for Bone Lisp.
  * Copyright (C) 2016 Wolfgang Jaehrling
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,16 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <stdio.h>
-#include "bone.h"
-#include "boneposix.h"
+#ifndef BONE_POSIX_H
+#define BONE_POSIX_H
 
-int main() {
-  bone_init();
-  bone_posix_init();
-  bone_load("prelude.bn");
-  printf("Bone Lisp " BONE_VERSION);
-  bone_repl();
-  return 0;
-}
+void bone_posix_init();
 
+#endif /* BONE_POSIX_H */

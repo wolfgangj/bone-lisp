@@ -24,9 +24,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include "bone.h"
-#define my static
 
-typedef uint64_t any; // we only support 64 bit currently
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 #define x(tag, name) case tag: return name
@@ -61,8 +59,8 @@ my any untag_check(any x, type_tag t) { check(x, t); return untag(x); }
 
 my bool is_num(any x) { return is_tagged(x, t_num); }
 // FIXME: these assume little-endian
-my int32_t any2int(any x) { check(x, t_num); return ((int32_t *) &x)[1]; }
-my any int2any(int32_t n) { any r = t_num; ((int32_t *) &r)[1] = n; return r; }
+int32_t any2int(any x) { check(x, t_num); return ((int32_t *) &x)[1]; }
+any int2any(int32_t n) { any r = t_num; ((int32_t *) &r)[1] = n; return r; }
 
 //////////////// regions ////////////////
 
@@ -273,7 +271,6 @@ my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
   return tag((any) p, t_sub);
 }
 my void name_sub(sub subr, any name) { if(!is(subr->code->name)) subr->code->name = name; }
-typedef void (*csub)(any *);
 
 //////////////// printer ////////////////
 
@@ -434,6 +431,7 @@ typedef enum {
 } opcode;
 
 my any last_value;
+void bone_result(any x) { last_value = x; }
 my any locals_stack[1024];
 my any *locals_sp;
 my any *alloc_locals(int n) { any *res = locals_sp; locals_sp += n; return res; }
@@ -644,7 +642,6 @@ my any quasiquote(any x) { if(!is_cons(x)) return qq_id(x);
 
 //////////////// library ////////////////
 
-#define DEFSUB(name) my void CSUB_ ## name(any *args)
 DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
 DEFSUB(fullplus) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
 DEFSUB(cons) { last_value = cons(args[0], args[1]); }
@@ -720,77 +717,77 @@ my any make_csub(csub cptr, int argc, int take_rest) {
   code->ops[0] = OP_WRAP; code->ops[1] = (any) cptr;
   sub subr = (sub) reg_alloc(1); subr->code = code; return sub2any(subr);
 }
-my void register_csub(csub cptr, const char *name, int argc, int take_rest) {
+void bone_register_csub(csub cptr, const char *name, int argc, int take_rest) {
   bind(intern(name), make_csub(cptr, argc, take_rest));
 }
 my void register_cmac(csub cptr, const char *name, int argc, int take_rest) {
   mac_bind(intern(name), make_csub(cptr, argc, take_rest));
 }
 my void init_csubs() {
-  register_csub(CSUB_fastplus, "_fast+", 2, 0);
-  register_csub(CSUB_fullplus, "_full+", 0, 1); register_csub(CSUB_fullplus, "+", 0, 1);
-  register_csub(CSUB_cons, "cons", 2, 0);
-  register_csub(CSUB_print, "print", 1, 0);
-  register_csub(CSUB_apply, "apply", 1, 1);
-  register_csub(CSUB_id, "id", 1, 0); register_csub(CSUB_id, "list", 0, 1);
-  register_csub(CSUB_nilp, "nil?", 1, 0); register_csub(CSUB_nilp, "no", 1, 0);
-  register_csub(CSUB_eqp, "eq?", 2, 0);
-  register_csub(CSUB_not, "not", 1, 0);
-  register_csub(CSUB_car, "car", 1, 0);
-  register_csub(CSUB_cdr, "cdr", 1, 0);
-  register_csub(CSUB_consp, "cons?", 1, 0);
-  register_csub(CSUB_symp, "sym?", 1, 0);
-  register_csub(CSUB_subp, "sub?", 1, 0);
-  register_csub(CSUB_nump, "num?", 1, 0);
-  register_csub(CSUB_strp, "str?", 1, 0);
-  register_csub(CSUB_str, "str", 1, 0); register_csub(CSUB_str, "list->str", 1, 0);
-  register_csub(CSUB_unstr, "unstr", 1, 0); register_csub(CSUB_unstr, "str->list", 1, 0);
-  register_csub(CSUB_len, "len", 1, 0); register_csub(CSUB_len, "length", 1, 0); register_csub(CSUB_len, "size", 1, 0);
-  register_csub(CSUB_assoc, "assoc?", 2, 0);
-  register_csub(CSUB_intern, "intern", 1, 0); register_csub(CSUB_intern, "str->sym", 1, 0);
-  register_csub(CSUB_copy, "copy", 1, 0);
-  register_csub(CSUB_say, "say", 0, 1);
-  register_csub(CSUB_fastminus, "_fast-", 2, 0);
-  register_csub(CSUB_fullminus, "_full-", 1, 1); register_csub(CSUB_fullminus, "-", 1, 1);
-  register_csub(CSUB_fast_num_eqp, "_fast=?", 2, 0);
-  register_csub(CSUB_fast_num_neqp, "_fast<>?", 2, 0); register_csub(CSUB_fast_num_neqp, "<>?", 2, 0);
-  register_csub(CSUB_fast_num_gtp, "_fast>?", 2, 0);
-  register_csub(CSUB_fast_num_ltp, "_fast<?", 2, 0);
-  register_csub(CSUB_fast_num_geqp, "_fast>=?", 2, 0);
-  register_csub(CSUB_fast_num_leqp, "_fast<=?", 2, 0);
-  register_csub(CSUB_each, "each", 2, 0);
-  register_csub(CSUB_fastmult, "_fast*", 2, 0);
-  register_csub(CSUB_fullmult, "_full*", 0, 1); register_csub(CSUB_fullmult, "*", 0, 1);
-  register_csub(CSUB_fastdiv, "_fast/", 2, 0);
-  register_csub(CSUB_fulldiv, "_full/", 1, 1); register_csub(CSUB_fulldiv, "/", 1, 1);
-  register_csub(CSUB_listp, "list?", 1, 0);
-  register_csub(CSUB_cat2, "_cat2", 2, 0); register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: n-ary; aliases list+ & append
-  register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
-  register_csub(CSUB_bind, "_bind", 2, 0);
-  register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
-  register_csub(CSUB_str_eql, "str=?", 2, 0);
-  register_csub(CSUB_str_neql, "str<>?", 2, 0);
-  register_csub(CSUB_list_star, "list*", 0, 1); register_csub(CSUB_list_star, "cons*", 0, 1);
-  register_csub(CSUB_memberp, "member?", 2, 0); register_csub(CSUB_memberp, "contains?", 2, 0);
-  register_csub(CSUB_reverse, "reverse", 1, 0);
-  register_csub(CSUB_mod, "mod", 2, 0); register_csub(CSUB_mod, "modulo", 2, 0); register_csub(CSUB_mod, "%", 2, 0);
-  register_csub(CSUB_full_num_eqp, "_full=?", 0, 1); register_csub(CSUB_full_num_eqp, "=?", 0, 1);
-  register_csub(CSUB_full_num_gtp, "_full>?", 0, 1); register_csub(CSUB_full_num_gtp, ">?", 0, 1);
-  register_csub(CSUB_full_num_ltp, "_full<?", 0, 1); register_csub(CSUB_full_num_ltp, "<?", 0, 1);
-  register_csub(CSUB_full_num_geqp, "_full>=?", 0, 1); register_csub(CSUB_full_num_geqp, ">=?", 0, 1);
-  register_csub(CSUB_full_num_leqp, "_full<=?", 0, 1); register_csub(CSUB_full_num_leqp, "<=?", 0, 1);
-  register_csub(CSUB_bit_not, "bit-not", 1, 0);
-  register_csub(CSUB_bit_and, "bit-and", 2, 0);
-  register_csub(CSUB_bit_or, "bit-or", 2, 0);
-  register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
+  bone_register_csub(CSUB_fastplus, "_fast+", 2, 0);
+  bone_register_csub(CSUB_fullplus, "_full+", 0, 1); bone_register_csub(CSUB_fullplus, "+", 0, 1);
+  bone_register_csub(CSUB_cons, "cons", 2, 0);
+  bone_register_csub(CSUB_print, "print", 1, 0);
+  bone_register_csub(CSUB_apply, "apply", 1, 1);
+  bone_register_csub(CSUB_id, "id", 1, 0); bone_register_csub(CSUB_id, "list", 0, 1);
+  bone_register_csub(CSUB_nilp, "nil?", 1, 0); bone_register_csub(CSUB_nilp, "no", 1, 0);
+  bone_register_csub(CSUB_eqp, "eq?", 2, 0);
+  bone_register_csub(CSUB_not, "not", 1, 0);
+  bone_register_csub(CSUB_car, "car", 1, 0);
+  bone_register_csub(CSUB_cdr, "cdr", 1, 0);
+  bone_register_csub(CSUB_consp, "cons?", 1, 0);
+  bone_register_csub(CSUB_symp, "sym?", 1, 0);
+  bone_register_csub(CSUB_subp, "sub?", 1, 0);
+  bone_register_csub(CSUB_nump, "num?", 1, 0);
+  bone_register_csub(CSUB_strp, "str?", 1, 0);
+  bone_register_csub(CSUB_str, "str", 1, 0); bone_register_csub(CSUB_str, "list->str", 1, 0);
+  bone_register_csub(CSUB_unstr, "unstr", 1, 0); bone_register_csub(CSUB_unstr, "str->list", 1, 0);
+  bone_register_csub(CSUB_len, "len", 1, 0); bone_register_csub(CSUB_len, "length", 1, 0); bone_register_csub(CSUB_len, "size", 1, 0);
+  bone_register_csub(CSUB_assoc, "assoc?", 2, 0);
+  bone_register_csub(CSUB_intern, "intern", 1, 0); bone_register_csub(CSUB_intern, "str->sym", 1, 0);
+  bone_register_csub(CSUB_copy, "copy", 1, 0);
+  bone_register_csub(CSUB_say, "say", 0, 1);
+  bone_register_csub(CSUB_fastminus, "_fast-", 2, 0);
+  bone_register_csub(CSUB_fullminus, "_full-", 1, 1); bone_register_csub(CSUB_fullminus, "-", 1, 1);
+  bone_register_csub(CSUB_fast_num_eqp, "_fast=?", 2, 0);
+  bone_register_csub(CSUB_fast_num_neqp, "_fast<>?", 2, 0); bone_register_csub(CSUB_fast_num_neqp, "<>?", 2, 0);
+  bone_register_csub(CSUB_fast_num_gtp, "_fast>?", 2, 0);
+  bone_register_csub(CSUB_fast_num_ltp, "_fast<?", 2, 0);
+  bone_register_csub(CSUB_fast_num_geqp, "_fast>=?", 2, 0);
+  bone_register_csub(CSUB_fast_num_leqp, "_fast<=?", 2, 0);
+  bone_register_csub(CSUB_each, "each", 2, 0);
+  bone_register_csub(CSUB_fastmult, "_fast*", 2, 0);
+  bone_register_csub(CSUB_fullmult, "_full*", 0, 1); bone_register_csub(CSUB_fullmult, "*", 0, 1);
+  bone_register_csub(CSUB_fastdiv, "_fast/", 2, 0);
+  bone_register_csub(CSUB_fulldiv, "_full/", 1, 1); bone_register_csub(CSUB_fulldiv, "/", 1, 1);
+  bone_register_csub(CSUB_listp, "list?", 1, 0);
+  bone_register_csub(CSUB_cat2, "_cat2", 2, 0); bone_register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: n-ary; aliases list+ & append
+  bone_register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
+  bone_register_csub(CSUB_bind, "_bind", 2, 0);
+  bone_register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
+  bone_register_csub(CSUB_str_eql, "str=?", 2, 0);
+  bone_register_csub(CSUB_str_neql, "str<>?", 2, 0);
+  bone_register_csub(CSUB_list_star, "list*", 0, 1); bone_register_csub(CSUB_list_star, "cons*", 0, 1);
+  bone_register_csub(CSUB_memberp, "member?", 2, 0); bone_register_csub(CSUB_memberp, "contains?", 2, 0);
+  bone_register_csub(CSUB_reverse, "reverse", 1, 0);
+  bone_register_csub(CSUB_mod, "mod", 2, 0); bone_register_csub(CSUB_mod, "modulo", 2, 0); bone_register_csub(CSUB_mod, "%", 2, 0);
+  bone_register_csub(CSUB_full_num_eqp, "_full=?", 0, 1); bone_register_csub(CSUB_full_num_eqp, "=?", 0, 1);
+  bone_register_csub(CSUB_full_num_gtp, "_full>?", 0, 1); bone_register_csub(CSUB_full_num_gtp, ">?", 0, 1);
+  bone_register_csub(CSUB_full_num_ltp, "_full<?", 0, 1); bone_register_csub(CSUB_full_num_ltp, "<?", 0, 1);
+  bone_register_csub(CSUB_full_num_geqp, "_full>=?", 0, 1); bone_register_csub(CSUB_full_num_geqp, ">=?", 0, 1);
+  bone_register_csub(CSUB_full_num_leqp, "_full<=?", 0, 1); bone_register_csub(CSUB_full_num_leqp, "<=?", 0, 1);
+  bone_register_csub(CSUB_bit_not, "bit-not", 1, 0);
+  bone_register_csub(CSUB_bit_and, "bit-and", 2, 0);
+  bone_register_csub(CSUB_bit_or, "bit-or", 2, 0);
+  bone_register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
   register_cmac(CSUB_quasiquote, "quasiquote", 0, 1);
-  register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0); register_csub(CSUB_mac_expand_1, "macroexpand-1", 1, 0);
-  register_csub(CSUB_mac_bind, "_mac-bind", 2, 0);
-  register_csub(CSUB_mac_expand, "mac-expand", 1, 0); register_csub(CSUB_mac_expand, "macroexpand", 1, 0);
-  register_csub(CSUB_boundp, "bound?", 1, 0);
-  register_csub(CSUB_mac_bound_p, "mac-bound?", 1, 0);
-  register_csub(CSUB_eval, "eval", 1, 0);
-  register_csub(CSUB_gensym, "gensym", 0, 0);
+  bone_register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0); bone_register_csub(CSUB_mac_expand_1, "macroexpand-1", 1, 0);
+  bone_register_csub(CSUB_mac_bind, "_mac-bind", 2, 0);
+  bone_register_csub(CSUB_mac_expand, "mac-expand", 1, 0); bone_register_csub(CSUB_mac_expand, "macroexpand", 1, 0);
+  bone_register_csub(CSUB_boundp, "bound?", 1, 0);
+  bone_register_csub(CSUB_mac_bound_p, "mac-bound?", 1, 0);
+  bone_register_csub(CSUB_eval, "eval", 1, 0);
+  bone_register_csub(CSUB_gensym, "gensym", 0, 0);
 }
 
 //////////////// misc ////////////////
