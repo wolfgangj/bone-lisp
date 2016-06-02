@@ -36,9 +36,9 @@ my const char *type_name(type_tag tag) { switch(tag) {
 #define READER_LIST_END   UNIQ(102)
 #define BINDING_DEFINED   UNIQ(103)
 #define BINDING_DECLARED  UNIQ(104)
-my bool is_nil(any x) { return x == NIL; }
-my bool is(any x) { return x != BFALSE; }
-my any to_bool(int x) { return x ? BTRUE : BFALSE; }
+bool is_nil(any x) { return x == NIL; }
+bool is(any x) { return x != BFALSE; }
+any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
 my void print(any x); my void backtrace();
 my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); backtrace(); abort(); }

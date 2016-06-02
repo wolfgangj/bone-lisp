@@ -25,10 +25,15 @@ DEFSUB(getuid) { bone_result(int2any(getuid())); }
 DEFSUB(geteuid) { bone_result(int2any(geteuid())); }
 DEFSUB(getgid) { bone_result(int2any(getgid())); }
 DEFSUB(getegid) { bone_result(int2any(getegid())); }
-my any getenv_any(const char *name) { char *res = getenv(name); return res ? charp2str(res) : BFALSE; }
-my void getenv_str(any x) { char *name = str2charp(x); bone_result(getenv_any(name)); free(name); }
-my void getenv_sym(any x) { bone_result(getenv_any(symtext(x))); }
+my void getenv_any(char *name) { char *res = getenv(name); bone_result(res ? charp2str(res) : BFALSE); }
+my void getenv_str(any x) { char *name = str2charp(x); getenv_any(name); free(name); }
+my void getenv_sym(any x) { getenv_any(symtext(x)); }
 DEFSUB(getenv) { if(is_str(args[0])) getenv_str(args[0]); else getenv_sym(args[0]); }
+my void setenv_any(char *name, char *val, any ow) { bone_result(to_bool(!setenv(name, val, is(ow)))); }
+my void setenv_str(any x, char *val, any ow) { char *name = str2charp(x); setenv_any(name, val, ow); free(name); }
+my void setenv_sym(any x, char *val, any ow) { setenv_any(symtext(x), val, ow); }
+DEFSUB(setenv) { char *val = str2charp(args[1]);
+  if(is_str(args[0])) setenv_str(args[0], val, args[2]); else setenv_sym(args[0], val, args[2]); free(val); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_getpid, "getpid", 0, 0);
@@ -37,4 +42,5 @@ void bone_posix_init() {
   bone_register_csub(CSUB_getgid, "getgid", 0, 0);
   bone_register_csub(CSUB_getegid, "getegid", 0, 0);
   bone_register_csub(CSUB_getenv, "getenv?", 1, 0);
+  bone_register_csub(CSUB_setenv, "setenv?", 3, 0);
 }

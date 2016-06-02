@@ -41,6 +41,10 @@ void bone_register_csub(csub cptr, const char *name, int argc, int take_rest);
 
 #define DEFSUB(name) my void CSUB_ ## name(any *args)
 
+bool is_nil(any x);
+bool is(any x);
+any to_bool(int x);
+
 int32_t any2int(any x);
 any int2any(int32_t n);
 
