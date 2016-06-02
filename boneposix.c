@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -24,6 +25,10 @@ DEFSUB(getuid) { bone_result(int2any(getuid())); }
 DEFSUB(geteuid) { bone_result(int2any(geteuid())); }
 DEFSUB(getgid) { bone_result(int2any(getgid())); }
 DEFSUB(getegid) { bone_result(int2any(getegid())); }
+my any getenv_any(const char *name) { char *res = getenv(name); return res ? charp2str(res) : BFALSE; }
+my void getenv_str(any x) { char *name = str2charp(x); bone_result(getenv_any(name)); free(name); }
+my void getenv_sym(any x) { bone_result(getenv_any(symtext(x))); }
+DEFSUB(getenv) { if(is_str(args[0])) getenv_str(args[0]); else getenv_sym(args[0]); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_getpid, "getpid", 0, 0);
@@ -31,4 +36,5 @@ void bone_posix_init() {
   bone_register_csub(CSUB_geteuid, "geteuid", 0, 0);
   bone_register_csub(CSUB_getgid, "getgid", 0, 0);
   bone_register_csub(CSUB_getegid, "getegid", 0, 0);
+  bone_register_csub(CSUB_getenv, "getenv?", 1, 0);
 }

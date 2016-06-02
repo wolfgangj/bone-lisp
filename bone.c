@@ -26,17 +26,11 @@
 #include "bone.h"
 
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
-typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 #define x(tag, name) case tag: return name
 my const char *type_name(type_tag tag) { switch(tag) {
     x(t_cons,"cons");x(t_sym,"sym");x(t_str,"str");x(t_reg,"reg");x(t_sub,"sub");x(t_num,"num");default:return "<?>"; } }
 #undef x
 
-#define UNIQ(n) (t_uniq | (010*(n)))
-#define NIL       UNIQ(0)
-#define BTRUE     UNIQ(1)
-#define BFALSE    UNIQ(2)
-#define ENDOFFILE UNIQ(3)
 #define HASH_SLOT_UNUSED  UNIQ(100)
 #define HASH_SLOT_DELETED UNIQ(101)
 #define READER_LIST_END   UNIQ(102)
@@ -143,15 +137,17 @@ my void listgen_add(listgen *lg, any x) {
 
 //////////////// strs ////////////////
 
+bool is_str(any x) { return is_tagged(x, t_str); }
 my any str(any chrs) { any *p = reg_alloc(1); *p = chrs; return tag((any) p, t_str); }
 my any unstr(any s) { return *(any *) untag_check(s, t_str); }
 my any charp2list(const char *p) { return !*p ? NIL : cons(int2any(*p), charp2list(p+1)); } // FIXME: for short strings only
-my any charp2str(const char *p) { return str(charp2list(p)); }
+any charp2str(const char *p) { return str(charp2list(p)); }
 my char *list2charp(any x) {
   char *res = malloc(len(x) + 1); // FIXME: longer for UTF-8
   char *p = res; foreach(c, x) { *p = any2int(c); p++; }
   *p = '\0'; return res;
 }
+char *str2charp(any x) { return list2charp(unstr(x)); }
 
 my bool chr_eql(any chr1, any chr2) { return chr1 == chr2; } // FIXME: grapheme clusters
 my bool str_eql(any s1, any s2) { s1=unstr(s1); s2=unstr(s2);
@@ -217,7 +213,7 @@ my any string_hash(const char *s, size_t *len) {  // This is the djb2 algorithm.
   while(*s) { (*len)++; hash = ((hash << 5) + hash) + *(s++); }
   return int2any(hash);
 }
-my char *symtext(any sym) { return (char *) untag(sym); }
+char *symtext(any sym) { return (char *) untag_check(sym, t_sym); }
 my any as_sym(char *name) { return tag((any) name, t_sym); } // `name` must be interned
 my any add_sym(const char *name, size_t len, any id) {
   reg_permanent(); char *new = (char *) reg_alloc(bytes2words(len+1)); reg_pop();

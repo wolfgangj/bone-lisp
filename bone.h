@@ -18,12 +18,20 @@
 #define BONE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define BONE_VERSION "0.1"
 
 #define my static
 typedef uint64_t any; // we only support 64 bit currently
 typedef void (*csub)(any *);
+
+typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
+#define UNIQ(n) (t_uniq | (010*(n)))
+#define NIL       UNIQ(0)
+#define BTRUE     UNIQ(1)
+#define BFALSE    UNIQ(2)
+#define ENDOFFILE UNIQ(3)
 
 void bone_init();
 void bone_load(const char *file);
@@ -35,5 +43,11 @@ void bone_register_csub(csub cptr, const char *name, int argc, int take_rest);
 
 int32_t any2int(any x);
 any int2any(int32_t n);
+
+bool is_str(any x);
+any charp2str(const char *p);
+char *str2charp(any x); // created w/ malloc()
+
+char *symtext(any sym);
 
 #endif /* BONE_H */
