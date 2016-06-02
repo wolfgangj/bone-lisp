@@ -43,6 +43,7 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Tail call elimination
 * Lists, strings, fixnums, symbols
 * Classic Lisp Macros
+* POSIX bindings (just started adding these)
 
 ### What it does not (yet)
 
@@ -54,7 +55,6 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Floating point numbers
 * Unicode
 * Records / structures
-* POSIX bindings
 
 ### What it does not (unsure whether it ever will)
 
@@ -81,9 +81,11 @@ I have no interest at all in adding these features to Bone Lisp.
 ## Getting started
 
 To make embedding as easy as possible, the whole interpreter is in a single C file.
-I normally compile it with:
-
-    $ gcc -std=gnu99 -Wall -W -Wextra -Wno-unused -g bone.c -o bone
+Optional modules have their own C files.
+The `main` function is in `main.c`;
+it just initializes everything and calls the REPL.
+You can compile it all with `make`.
+The `Makefile` is really, really simple.
 
 ## Quick Intro
 
