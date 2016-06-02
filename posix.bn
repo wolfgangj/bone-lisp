@@ -1,0 +1,124 @@
+;;;; posix.bn -- Documentation for Bone Lisp POSIX operations.   -*- lisp -*-
+;;;; Copyright (C) 2016 Wolfgang Jaehrling
+;;;;
+;;;; Permission to use, copy, modify, and/or distribute this software for any
+;;;; purpose with or without fee is hereby granted, provided that the above
+;;;; copyright notice and this permission notice appear in all copies.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+;;;; WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+;;;; MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+;;;; ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+;;;; WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+;;;; Note: This file contains only the documentation for the POSIX interface.
+
+(defsub (sys.errno)
+  "Return the last error number after a failed syscall.")
+
+(defsub (sys.errname?)
+  "Return a sym representing the last error after a failed syscall.
+
+This sub returns syms like `EACCES` and `EINVAL` so that you can check
+for certain error types by name.  If the error in not known, it will
+return `#f`.")
+
+(defsub (sys.getpid)
+  "Return the current process id.")
+
+(defsub (sys.getuid)
+  "Return the current (non-effective) user id.")
+
+(defsub (sys.geteuid)
+  "Return the current (effective) user id.")
+
+(defsub (sys.getgid)
+  "Return the current (non-effective) group id.")
+
+(defsub (sys.getegid)
+  "Return the current (effective) group id.")
+
+(defsub (sys.getenv? name)
+  "Return the value currently associated with the environment variable `name`.")
+
+(defsub (sys.setenv? name val overwrite?)
+  "Set the value associated with the environment variable `name` to `val`.")
+
+(defsub (sys.chdir? dir)
+  "Change current working directory to `dir`.")
+
+(defsub (sys.getcwd?)
+  "Return the current working directory.")
+
+(defsub (sys.time?)
+  "Return seconds since epoch.")
+
+(defsub (sys.mkdir? dir mode)
+  "Create the directory `dir` with permissions as specified by `mode`.")
+
+(defsub (sys.rmdir? dir)
+  "Remove directory `dir` (which must be empty).")
+
+(defsub (sys.link? origin new)
+  "Create the hard link `new` with the same inode as `origin`.")
+
+(defsub (sys.symlink? dest link)
+  "Create a symbolic link from `link` to `dest`.")
+
+(defsub (sys.rename? old new)
+  "Rename file `old` to `new`.")
+
+(defsub (sys.unlink? file)
+  "Remove the `file`.")
+
+(defsub (sys.chmod? file mode)
+  "Change permissions of `file` to `mode`.")
+
+(defsub (sys.umask mask)
+  "Set the umask to `mask` and return the previous umask.")
+
+(defsub (sys.dir-entries? dir)
+  "Return a sorted list of the files in `dir`.")
+
+(defsub (sys.kill? pid sig)
+  "Send signal `sig` to process `pid`.")
+
+(defsub (sys.exit val)
+  "Exit normally with status code `val`.")
+
+(defsub (sys.fork?)
+  "Fork a child process; returns `0` in child, pid in parent, or `#f` on error.")
+
+(defsub (sys.waitpid? pid options)
+  "Wait for event in child process `pid`.
+
+See `waitpid(2)` syscall manpage for details on `pid`; for example,
+passing `-1` will wait for any child process.  The return value is a
+cons with the pid in the `car` and the status in the `cdr`.  The
+status can be analized with `sys.exitstatus?`, `sys.termsig?`,
+`sys.stopsig?` and `sys.continued`.
+
+We don't provide symbolic constants for `options` yet, so you should
+pass `0`.")
+
+(defsub (sys.exitstatus? status)
+  "If the child terminated normally, return its exit status; `#f` otherwise. 
+
+`status` should be a value that was returned by `sys.waitpid?`.")
+
+(defsub (sys.termsig? status)
+  "If the child was terminated by a signal, return the signal number; `#f` otherwise. 
+
+`status` should be a value that was returned by `sys.waitpid?`.")
+
+(defsub (sys.stopsig? status)
+  "If the child was stopped by a signal, return the signal number; `#f` otherwise. 
+
+`status` should be a value that was returned by `sys.waitpid?`.")
+
+(defsub (sys.continued? status)
+  "Return whether the child was continued with `SIGCONT`.
+
+`status` should be a value that was returned by `sys.waitpid?`.")
