@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
@@ -71,20 +72,31 @@ DEFSUB(getcwd) { char d[1024], *r = getcwd(d, 1024); ses(); bone_result((r == d)
 DEFSUB(time) { time_t t = time(NULL); ses(); bone_result((t!=-1) ? int2any(t) : BFALSE); } // FIXME: not Y2038-safe w/ 32bit-fixnums
 DEFSUB(mkdir) { char *d = str2charp(args[0]); int res = mkdir(d, any2int(args[1])); ses(); free(d); bone_result(to_bool(!res)); }
 DEFSUB(rmdir) { char *d = str2charp(args[0]); int res = rmdir(d); ses(); free(d); bone_result(to_bool(!res)); }
+DEFSUB(link) { char *old = str2charp(args[0]); char *new = str2charp(args[1]);
+ int res = link(old, new); ses(); free(new); free(old); bone_result(to_bool(!res)); }
+DEFSUB(symlink) { char *old = str2charp(args[0]); char *new = str2charp(args[1]);
+ int res = symlink(old, new); ses(); free(new); free(old); bone_result(to_bool(!res)); }
+DEFSUB(rename) { char *old = str2charp(args[0]); char *new = str2charp(args[1]);
+ int res = rename(old, new); ses(); free(new); free(old); bone_result(to_bool(!res)); }
+DEFSUB(unlink) { char *f = str2charp(args[0]); int res = unlink(f); ses(); free(f); bone_result(to_bool(!res)); }
 
 void bone_posix_init() {
-  bone_register_csub(CSUB_errno, "errno", 0, 0);
-  bone_register_csub(CSUB_errname, "errname?", 0, 0);
-  bone_register_csub(CSUB_getpid, "getpid", 0, 0);
-  bone_register_csub(CSUB_getuid, "getuid", 0, 0);
-  bone_register_csub(CSUB_geteuid, "geteuid", 0, 0);
-  bone_register_csub(CSUB_getgid, "getgid", 0, 0);
-  bone_register_csub(CSUB_getegid, "getegid", 0, 0);
-  bone_register_csub(CSUB_getenv, "getenv?", 1, 0);
-  bone_register_csub(CSUB_setenv, "setenv?", 3, 0); // FIXME: last arg optional
-  bone_register_csub(CSUB_chdir, "chdir?", 1, 0);
-  bone_register_csub(CSUB_getcwd, "getcwd?", 0, 0);
-  bone_register_csub(CSUB_time, "time?", 0, 0);
-  bone_register_csub(CSUB_mkdir, "mkdir?", 2, 0);
-  bone_register_csub(CSUB_rmdir, "rmdir?", 1, 0);
+  bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
+  bone_register_csub(CSUB_errname, "sys.errname?", 0, 0);
+  bone_register_csub(CSUB_getpid, "sys.getpid", 0, 0);
+  bone_register_csub(CSUB_getuid, "sys.getuid", 0, 0);
+  bone_register_csub(CSUB_geteuid, "sys.geteuid", 0, 0);
+  bone_register_csub(CSUB_getgid, "sys.getgid", 0, 0);
+  bone_register_csub(CSUB_getegid, "sys.getegid", 0, 0);
+  bone_register_csub(CSUB_getenv, "sys.getenv?", 1, 0);
+  bone_register_csub(CSUB_setenv, "sys.setenv?", 3, 0); // FIXME: last arg optional
+  bone_register_csub(CSUB_chdir, "sys.chdir?", 1, 0);
+  bone_register_csub(CSUB_getcwd, "sys.getcwd?", 0, 0);
+  bone_register_csub(CSUB_time, "sys.time?", 0, 0);
+  bone_register_csub(CSUB_mkdir, "sys.mkdir?", 2, 0);
+  bone_register_csub(CSUB_rmdir, "sys.rmdir?", 1, 0);
+  bone_register_csub(CSUB_link, "sys.link?", 2, 0);
+  bone_register_csub(CSUB_symlink, "sys.symlink?", 2, 0);
+  bone_register_csub(CSUB_rename, "sys.rename?", 2, 0);
+  bone_register_csub(CSUB_unlink, "sys.unlink?", 1, 0);
 }
