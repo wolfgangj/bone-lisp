@@ -103,20 +103,18 @@ my any copy_back(any x) { reg_push(reg_sp[-1]); any y = copy(x); reg_pop(); retu
 
 //////////////// conses / lists ////////////////
 
-my any cons(any a, any d) { any *p = reg_alloc(2); p[0] = a; p[1] = d; return (any) p; } // no tag() needed
+any cons(any a, any d) { any *p = reg_alloc(2); p[0] = a; p[1] = d; return (any) p; } // no tag() needed
 my any precons(any a) { any *p = reg_alloc(2); p[0] = a; return (any) p; } // for faster list construction
-my any far(any x) { return ((any *) x)[0]; } // fast, no typecheck
-my any fdr(any x) { return ((any *) x)[1]; } // likewise
-my any car(any x) { check(x, t_cons); return far(x); }
-my any cdr(any x) { check(x, t_cons); return fdr(x); }
-my void set_far(any cell, any x) { ((any *) cell)[0] = x; }
-my void set_fdr(any cell, any x) { ((any *) cell)[1] = x; }
+any far(any x) { return ((any *) x)[0]; } // fast, no typecheck
+any fdr(any x) { return ((any *) x)[1]; } // likewise
+any car(any x) { check(x, t_cons); return far(x); }
+any cdr(any x) { check(x, t_cons); return fdr(x); }
+void set_far(any cell, any x) { ((any *) cell)[0] = x; }
+void set_fdr(any cell, any x) { ((any *) cell)[1] = x; }
 
-my bool is_cons(any x) { return is_tagged(x, t_cons); }
-my bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
-my any single(any x) { return cons(x, NIL); }
-#define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
-#define foreach_cons(var, lst) for(any var = (lst); !is_nil(var); var = fdr(var))
+bool is_cons(any x) { return is_tagged(x, t_cons); }
+bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
+any single(any x) { return cons(x, NIL); }
 
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
 my any reverse(any xs) { any res = NIL; foreach(x, xs) res = cons(x, res); return res; }

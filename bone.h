@@ -48,6 +48,20 @@ any to_bool(int x);
 int32_t any2int(any x);
 any int2any(int32_t n);
 
+any cons(any a, any d);
+my any precons(any a);
+any far(any x);
+any fdr(any x);
+any car(any x);
+any cdr(any x);
+void set_far(any cell, any x);
+void set_fdr(any cell, any x);
+bool is_cons(any x);
+bool is_single(any x);
+any single(any x);
+#define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
+#define foreach_cons(var, lst) for(any var = (lst); !is_nil(var); var = fdr(var))
+
 typedef struct { any xs, last; } listgen;
 listgen listgen_new();
 void listgen_add(listgen *lg, any x);

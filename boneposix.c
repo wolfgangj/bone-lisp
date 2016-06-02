@@ -23,6 +23,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include "bone.h"
 
@@ -88,6 +89,13 @@ DEFSUB(dir_entries) { char *d = str2charp(args[0]); struct dirent **ents;
   free(ents); bone_result(lg.xs); }
 DEFSUB(kill) { int res = kill(any2int(args[0]), any2int(args[1])); ses(); bone_result(to_bool(!res)); }
 DEFSUB(exit) { exit(any2int(args[0])); }
+DEFSUB(fork) { int res = fork(); ses(); bone_result((res!=-1) ? int2any(res) : BFALSE); }
+DEFSUB(waitpid) { int status, res = waitpid(any2int(args[0]), &status, any2int(args[1])); ses(); // FIXME: flags as syms
+  bone_result((res!=-1) ? cons(int2any(res), int2any(status)) : BFALSE); } // FIXME: use record, not cons
+DEFSUB(w_exitstatus) { int x = any2int(args[0]); bone_result(WIFEXITED  (x) ? int2any(WEXITSTATUS(x)) : BFALSE); }
+DEFSUB(w_termsig)    { int x = any2int(args[0]); bone_result(WIFSIGNALED(x) ? int2any(WTERMSIG   (x)) : BFALSE); }
+DEFSUB(w_stopsig)    { int x = any2int(args[0]); bone_result(WIFSTOPPED (x) ? int2any(WSTOPSIG   (x)) : BFALSE); }
+DEFSUB(w_continued)  { bone_result(to_bool(WIFCONTINUED(any2int(args[0])))); } // these all belong to waitpid
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
@@ -113,4 +121,10 @@ void bone_posix_init() {
   bone_register_csub(CSUB_dir_entries, "sys.dir-entries?", 1, 0);
   bone_register_csub(CSUB_kill, "sys.kill?", 2, 0);
   bone_register_csub(CSUB_exit, "sys.exit", 1, 0);
+  bone_register_csub(CSUB_fork, "sys.fork?", 0, 0);
+  bone_register_csub(CSUB_waitpid, "sys.waitpid?", 2, 0);
+  bone_register_csub(CSUB_w_exitstatus, "sys.exitstatus?", 1, 0);
+  bone_register_csub(CSUB_w_termsig, "sys.termsig?", 1, 0);
+  bone_register_csub(CSUB_w_stopsig, "sys.stopsig?", 1, 0);
+  bone_register_csub(CSUB_w_continued, "sys.continued?", 1, 0);
 }
