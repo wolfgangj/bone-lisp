@@ -20,7 +20,15 @@
 #include "bone.h"
 
 DEFSUB(getpid) { bone_result(int2any(getpid())); }
+DEFSUB(getuid) { bone_result(int2any(getuid())); }
+DEFSUB(geteuid) { bone_result(int2any(geteuid())); }
+DEFSUB(getgid) { bone_result(int2any(getgid())); }
+DEFSUB(getegid) { bone_result(int2any(getegid())); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_getpid, "getpid", 0, 0);
+  bone_register_csub(CSUB_getuid, "getuid", 0, 0);
+  bone_register_csub(CSUB_geteuid, "geteuid", 0, 0);
+  bone_register_csub(CSUB_getgid, "getgid", 0, 0);
+  bone_register_csub(CSUB_getegid, "getegid", 0, 0);
 }
