@@ -62,6 +62,8 @@ my void setenv_str(any x, char *val, any ow) { char *name = str2charp(x); setenv
 my void setenv_sym(any x, char *val, any ow) { setenv_any(symtext(x), val, ow); }
 DEFSUB(setenv) { char *val = str2charp(args[1]);
   if(is_str(args[0])) setenv_str(args[0], val, args[2]); else setenv_sym(args[0], val, args[2]); free(val); }
+DEFSUB(chdir) { char *d = str2charp(args[0]); bone_result(to_bool(!chdir(d))); free(d); }
+DEFSUB(getcwd) { char d[1024]; bone_result((getcwd(d, 1024) == d) ? charp2str(d) : BFALSE); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "errno", 0, 0);
@@ -73,4 +75,6 @@ void bone_posix_init() {
   bone_register_csub(CSUB_getegid, "getegid", 0, 0);
   bone_register_csub(CSUB_getenv, "getenv?", 1, 0);
   bone_register_csub(CSUB_setenv, "setenv?", 3, 0); // FIXME: last arg optional
+  bone_register_csub(CSUB_chdir, "chdir?", 1, 0);
+  bone_register_csub(CSUB_getcwd, "getcwd?", 0, 0);
 }
