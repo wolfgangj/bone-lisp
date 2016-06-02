@@ -73,6 +73,16 @@ will be returned."
 	((nil? (cdr args)) (car args))
 	(#t `(if ,(car args) (and ,@(cdr args)) #f))))
 
+(defmac (or . args)
+  "Logical short-circuit OR.
+
+The `args` are evaluated in order until one yields a true value, in
+which case it will also be returned.  Otherwise, `#f` will be
+returned."
+  (cond ((nil? args) #f)
+	((nil? (cdr args)) (car args))
+	(#t `(if ,(car args) (do) (or ,@(cdr args))))))
+
 (defmac (when expr . body)
   "When `expr` is true, evaluate all expressions in `body`."
   `(if ,expr (do ,@body) #f))
