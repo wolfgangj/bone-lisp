@@ -79,6 +79,8 @@ DEFSUB(symlink) { char *old = str2charp(args[0]); char *new = str2charp(args[1])
 DEFSUB(rename) { char *old = str2charp(args[0]); char *new = str2charp(args[1]);
  int res = rename(old, new); ses(); free(new); free(old); bone_result(to_bool(!res)); }
 DEFSUB(unlink) { char *f = str2charp(args[0]); int res = unlink(f); ses(); free(f); bone_result(to_bool(!res)); }
+DEFSUB(chmod) { char *f = str2charp(args[0]); int res = chmod(f, any2int(args[1])); ses(); free(f); bone_result(to_bool(!res)); }
+DEFSUB(umask) { bone_result(int2any(umask(any2int(args[0])))); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
@@ -99,4 +101,6 @@ void bone_posix_init() {
   bone_register_csub(CSUB_symlink, "sys.symlink?", 2, 0);
   bone_register_csub(CSUB_rename, "sys.rename?", 2, 0);
   bone_register_csub(CSUB_unlink, "sys.unlink?", 1, 0);
+  bone_register_csub(CSUB_chmod, "sys.chmod?", 2, 0);
+  bone_register_csub(CSUB_umask, "sys.umask", 1, 0);
 }
