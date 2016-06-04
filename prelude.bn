@@ -13,6 +13,12 @@
 ;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 ;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+;; Need this first because quasiquote expands to it
+(_bind 'cat _full-cat)
+(_mac-bind 'cat
+  (lambda args
+    (cons (if (_fast=? 2 (len args)) '_fast-cat 'full-cat) args)))
+
 ;; FIXME: defmac has no docstring...
 (_mac-bind 'defmac
   (lambda (spec doc . body)
@@ -28,6 +34,23 @@
   "Define a sub with name/args as in `spec`, docstring `doc` and code `body`."
   `(_bind ',(car spec)
      (lambda ,(cdr spec) ,@body)))
+
+(internmac (_optimize name binary n-ary)
+  `(internmac (,name . args)
+     (cons (if (_fast=? 2 (len args)) ',binary ',n-ary) args)))
+
+(_optimize + _fast+ _full+)
+(_optimize - _fast- _full-)
+(_optimize * _fast* _full*)
+(_optimize / _fast/ _full/)
+(_optimize =? _fast=? _full=?)
+(_optimize >? _fast>? _full>?)
+(_optimize <? _fast<? _full<?)
+(_optimize >=? _fast>=? _full>=?)
+(_optimize <=? _fast<=? _full<=?)
+;(_optimize cat _fast-cat _full-cat) ; did this earlier
+(_optimize append _fast-cat _full-cat)
+(_optimize list+ _fast-cat _full-cat)
 
 (defsub (caar x) "The `car` of the `car` of `x`." (car (car x)))
 (defsub (cadr x) "The `car` of the `cdr` of `x`." (car (cdr x)))
@@ -93,23 +116,9 @@ returned."
       (cons 'do body)
     `(with ,(caar bindings) ,(cadar bindings) (let ,(cdr bindings) . ,body))))
 
-(defmac (w/new-reg . body)
+(defmac (in-reg . body)
   "Evaluate `body` while using a new memory region; copy back the result."
-  `(_w/new-reg (lambda () ,@body)))
-
-(internmac (_optimize name binary n-ary)
-  `(internmac (,name . args)
-     (cons (if (=? 2 (len args)) ',binary ',n-ary) args)))
-(_optimize + _fast+ _full+)
-(_optimize - _fast- _full-)
-(_optimize * _fast* _full*)
-(_optimize / _fast/ _full/)
-(_optimize =? _fast=? _full=?)
-(_optimize >? _fast>? _full>?)
-(_optimize <? _fast<? _full<?)
-(_optimize >=? _fast>=? _full>=?)
-(_optimize <=? _fast<=? _full<=?)
-
+  `(_in-reg (lambda () ,@body)))
 
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
@@ -149,4 +158,34 @@ See `++` for background information."
   "The number of characters in the str `s`."
   (len (unstr s)))
 
+
+;;;; Aliases and optimizations
+
+(defmac (alias new old)
+  "Define `new` as an alias for sub `old`."
+  `(_bind ',new ,old))
+
+(alias + _full+)
+(alias no nil?)
+(alias list->str str)
+(alias str->list unstr)
+(alias length len)
+(alias size len)
+(alias str->sym intern)
+(alias - _full-)
+(alias * _full*)
+(alias / _full/)
+(alias cons* list*)
+(alias contains? member?)
+(alias modulo mod)
+(alias % mod)
+(alias =? _full=?)
+(alias >? _full>?)
+(alias <? _full<?)
+(alias >=? _full>=?)
+(alias <=? _full<=?)
+(alias macroexpand-1 mac-expand-1)
+(alias macroexpand mac-expand)
+(alias append cat)
+(alias list+ cat)
 

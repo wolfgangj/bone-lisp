@@ -670,7 +670,7 @@ DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
 DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0]) / any2int(last_value)); }
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
-DEFSUB(w_new_reg) { reg_push(reg_new()); call0(args[0]); last_value = copy_back(last_value); reg_free(reg_pop()); }
+DEFSUB(in_reg) { reg_push(reg_new()); call0(args[0]); last_value = copy_back(last_value); reg_free(reg_pop()); }
 DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
 DEFSUB(assoc_entry) { last_value = assoc_entry(args[0], args[1]); }
 DEFSUB(str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
@@ -721,12 +721,12 @@ my void register_cmac(csub cptr, const char *name, int argc, int take_rest) {
 }
 my void init_csubs() {
   bone_register_csub(CSUB_fastplus, "_fast+", 2, 0);
-  bone_register_csub(CSUB_fullplus, "_full+", 0, 1); bone_register_csub(CSUB_fullplus, "+", 0, 1);
+  bone_register_csub(CSUB_fullplus, "_full+", 0, 1);
   bone_register_csub(CSUB_cons, "cons", 2, 0);
   bone_register_csub(CSUB_print, "print", 1, 0);
   bone_register_csub(CSUB_apply, "apply", 1, 1);
   bone_register_csub(CSUB_id, "id", 1, 0); bone_register_csub(CSUB_id, "list", 0, 1);
-  bone_register_csub(CSUB_nilp, "nil?", 1, 0); bone_register_csub(CSUB_nilp, "no", 1, 0);
+  bone_register_csub(CSUB_nilp, "nil?", 1, 0);
   bone_register_csub(CSUB_eqp, "eq?", 2, 0);
   bone_register_csub(CSUB_not, "not", 1, 0);
   bone_register_csub(CSUB_car, "car", 1, 0);
@@ -736,50 +736,50 @@ my void init_csubs() {
   bone_register_csub(CSUB_subp, "sub?", 1, 0);
   bone_register_csub(CSUB_nump, "num?", 1, 0);
   bone_register_csub(CSUB_strp, "str?", 1, 0);
-  bone_register_csub(CSUB_str, "str", 1, 0); bone_register_csub(CSUB_str, "list->str", 1, 0);
-  bone_register_csub(CSUB_unstr, "unstr", 1, 0); bone_register_csub(CSUB_unstr, "str->list", 1, 0);
-  bone_register_csub(CSUB_len, "len", 1, 0); bone_register_csub(CSUB_len, "length", 1, 0); bone_register_csub(CSUB_len, "size", 1, 0);
+  bone_register_csub(CSUB_str, "str", 1, 0);
+  bone_register_csub(CSUB_unstr, "unstr", 1, 0);
+  bone_register_csub(CSUB_len, "len", 1, 0);
   bone_register_csub(CSUB_assoc, "assoc?", 2, 0);
-  bone_register_csub(CSUB_intern, "intern", 1, 0); bone_register_csub(CSUB_intern, "str->sym", 1, 0);
+  bone_register_csub(CSUB_intern, "intern", 1, 0);
   bone_register_csub(CSUB_copy, "copy", 1, 0);
   bone_register_csub(CSUB_say, "say", 0, 1);
   bone_register_csub(CSUB_fastminus, "_fast-", 2, 0);
-  bone_register_csub(CSUB_fullminus, "_full-", 1, 1); bone_register_csub(CSUB_fullminus, "-", 1, 1);
+  bone_register_csub(CSUB_fullminus, "_full-", 1, 1);
   bone_register_csub(CSUB_fast_num_eqp, "_fast=?", 2, 0);
-  bone_register_csub(CSUB_fast_num_neqp, "_fast<>?", 2, 0); bone_register_csub(CSUB_fast_num_neqp, "<>?", 2, 0);
+  bone_register_csub(CSUB_fast_num_neqp, "<>?", 2, 0);
   bone_register_csub(CSUB_fast_num_gtp, "_fast>?", 2, 0);
   bone_register_csub(CSUB_fast_num_ltp, "_fast<?", 2, 0);
   bone_register_csub(CSUB_fast_num_geqp, "_fast>=?", 2, 0);
   bone_register_csub(CSUB_fast_num_leqp, "_fast<=?", 2, 0);
   bone_register_csub(CSUB_each, "each", 2, 0);
   bone_register_csub(CSUB_fastmult, "_fast*", 2, 0);
-  bone_register_csub(CSUB_fullmult, "_full*", 0, 1); bone_register_csub(CSUB_fullmult, "*", 0, 1);
+  bone_register_csub(CSUB_fullmult, "_full*", 0, 1);
   bone_register_csub(CSUB_fastdiv, "_fast/", 2, 0);
-  bone_register_csub(CSUB_fulldiv, "_full/", 1, 1); bone_register_csub(CSUB_fulldiv, "/", 1, 1);
+  bone_register_csub(CSUB_fulldiv, "_full/", 1, 1);
   bone_register_csub(CSUB_listp, "list?", 1, 0);
   bone_register_csub(CSUB_cat2, "_fast-cat", 2, 0);
-  bone_register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
+  bone_register_csub(CSUB_in_reg, "_in-reg", 1, 0);
   bone_register_csub(CSUB_bind, "_bind", 2, 0);
   bone_register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
   bone_register_csub(CSUB_str_eql, "str=?", 2, 0);
   bone_register_csub(CSUB_str_neql, "str<>?", 2, 0);
-  bone_register_csub(CSUB_list_star, "list*", 0, 1); bone_register_csub(CSUB_list_star, "cons*", 0, 1);
-  bone_register_csub(CSUB_memberp, "member?", 2, 0); bone_register_csub(CSUB_memberp, "contains?", 2, 0);
+  bone_register_csub(CSUB_list_star, "list*", 0, 1);
+  bone_register_csub(CSUB_memberp, "member?", 2, 0);
   bone_register_csub(CSUB_reverse, "reverse", 1, 0);
-  bone_register_csub(CSUB_mod, "mod", 2, 0); bone_register_csub(CSUB_mod, "modulo", 2, 0); bone_register_csub(CSUB_mod, "%", 2, 0);
-  bone_register_csub(CSUB_full_num_eqp, "_full=?", 0, 1); bone_register_csub(CSUB_full_num_eqp, "=?", 0, 1);
-  bone_register_csub(CSUB_full_num_gtp, "_full>?", 0, 1); bone_register_csub(CSUB_full_num_gtp, ">?", 0, 1);
-  bone_register_csub(CSUB_full_num_ltp, "_full<?", 0, 1); bone_register_csub(CSUB_full_num_ltp, "<?", 0, 1);
-  bone_register_csub(CSUB_full_num_geqp, "_full>=?", 0, 1); bone_register_csub(CSUB_full_num_geqp, ">=?", 0, 1);
-  bone_register_csub(CSUB_full_num_leqp, "_full<=?", 0, 1); bone_register_csub(CSUB_full_num_leqp, "<=?", 0, 1);
+  bone_register_csub(CSUB_mod, "mod", 2, 0);
+  bone_register_csub(CSUB_full_num_eqp, "_full=?", 0, 1);
+  bone_register_csub(CSUB_full_num_gtp, "_full>?", 0, 1);
+  bone_register_csub(CSUB_full_num_ltp, "_full<?", 0, 1);
+  bone_register_csub(CSUB_full_num_geqp, "_full>=?", 0, 1);
+  bone_register_csub(CSUB_full_num_leqp, "_full<=?", 0, 1);
   bone_register_csub(CSUB_bit_not, "bit-not", 1, 0);
   bone_register_csub(CSUB_bit_and, "bit-and", 2, 0);
   bone_register_csub(CSUB_bit_or, "bit-or", 2, 0);
   bone_register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
   register_cmac(CSUB_quasiquote, "quasiquote", 0, 1);
-  bone_register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0); bone_register_csub(CSUB_mac_expand_1, "macroexpand-1", 1, 0);
+  bone_register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0);
   bone_register_csub(CSUB_mac_bind, "_mac-bind", 2, 0);
-  bone_register_csub(CSUB_mac_expand, "mac-expand", 1, 0); bone_register_csub(CSUB_mac_expand, "macroexpand", 1, 0);
+  bone_register_csub(CSUB_mac_expand, "mac-expand", 1, 0);
   bone_register_csub(CSUB_boundp, "bound?", 1, 0);
   bone_register_csub(CSUB_mac_bound_p, "mac-bound?", 1, 0);
   bone_register_csub(CSUB_eval, "eval", 1, 0);

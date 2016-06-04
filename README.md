@@ -143,7 +143,7 @@ Quasiquoting works as usual, so you can define macros:
 
 The use of regions is available via:
 
-    (w/new-reg expr1 expr2 ...)
+    (in-reg expr1 expr2 ...)
 
 The given `expr`s will be evaluated with objects allocated in a new region.
 The return value (of the last `expr`) will be copied to the previous region.
