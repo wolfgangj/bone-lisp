@@ -119,6 +119,8 @@ listgen listgen_new() { listgen res = { NIL, NIL }; return res; }
 void listgen_add(listgen *lg, any x) {
   if(is_nil(lg->xs)) lg->xs = lg->last = single(x); else { any new = single(x); set_fdr(lg->last, new); lg->last = new; }
 }
+my void listgen_add_list(listgen *lg, any xs) { foreach(x, xs) listgen_add(lg, x); }
+my void listgen_tail(listgen *lg, any x) { if(is_nil(lg->xs)) lg->xs=lg->last=x; else set_fdr(lg->last, x); }
 
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
 my any reverse(any xs) { any res = NIL; foreach(x, xs) res = cons(x, res); return res; }
@@ -702,6 +704,9 @@ DEFSUB(gensym) { last_value = gensym(); }
 DEFSUB(map) { any s=args[0]; listgen lg=listgen_new(); foreach(x, args[1]) { call1(s, x); listgen_add(&lg, last_value); } last_value=lg.xs; }
 DEFSUB(filter) { any s = args[0]; listgen lg = listgen_new();
   foreach(x, args[1]) { call1(s, x); if(is(last_value)) listgen_add(&lg, x); } last_value=lg.xs; }
+DEFSUB(full_cat) { listgen lg = listgen_new();
+  foreach_cons(c, args[0]) if(is_cons(c) && is_nil(fdr(c))) { listgen_tail(&lg, far(c)); break; } else listgen_add_list(&lg, far(c));
+  last_value=lg.xs; }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -752,7 +757,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_fastdiv, "_fast/", 2, 0);
   bone_register_csub(CSUB_fulldiv, "_full/", 1, 1); bone_register_csub(CSUB_fulldiv, "/", 1, 1);
   bone_register_csub(CSUB_listp, "list?", 1, 0);
-  bone_register_csub(CSUB_cat2, "_cat2", 2, 0); bone_register_csub(CSUB_cat2, "cat", 2, 0); // FIXME: n-ary; aliases list+ & append
+  bone_register_csub(CSUB_cat2, "_fast-cat", 2, 0);
   bone_register_csub(CSUB_w_new_reg, "_w/new-reg", 1, 0);
   bone_register_csub(CSUB_bind, "_bind", 2, 0);
   bone_register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
@@ -781,6 +786,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_gensym, "gensym", 0, 0);
   bone_register_csub(CSUB_map, "map", 2, 0);
   bone_register_csub(CSUB_filter, "filter", 2, 0);
+  bone_register_csub(CSUB_full_cat, "_full-cat", 0, 1); bone_register_csub(CSUB_full_cat, "cat", 0, 1);
 }
 
 //////////////// misc ////////////////
