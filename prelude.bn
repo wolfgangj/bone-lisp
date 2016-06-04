@@ -132,6 +132,14 @@ This can be useful for passing to higher order functions."
 `x` may be any object, it does not have to be a list."
   (and (cons? x) (nil? (cdr x))))
 
+(defsub (list? x)
+  "Return whether `x` is a list (empty or not)."
+  (or (cons? x) (nil? x)))
+
+(defsub (mapx xs sub)
+  "Like `map`, but with reversed argument order."
+  (map sub xs))
+
 (defsub (acons key value alist)
   "Put `(key value)` in front of the `alist`."
   (cons (list key value) alist))
@@ -158,8 +166,13 @@ See `++` for background information."
   "The number of characters in the str `s`."
   (len (unstr s)))
 
+(defsub (str+ . strs)
+  "Concatenate all the `strs`."
+  (str (apply cat (map unstr strs)))) 
 
-;;;; Aliases and optimizations
+
+
+;;;; Aliases
 
 (defmac (alias new old)
   "Define `new` as an alias for sub `old`."
@@ -188,4 +201,5 @@ See `++` for background information."
 (alias macroexpand mac-expand)
 (alias append cat)
 (alias list+ cat)
-
+(alias str-cat str+)
+(alias str-append str+)
