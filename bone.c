@@ -699,7 +699,9 @@ DEFSUB(boundp) { last_value = to_bool(is_bound(args[0])); }
 DEFSUB(mac_bound_p) { last_value = to_bool(is_mac_bound(args[0])); }
 DEFSUB(eval) { eval_toplevel_expr(args[0]); }
 DEFSUB(gensym) { last_value = gensym(); }
-DEFSUB(map) { listgen lg = listgen_new(); foreach(x, args[1]) { call1(args[0], x); listgen_add(&lg, last_value); } last_value=lg.xs; }
+DEFSUB(map) { any s=args[0]; listgen lg=listgen_new(); foreach(x, args[1]) { call1(s, x); listgen_add(&lg, last_value); } last_value=lg.xs; }
+DEFSUB(filter) { any s = args[0]; listgen lg = listgen_new();
+  foreach(x, args[1]) { call1(s, x); if(is(last_value)) listgen_add(&lg, x); } last_value=lg.xs; }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -778,6 +780,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_eval, "eval", 1, 0);
   bone_register_csub(CSUB_gensym, "gensym", 0, 0);
   bone_register_csub(CSUB_map, "map", 2, 0);
+  bone_register_csub(CSUB_filter, "filter", 2, 0);
 }
 
 //////////////// misc ////////////////
