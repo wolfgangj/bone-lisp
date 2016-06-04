@@ -104,7 +104,6 @@ my any copy_back(any x) { reg_push(reg_sp[-1]); any y = copy(x); reg_pop(); retu
 //////////////// conses / lists ////////////////
 
 any cons(any a, any d) { any *p = reg_alloc(2); p[0] = a; p[1] = d; return (any) p; } // no tag() needed
-my any precons(any a) { any *p = reg_alloc(2); p[0] = a; return (any) p; } // for faster list construction
 any far(any x) { return ((any *) x)[0]; } // fast, no typecheck
 any fdr(any x) { return ((any *) x)[1]; } // likewise
 any car(any x) { check(x, t_cons); return far(x); }
@@ -116,21 +115,21 @@ bool is_cons(any x) { return is_tagged(x, t_cons); }
 bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 any single(any x) { return cons(x, NIL); }
 
+listgen listgen_new() { listgen res = { NIL, NIL }; return res; }
+void listgen_add(listgen *lg, any x) {
+  if(is_nil(lg->xs)) lg->xs = lg->last = single(x); else { any new = single(x); set_fdr(lg->last, new); lg->last = new; }
+}
+
 my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
 my any reverse(any xs) { any res = NIL; foreach(x, xs) res = cons(x, res); return res; }
 my bool is_member(any a, any xs) { foreach(x, xs) if(x == a) return true; return false; }
 my any assoc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
 my any assoc_entry(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
-my any cat2(any a, any b) { if(is_nil(a)) return b; any res = precons(far(a)); any p = res;
-  foreach(x, fdr(a)) { any n = precons(x); set_fdr(p, n); p = n; } set_fdr(p, b); return res; }
+my any cat2(any a, any b) { if(is_nil(a)) return b; listgen lg = listgen_new();
+  foreach(x, a) listgen_add(&lg, x); set_fdr(lg.last, b); return lg.xs; }
 
 my any move_last_to_rest_x(any xs) { if(is_single(xs)) return far(xs);
   foreach_cons(pair, xs) if(is_single(fdr(pair))) { set_fdr(pair, far(fdr(pair))); break; } return xs; }
-
-listgen listgen_new() { listgen res = { NIL, NIL }; return res; }
-void listgen_add(listgen *lg, any x) {
-  if(is_nil(lg->xs)) lg->xs = lg->last = single(x); else { any new = single(x); set_fdr(lg->last, new); lg->last = new; }
-}
 
 //////////////// strs ////////////////
 
@@ -356,25 +355,20 @@ my any chars2num(any chrs) { int ires = 0, pos = 0;
   return !is_num ? BFALSE : int2any(is_positive ? ires : -ires);
 }
 my any chars_to_num_or_sym(any cs) { any num = chars2num(cs); return is(num) ? num : intern_from_chars(cs); }
-my any read_sym_chars(int start_char) {
-  any res = precons(int2any(start_char)); any curr = res; int c;
-  while(is_symchar(c = look())) { any next = precons(int2any(nextc())); set_fdr(curr, next); curr = next; }
-  set_fdr(curr, NIL); return res;
-}
-my any read_str() { any curr, res = NIL;
+my any read_sym_chars(int start_char) { listgen lg = listgen_new(); listgen_add(&lg, int2any(start_char)); int c;
+  while(is_symchar(c = look())) listgen_add(&lg, int2any(nextc())); return lg.xs; }
+my any read_str() { listgen lg = listgen_new();
   while(1) { int c = nextc();
-    if(c == '"') { if(!is_nil(res)) set_fdr(curr, NIL); return str(res); }
+    if(c == '"') return str(lg.xs);
     if(c == EOF) parse_error("end of file inside of a str");
     if(c == '\\') switch(c = nextc()) {
-      case '\\': case '\'': break;
+      case '\\': case '"': break;
       case 'n': c = '\n'; break;
       case 't': c = '\t'; break;
       case EOF: parse_error("end of file after backslash in str");
       default: parse_error("invalid character after backslash in str");
       }
-    any now = precons(int2any(c));
-    if(is_nil(res)) res = curr = now; else { set_fdr(curr, now); curr = now; } 
-  }
+    listgen_add(&lg, int2any(c)); }
 }
 my any reader(); // for mutual recursion
 my any read_list() { any x = reader();
@@ -502,20 +496,21 @@ cleanup:
   drop_locals(locals_cnt); 
 }
 
-my void apply(any s, any xs) { sub subr = any2sub(s); sub_code sc = subr->code; int argc = sc->argc, pos = 0; any p;
-  int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt);
+my void apply(any s, any xs) { sub subr = any2sub(s); sub_code sc = subr->code; int argc = sc->argc, pos = 0;
+  int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt); listgen lg;
   foreach(x, xs) {
     if(pos <  argc) { args[pos] = x; pos++; continue; } // non-rest arg
-    if(pos == argc) { // starting rest args
-      if(sc->take_rest) { args[pos] = precons(x); p = args[pos]; pos++; continue; } else args_error(sc, xs);
+    if(pos == argc) { if(!sc->take_rest) args_error(sc, xs); // starting rest args
+      lg = listgen_new(); listgen_add(&lg, x); args[pos] = lg.xs; pos++; continue;
     }
-    any next = precons(x); set_fdr(p, next); p = next; pos++; // adding another rest arg
+    listgen_add(&lg, x); pos++; // adding another rest arg
   }
   if(pos < argc) args_error(sc, xs);
-  if(pos == argc) args[argc] = NIL; else set_fdr(p, NIL);
+  if(pos == argc) args[argc] = NIL;
   call(subr, args, locals_cnt);
 }
 my void call0(any subr) { apply(subr, NIL); }
+my void call1(any subr, any x) { apply(subr, single(x)); }
 
 //////////////// bindings ////////////////
 
