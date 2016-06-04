@@ -17,10 +17,17 @@
 #ifndef BONE_H
 #define BONE_H
 
+#define BONE_MAJOR 0
+#define BONE_MINOR 1
+#define BONE_PATCH 0
+#define BONE_VERSION_EXTRA "-preview"
+
 #include <stdint.h>
 #include <stdbool.h>
 
-#define BONE_VERSION "0.1"
+#define STRINGIFY1(x) #x
+#define STRINGIFY(x) STRINGIFY1(x)
+#define BONE_VERSION STRINGIFY(BONE_MAJOR) "." STRINGIFY(BONE_MINOR) "." STRINGIFY(BONE_PATCH) BONE_VERSION_EXTRA
 
 #define my static
 typedef uint64_t any; // we only support 64 bit currently
