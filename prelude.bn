@@ -200,6 +200,17 @@ This can be useful for passing to higher order functions."
   "Return the `n`th element of `xs`."
   (car (nth-cons xs n)))
 
+(defsub (car? x)
+  "If `x` is a cons, return its car, otherwise return `#f`."
+  (and (cons? x) (car x)))
+
+(defsub (cdr? x)
+  "If `x` is a cons, return its cdr, otherwise return `#f`."
+  (and (cons? x) (car x)))
+
+(defsub (assocar? key alist)
+  "Get the first value of the list associated with `key` in `alist` (or `#f` if `key` not in `alist`)."
+  (car? (assoc? key alist)))
 
 (defsub (acons key value alist)
   "Put `(key value)` in front of the `alist`."
