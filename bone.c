@@ -518,23 +518,25 @@ my void call1(any subr, any x) { apply(subr, single(x)); }
 
 //////////////// bindings ////////////////
 
-my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
-my any get_binding(any name) { return hash_get(bindings, name); }
-my void bind(any name, bool overwritable, any subr) { any prev = get_binding(name);
+my void add_name(hash namespace, any name, bool overwritable, any subr) { any prev = hash_get(namespace, name);
   if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
   name_sub(any2sub(subr), name);
-  reg_permanent(); hash_set(bindings, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, subr)); reg_pop(); }
+  reg_permanent(); hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, subr)); reg_pop(); }
+
+my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
+my any get_binding(any name) { return hash_get(bindings, name); }
+my void bind(any name, bool overwritable, any subr) { add_name(bindings, name, overwritable, subr); }
 my bool is_bound(any name) { return get_binding(name) != BFALSE; }
 
 my hash macros; // FIXME: needs mutex protection, see above
-my void mac_bind(any name, any subr) { name_sub(any2sub(subr), name); hash_set(macros, name, subr); }
+my void mac_bind(any name, bool overwritable, any subr) { add_name(macros, name, overwritable, subr); }
 my any get_mac(any name) { return hash_get(macros, name); }
 my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
 
 //////////////// macro expansion ////////////////
 
 my any mac_expand_1(any x) { if(!is_cons(x) || far(x)==s_quote) return x;
-  if(is_sym(far(x))) { any mac = get_mac(far(x)); if(is(mac)) { apply(mac, fdr(x)); return last_value; } }
+  if(is_sym(far(x))) { any mac = get_mac(far(x)); if(is(mac)) { apply(fdr(mac), fdr(x)); return last_value; } }
   bool changed = false; listgen lg = listgen_new(); any lst = x;
   if(far(x)==s_lambda) { listgen_add(&lg, s_lambda); listgen_add(&lg, car(fdr(x))); lst = fdr(fdr(x)); } 
   foreach(e, lst) { any new = mac_expand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
@@ -719,7 +721,7 @@ DEFSUB(bit_or)  { last_value = int2any(any2int(args[0])|any2int(args[1])); }
 DEFSUB(bit_xor) { last_value = int2any(any2int(args[0])^any2int(args[1])); }
 DEFSUB(quasiquote) { last_value = quasiquote(args[0]); }
 DEFSUB(mac_expand_1) { last_value = mac_expand_1(args[0]); }
-DEFSUB(mac_bind) { mac_bind(args[0], args[1]); } // FIXME: check for overwrites
+DEFSUB(mac_bind) { mac_bind(args[0], is(args[1]), args[2]); }
 DEFSUB(mac_expand) { last_value = mac_expand(args[0]); }
 DEFSUB(boundp) { last_value = to_bool(is_bound(args[0])); }
 DEFSUB(mac_bound_p) { last_value = to_bool(is_mac_bound(args[0])); }
@@ -742,7 +744,7 @@ void bone_register_csub(csub cptr, const char *name, int argc, int take_rest) {
   bind(intern(name), false, make_csub(cptr, argc, take_rest));
 }
 my void register_cmac(csub cptr, const char *name, int argc, int take_rest) {
-  mac_bind(intern(name), make_csub(cptr, argc, take_rest));
+  mac_bind(intern(name), false, make_csub(cptr, argc, take_rest));
 }
 my void init_csubs() {
   bone_register_csub(CSUB_fastplus, "_fast+", 2, 0);
@@ -803,7 +805,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
   register_cmac(CSUB_quasiquote, "quasiquote", 0, 1);
   bone_register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0);
-  bone_register_csub(CSUB_mac_bind, "_mac-bind", 2, 0);
+  bone_register_csub(CSUB_mac_bind, "_mac-bind", 3, 0);
   bone_register_csub(CSUB_mac_expand, "mac-expand", 1, 0);
   bone_register_csub(CSUB_boundp, "bound?", 1, 0);
   bone_register_csub(CSUB_mac_bound_p, "mac-bound?", 1, 0);

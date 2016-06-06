@@ -15,14 +15,14 @@
 
 ;; Need this first because quasiquote expands to it
 (_bind 'cat #f _full-cat)
-(_mac-bind 'cat
+(_mac-bind 'cat #f
   (lambda args
     (cons (if (_fast=? 2 (len args)) '_fast-cat 'full-cat) args)))
 
 ;; FIXME: defmac has no docstring...
-(_mac-bind 'defmac
+(_mac-bind 'defmac #f
   (lambda (spec doc . body)
-    `(_mac-bind ',(car spec)
+    `(_mac-bind ',(car spec) #f
        (lambda ,(cdr spec) ,@body))))
 
 (defmac (defsub spec doc . body)
@@ -34,7 +34,7 @@
 
 (defmac (internmac spec . body)
   "Define an internal macro."
-  `(_mac-bind ',(car spec)
+  `(_mac-bind ',(car spec) #f
      (lambda ,(cdr spec) ,@body)))
 
 (defmac (internsub spec . body)
@@ -44,7 +44,7 @@
 
 (defmac (mymac spec . body)
   "Define a locally used mac."
-  `(_mac-bind ',(car spec)
+  `(_mac-bind ',(car spec) #t
      (lambda ,(cdr spec) ,@body)))
 
 (defmac (mysub spec . body)
