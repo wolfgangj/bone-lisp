@@ -43,7 +43,7 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Tail call elimination
 * Lists, strings, fixnums, symbols
 * Classic Lisp Macros
-* POSIX bindings (just started adding these)
+* POSIX bindings (just started adding a few of these)
 
 ### What it does not (yet)
 
@@ -132,14 +132,26 @@ A subroutine can be defined with `defsub`; note that the docstring is required!
     
     (sum '(1 2 3))  ; => 6
 
-The environment is hyperstatic (as in Forth):
+For local helper subs you can use `mysub`, which does not require a docstring and introduces a binding that may be overwritten later.
+Note that the environment is hyperstatic (as in Forth):
 If you redefine something, the subs previously defined will continue to use the old definition.
 
-Quasiquoting works as usual, so you can define macros:
+Quasiquoting works as usual, so you can define macros (with `defmac` or `mymac`):
 
     (defmac (when expr . body)
       "Evaluate all of `body` if `expr` is true."
       `(if ,expr (do ,@body) #f))
+
+The primitive form that introduces a (single) new binding - which may be recusive as in Schemes `letrec` - is `with`:
+
+    (with loop | xs (if (nil? xs)
+    	       	    	0
+                      (++ (loop (cdr xs))))
+      (loop '(a b c d)))
+    ;; => 4
+
+`let` is simply defined as a macro that expands to nested `with`s.
+ Therefore it works like a combination of traditional `let*` and `letrec`.
 
 The use of regions is available via:
 
