@@ -416,7 +416,7 @@ my any bone_read() {
 
 typedef enum {
   OP_CONST = 1, OP_GET_ENV, OP_GET_ARG, OP_SET_LOCAL, OP_WRAP, OP_PREPARE_CALL, OP_CALL, OP_TAILCALL, OP_ADD_ARG,
-  OP_JMP_IFN, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB
+  OP_JMP_IFN, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB, OP_MAKE_RECURSIVE
 } opcode;
 
 my any last_value;
@@ -491,6 +491,7 @@ start:;
 	lambda->code = lc; lambda_envp = lambda->env; break; }
     case OP_ADD_ENV: *(lambda_envp++) = last_value; break;
     case OP_MAKE_SUB: last_value = sub2any(lambda); break;
+    case OP_MAKE_RECURSIVE: any2sub(last_value)->env[any2int(ip[-2])] = last_value; break; // follows after OP_SET_LOCAL
     default: printf("unknown vm instruction\n"); abort(); // FIXME
   }
 cleanup:
@@ -560,7 +561,7 @@ my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *
   case t_sym: { any local = assoc_entry(x, locals); if(is(local) && !is_member(x, ignore)) { found_local(local, lg, cnt); } break; }
   case t_cons: if(far(x)==s_quote) continue;
     if(far(x)==s_with) { collect_locals_rec(cdr(fdr(x)), locals, cons(car(fdr(x)), ignore), cnt, lg); continue; }
-    if(far(x)==s_lambda) { collect_locals_rec(fdr(fdr(x)), locals, lambda_ignore_list(ignore, car(fdr(x))), cnt, lg); continue; }
+    if(far(x)==s_lambda) { collect_locals_rec(cdr(fdr(x)), locals, lambda_ignore_list(ignore, car(fdr(x))), cnt, lg); continue; }
     collect_locals_rec(x, locals, ignore, cnt, lg); break;
   default:; }
 }
@@ -589,12 +590,18 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
 }
 my void compile_do(any body, any env, bool tail_context, compile_state *state) {
   foreach_cons(x, body) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); }
+my bool arglist_contains(any args, any name) { if(is_nil(args)) return false; if(is_sym(args)) return args==name;
+  if(car(args)==name) return true; return arglist_contains(fdr(args), name); }
+my bool refers_to(any expr, any name) { if(is_sym(expr)) return expr==name; if(!is_cons(expr)) return false;
+  if(far(expr)==s_quote) return false;
+  if(far(expr)==s_with) { if(car(fdr(expr))==name) return false; return refers_to(fdr(fdr(expr)), name); }
+  if(far(expr)==s_lambda) { if(arglist_contains(car(fdr(expr)), name)) return false; return refers_to(fdr(fdr(expr)), name); }
+  foreach(x, expr) if(refers_to(x, name)) return true; return false; }
 my void compile_with(any name, any expr, any body, any env, bool tail_context, compile_state *state) {
   state->curr_locals++; if(state->curr_locals > state->max_locals) state->max_locals = state->curr_locals;
   env = add_local(env, name, s_arg, extra_pos(state)); compile_expr(expr, env, false, state);
   emit(OP_SET_LOCAL, state); emit(int2any(extra_pos(state)), state);
-  compile_do(body, env, tail_context, state);
-  state->curr_locals--;
+  if(refers_to(expr, name)) emit(OP_MAKE_RECURSIVE, state); compile_do(body, env, tail_context, state); state->curr_locals--;
 }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
@@ -721,6 +728,7 @@ DEFSUB(filter) { any s = args[0]; listgen lg = listgen_new();
 DEFSUB(full_cat) { listgen lg = listgen_new();
   foreach_cons(c, args[0]) if(is_cons(c) && is_nil(fdr(c))) { listgen_tail(&lg, far(c)); break; } else listgen_add_list(&lg, far(c));
   last_value=lg.xs; }
+DEFSUB(refers_to) { last_value = to_bool(refers_to(args[0], args[1])); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -801,6 +809,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_map, "map", 2, 0);
   bone_register_csub(CSUB_filter, "filter", 2, 0);
   bone_register_csub(CSUB_full_cat, "_full-cat", 0, 1); bone_register_csub(CSUB_full_cat, "cat", 0, 1);
+  bone_register_csub(CSUB_refers_to, "_refers-to?", 2, 0);
 }
 
 //////////////// misc ////////////////
