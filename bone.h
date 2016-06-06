@@ -20,7 +20,7 @@
 #define BONE_MAJOR 0
 #define BONE_MINOR 1
 #define BONE_PATCH 0
-#define BONE_VERSION_EXTRA "-preview"
+#define BONE_VERSION_EXTRA ""
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -32,7 +32,6 @@
 #define my static
 typedef uint64_t any; // we only support 64 bit currently
 typedef void (*csub)(any *);
-
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 #define UNIQ(n) (t_uniq | (010*(n)))
 #define NIL       UNIQ(0)
