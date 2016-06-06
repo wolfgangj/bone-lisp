@@ -39,7 +39,7 @@ typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 
 #define BFALSE    UNIQ(2)
 #define ENDOFFILE UNIQ(3)
 
-void bone_init();
+void bone_init(int argc, char **argv);
 void bone_load(const char *file);
 void bone_repl();
 void bone_result(any x);

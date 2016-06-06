@@ -18,8 +18,8 @@
 #include "bone.h"
 #include "boneposix.h"
 
-int main() {
-  bone_init();
+int main(int argc, char **argv) {
+  bone_init(argc, argv);
   bone_posix_init();
   bone_load("prelude.bn");
   printf("Bone Lisp " BONE_VERSION);

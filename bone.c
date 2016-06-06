@@ -533,6 +533,10 @@ my void mac_bind(any name, bool overwritable, any subr) { add_name(macros, name,
 my any get_mac(any name) { return hash_get(macros, name); }
 my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
 
+// FIXME: dynamic scope
+my any program_args;
+
+
 //////////////// macro expansion ////////////////
 
 my any mac_expand_1(any x) { if(!is_cons(x) || far(x)==s_quote) return x;
@@ -834,13 +838,14 @@ my void bone_init_thread() {
   next_call = upcoming_calls;
 }
 
-void bone_init() {
+void bone_init(int argc, char **argv) {
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
   sym_ht = hash_new(997, (any) NULL); init_syms();
   bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs();
   src = stdin;
+  program_args = NIL; while(argc--) program_args = cons(charp2str(argv[argc]), program_args);
   bone_init_thread();
 }
 void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); any e;
