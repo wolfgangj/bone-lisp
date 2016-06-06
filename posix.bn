@@ -41,10 +41,14 @@ return `#f`.")
   "Return the current (effective) group id.")
 
 (defsub (sys.getenv? name)
-  "Return the value currently associated with the environment variable `name`.")
+  "Return the value currently associated with the environment variable `name`.
+
+`name` may be either a str or a sym.")
 
 (defsub (sys.setenv? name val overwrite?)
-  "Set the value associated with the environment variable `name` to `val`.")
+  "Set the value associated with the environment variable `name` to `val`.
+
+`name` may be either a str or a sym.")
 
 (defsub (sys.chdir? dir)
   "Change current working directory to `dir`.")

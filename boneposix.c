@@ -41,10 +41,10 @@ DEFSUB(errname) { switch(my_errno) {
     x(ENOSTR); x(ENOSYS); x(ENOTCONN); x(ENOTDIR); x(ENOTEMPTY); x(ENOTSOCK); x(ENOTSUP); x(ENOTTY); x(ENXIO); x(EOVERFLOW); x(EPERM);
     x(EPIPE); x(EPROTO); x(EPROTONOSUPPORT); x(EPROTOTYPE); x(EROFS); x(ESPIPE); x(ESRCH); x(ESTALE); x(ETIME); x(ETIMEDOUT);
     x(ETXTBSY); x(EXDEV); // all of these are POSIX
-#ifndef __linux__
+#ifndef __linux__ // the following are duplicates on GNU/Linux:
     x(EOPNOTSUPP); // same as ENOTSUPP
     x(EWOULDBLOCK); // same as EDOM
-#else
+#else // GNU/Linux specific:
     x(EBADE); x(EBADFD); x(EBADR); x(EBADRQC); x(EBADSLT); x(ECHRNG); x(ECOMM); x(EHOSTDOWN); x(EISNAM); x(EKEYEXPIRED);
     x(EKEYREJECTED); x(EKEYREVOKED); x(EL2HLT); x(EL2NSYNC); x(EL3HLT); x(EL3RST); x(ELIBACC); x(ELIBBAD); x(ELIBMAX); x(ELIBSCN);
     x(ELIBEXEC); x(EMEDIUMTYPE); x(ENOKEY); x(ENOMEDIUM); x(ENONET); x(ENOPKG); x(ENOTBLK); x(ENOTUNIQ); x(EPFNOSUPPORT); x(EREMCHG);
@@ -52,8 +52,7 @@ DEFSUB(errname) { switch(my_errno) {
     //x(EDEADLOCK); // same as EDEADLK
 #endif
 #undef x
-    default: bone_result(BFALSE); }
-}
+    default: bone_result(BFALSE); } }
 
 DEFSUB(getpid) { bone_result(int2any(getpid())); }
 DEFSUB(getuid) { bone_result(int2any(getuid())); }

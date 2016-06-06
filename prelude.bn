@@ -90,7 +90,7 @@ clauses are processed in order.  The condition of a clause is
 evaluated and if it gives a true value, all the expressions in the
 body are evaluated; no further clauses will be processed in this case.
 If the condition was false, however, the next clause will be
-processedin the same way.  If no condition was true, `#f` will be
+processed in the same way.  If no condition was true, `#f` will be
 returned.
 
 It is common to have an else-clause in the end which has `#t` as its
@@ -128,7 +128,9 @@ returned."
   `(if ,expr (do ,@body) #f))
 
 (defmac (let bindings . body)
-  "let"
+  "Shortcut for nested `with`: Introduce several `bindings` at once.
+
+The `bindings` are of the form `(name value)`."
   (if (nil? bindings)
       (cons 'do body)
     `(with ,(caar bindings) ,(cadar bindings) (let ,(cdr bindings) . ,body))))
@@ -179,13 +181,13 @@ This can be useful for passing to higher order functions."
   "Like `map`, but with reversed argument order."
   (map sub xs))
 
-(defsub (nth-cons xs n)
+(defsub (nth-cons n xs)
   "Return the `n`th cons of `xs`."
   (if (0? n)
       xs
     (nth-cons (cdr xs) (-- n))))
 
-(defsub (nth xs n)
+(defsub (nth n xs)
   "Return the `n`th element of `xs`."
   (car (nth-cons xs n)))
 
@@ -204,7 +206,7 @@ This can be useful for passing to higher order functions."
 
 (defsub (str-skip s n)
   "Return str `s` without the first `n` characters."
-  (str (nth-cons (unstr s) n)))
+  (str (nth-cons n (unstr s))))
 
 (defsub (str-suffix? suff s)
   "Check whether the str `s` ends in `suff`."
