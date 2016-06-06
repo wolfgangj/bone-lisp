@@ -25,13 +25,30 @@
     `(_mac-bind ',(car spec)
        (lambda ,(cdr spec) ,@body))))
 
+(defmac (defsub spec doc . body)
+  "Define a sub with name/args as in `spec`, docstring `doc` and code `body`."
+  (if (not (_refers-to? body (car spec)))
+      `(_bind ',(car spec) (lambda ,(cdr spec) ,@body))
+    `(with ,(car spec) (lambda ,(cdr spec) ,@body)
+	(_bind ',(car spec) ,(car spec)))))
+
 (defmac (internmac spec . body)
   "Define an internal macro."
   `(_mac-bind ',(car spec)
      (lambda ,(cdr spec) ,@body)))
 
-(defmac (defsub spec doc . body)
-  "Define a sub with name/args as in `spec`, docstring `doc` and code `body`."
+(defmac (internsub spec . body)
+  "Define an internal sub."
+  `(_bind ',(car spec)
+     (lambda ,(cdr spec) ,@body)))
+
+(defmac (mymac spec . body)
+  "Define a locally used mac."
+  `(_mac-bind ',(car spec)
+     (lambda ,(cdr spec) ,@body)))
+
+(defmac (mysub spec . body)
+  "Define a locally used sub."
   `(_bind ',(car spec)
      (lambda ,(cdr spec) ,@body)))
 
@@ -116,9 +133,35 @@ returned."
       (cons 'do body)
     `(with ,(caar bindings) ,(cadar bindings) (let ,(cdr bindings) . ,body))))
 
+(defmac (aif expr then else)
+  "Anamorphic `if`: Bind `it` to the result of `expr`."
+  `(with it ,expr (if it ,then ,else)))
+
 (defmac (in-reg . body)
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_in-reg (lambda () ,@body)))
+
+(defsub (0? n)
+  "Check whether the number `n` is zero."
+  (=? 0 n))
+
+(defsub (++ n)
+  "Increment `n` by one.  Short for `(+ n 1)`.
+
+The name `++` is inspired by the operator of the same name in the C
+programming language, but while the C operator mutates its operand,
+the `++` sub obviously does not.  The same is true for `--`.
+
+The traditional Lisp name for this operation was `1+`, which is mostly
+fine, but the negative counter part `1-` was a very odd name (inverse
+infix?) and thus was rejected in favor of the C notation."
+  (+ n 1))
+
+(defsub (-- n)
+  "Decrement `n` by one.  Short for `(- n 1)`.
+
+See `++` for background information."
+  (- n 1))
 
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
@@ -140,27 +183,20 @@ This can be useful for passing to higher order functions."
   "Like `map`, but with reversed argument order."
   (map sub xs))
 
+(defsub (nth-cons xs n)
+  "Return the `n`th cons of `xs`."
+  (if (0? n)
+      xs
+    (nth-cons (cdr xs) (-- n))))
+
+(defsub (nth xs n)
+  "Return the `n`th element of `xs`."
+  (car (nth-cons xs n)))
+
+
 (defsub (acons key value alist)
   "Put `(key value)` in front of the `alist`."
   (cons (list key value) alist))
-
-(defsub (++ n)
-  "Increment `n` by one.  Short for `(+ n 1)`.
-
-The name `++` is inspired by the operator of the same name in the C
-programming language, but while the C operator mutates its operand,
-the `++` sub obviously does not.  The same is true for `--`.
-
-The traditional Lisp name for this operation was `1+`, which is mostly
-fine, but the negative counter part `1-` was a very odd name (inverse
-infix?) and thus was rejected in favor of the C notation."
-  (+ n 1))
-
-(defsub (-- n)
-  "Decrement `n` by one.  Short for `(- n 1)`.
-
-See `++` for background information."
-  (- n 1))
 
 (defsub (str-len s)
   "The number of characters in the str `s`."
@@ -170,6 +206,16 @@ See `++` for background information."
   "Concatenate all the `strs`."
   (str (apply cat (map unstr strs)))) 
 
+(defsub (str-skip s n)
+  "Return str `s` without the first `n` characters."
+  (str (nth-cons (unstr s) n)))
+
+(defsub (str-suffix? suff s)
+  "Check whether the str `s` ends in `suff`."
+  (let ((suff-len (str-len suff))
+	(s-len (str-len s)))
+    (and (>=? s-len suff-len)
+	 (str=? suff (str-skip s (- s-len suff-len))))))
 
 
 ;;;; Aliases
@@ -201,5 +247,9 @@ See `++` for background information."
 (alias macroexpand mac-expand)
 (alias append cat)
 (alias list+ cat)
+(alias list-tail nth-cons)
+(alias list-ref nth)
+(alias =0? 0?)
 (alias str-cat str+)
 (alias str-append str+)
+
