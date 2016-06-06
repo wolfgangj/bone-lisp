@@ -35,7 +35,8 @@ my const char *type_name(type_tag tag) { switch(tag) {
 #define HASH_SLOT_DELETED UNIQ(101)
 #define READER_LIST_END   UNIQ(102)
 #define BINDING_DEFINED   UNIQ(103)
-#define BINDING_DECLARED  UNIQ(104)
+#define BINDING_EXISTS    UNIQ(104)
+#define BINDING_DECLARED  UNIQ(105)
 bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
@@ -518,9 +519,11 @@ my void call1(any subr, any x) { apply(subr, single(x)); }
 //////////////// bindings ////////////////
 
 my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
-my void bind(any name, any subr) { name_sub(any2sub(subr), name);
-  reg_permanent(); hash_set(bindings, name, cons(BINDING_DEFINED, subr)); reg_pop(); }
 my any get_binding(any name) { return hash_get(bindings, name); }
+my void bind(any name, bool overwritable, any subr) { any prev = get_binding(name);
+  if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
+  name_sub(any2sub(subr), name);
+  reg_permanent(); hash_set(bindings, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, subr)); reg_pop(); }
 my bool is_bound(any name) { return get_binding(name) != BFALSE; }
 
 my hash macros; // FIXME: needs mutex protection, see above
@@ -692,7 +695,7 @@ DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0])
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
 DEFSUB(in_reg) { reg_push(reg_new()); call0(args[0]); last_value = copy_back(last_value); reg_free(reg_pop()); }
-DEFSUB(bind) { bind(args[0], args[1]); } // FIXME: check for overwrites
+DEFSUB(bind) { bind(args[0], is(args[1]), args[2]); }
 DEFSUB(assoc_entry) { last_value = assoc_entry(args[0], args[1]); }
 DEFSUB(str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
 DEFSUB(str_neql) { last_value = to_bool(!str_eql(args[0], args[1])); }
@@ -736,7 +739,7 @@ my any make_csub(csub cptr, int argc, int take_rest) {
   sub subr = (sub) reg_alloc(1); subr->code = code; return sub2any(subr);
 }
 void bone_register_csub(csub cptr, const char *name, int argc, int take_rest) {
-  bind(intern(name), make_csub(cptr, argc, take_rest));
+  bind(intern(name), false, make_csub(cptr, argc, take_rest));
 }
 my void register_cmac(csub cptr, const char *name, int argc, int take_rest) {
   mac_bind(intern(name), make_csub(cptr, argc, take_rest));
@@ -781,7 +784,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_listp, "list?", 1, 0);
   bone_register_csub(CSUB_cat2, "_fast-cat", 2, 0);
   bone_register_csub(CSUB_in_reg, "_in-reg", 1, 0);
-  bone_register_csub(CSUB_bind, "_bind", 2, 0);
+  bone_register_csub(CSUB_bind, "_bind", 3, 0);
   bone_register_csub(CSUB_assoc_entry, "assoc-entry?", 2, 0);
   bone_register_csub(CSUB_str_eql, "str=?", 2, 0);
   bone_register_csub(CSUB_str_neql, "str<>?", 2, 0);
@@ -808,7 +811,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_gensym, "gensym", 0, 0);
   bone_register_csub(CSUB_map, "map", 2, 0);
   bone_register_csub(CSUB_filter, "filter", 2, 0);
-  bone_register_csub(CSUB_full_cat, "_full-cat", 0, 1); bone_register_csub(CSUB_full_cat, "cat", 0, 1);
+  bone_register_csub(CSUB_full_cat, "_full-cat", 0, 1);
   bone_register_csub(CSUB_refers_to, "_refers-to?", 2, 0);
 }
 

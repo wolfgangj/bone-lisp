@@ -14,7 +14,7 @@
 ;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ;; Need this first because quasiquote expands to it
-(_bind 'cat _full-cat)
+(_bind 'cat #f _full-cat)
 (_mac-bind 'cat
   (lambda args
     (cons (if (_fast=? 2 (len args)) '_fast-cat 'full-cat) args)))
@@ -28,9 +28,9 @@
 (defmac (defsub spec doc . body)
   "Define a sub with name/args as in `spec`, docstring `doc` and code `body`."
   (if (not (_refers-to? body (car spec)))
-      `(_bind ',(car spec) (lambda ,(cdr spec) ,@body))
+      `(_bind ',(car spec) #f (lambda ,(cdr spec) ,@body))
     `(with ,(car spec) (lambda ,(cdr spec) ,@body)
-	(_bind ',(car spec) ,(car spec)))))
+	(_bind ',(car spec) #f ,(car spec)))))
 
 (defmac (internmac spec . body)
   "Define an internal macro."
@@ -39,7 +39,7 @@
 
 (defmac (internsub spec . body)
   "Define an internal sub."
-  `(_bind ',(car spec)
+  `(_bind ',(car spec) #f
      (lambda ,(cdr spec) ,@body)))
 
 (defmac (mymac spec . body)
@@ -49,7 +49,7 @@
 
 (defmac (mysub spec . body)
   "Define a locally used sub."
-  `(_bind ',(car spec)
+  `(_bind ',(car spec) #t
      (lambda ,(cdr spec) ,@body)))
 
 (internmac (_optimize name binary n-ary)
@@ -175,10 +175,6 @@ This can be useful for passing to higher order functions."
 `x` may be any object, it does not have to be a list."
   (and (cons? x) (nil? (cdr x))))
 
-(defsub (list? x)
-  "Return whether `x` is a list (empty or not)."
-  (or (cons? x) (nil? x)))
-
 (defsub (mapx xs sub)
   "Like `map`, but with reversed argument order."
   (map sub xs))
@@ -222,7 +218,7 @@ This can be useful for passing to higher order functions."
 
 (defmac (alias new old)
   "Define `new` as an alias for sub `old`."
-  `(_bind ',new ,old))
+  `(_bind ',new #f ,old))
 
 (alias + _full+)
 (alias no nil?)
