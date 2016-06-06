@@ -139,6 +139,15 @@ The `bindings` are of the form `(name value)`."
   "Anamorphic `if`: Bind `it` to the result of `expr`."
   `(with it ,expr (if it ,then ,else)))
 
+(defsub (equal? a b)
+  "Compare `a` and `b` for structural equality."
+  (cond ((str? a) (and (str? b)
+		       (str=? a b)))
+	((cons? a) (and (cons? b)
+			(equal? (car a) (car b))
+			(equal? (cdr a) (cdr b))))
+	(#t (eq? a b))))
+
 (defmac (in-reg . body)
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_in-reg (lambda () ,@body)))
