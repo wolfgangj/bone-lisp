@@ -539,7 +539,8 @@ my any mac_expand(any x) { any res; while(1) { res = mac_expand_1(x); if(res==x)
 
 //////////////// compiler ////////////////
 
-typedef struct { any dst; int pos; int max_locals; int curr_locals; } compile_state;
+typedef struct { any dst; int pos; int max_locals; int curr_locals; int extra_offset; } compile_state;
+my int extra_pos(compile_state *s) { return s->curr_locals + s->extra_offset - 1; }
 my void emit(any x, compile_state *state) { any next = single(x); set_fdr(state->dst, next); state->dst = next; state->pos++; }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state); // decl for mutual recursion
 my void compile_if(any e, any env, bool tail_context, compile_state *state) {
@@ -590,9 +591,9 @@ my void compile_do(any body, any env, bool tail_context, compile_state *state) {
   foreach_cons(x, body) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); }
 my void compile_with(any name, any expr, any body, any env, bool tail_context, compile_state *state) {
   state->curr_locals++; if(state->curr_locals > state->max_locals) state->max_locals = state->curr_locals;
-  env = add_local(env, name, s_arg, state->curr_locals-1); compile_expr(expr, env, false, state);
-  emit(OP_SET_LOCAL, state); emit(int2any(state->curr_locals-1), state);
-  compile_do(body, add_local(env, name, s_arg, state->curr_locals-1), tail_context, state);
+  env = add_local(env, name, s_arg, extra_pos(state)); compile_expr(expr, env, false, state);
+  emit(OP_SET_LOCAL, state); emit(int2any(extra_pos(state)), state);
+  compile_do(body, env, tail_context, state);
   state->curr_locals--;
 }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
@@ -613,10 +614,12 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     emit(OP_CONST, state); emit(fdr(global), state); break;
   }
 }
-my any compile2list(any expr, any env, int *extra_locals) { any res = single(BFALSE); compile_state state = {res,0,0,0};
+my any compile2list(any expr, any env, int extra_offset, int *extra_locals) { any res = single(BFALSE);
+  compile_state state = {res,0,0,0,extra_offset};
   compile_expr(expr, env, true, &state); emit(OP_RET, &state); *extra_locals = state.max_locals; return fdr(res);
 }
-my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) { int extra; any raw = compile2list(expr, env, &extra);
+my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) { int extra;
+  any raw = compile2list(expr, env, argc+take_rest, &extra);
   reg_permanent(); sub_code code = make_sub_code(argc, take_rest, extra, env_size, len(raw)); reg_pop();
   any *p = code->ops; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
