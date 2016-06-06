@@ -539,7 +539,7 @@ my any mac_expand(any x) { any res; while(1) { res = mac_expand_1(x); if(res==x)
 
 //////////////// compiler ////////////////
 
-typedef struct { any dst; int pos; } compile_state;
+typedef struct { any dst; int pos; int max_locals; int curr_locals; } compile_state;
 my void emit(any x, compile_state *state) { any next = single(x); set_fdr(state->dst, next); state->dst = next; state->pos++; }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state); // decl for mutual recursion
 my void compile_if(any e, any env, bool tail_context, compile_state *state) {
@@ -566,9 +566,10 @@ my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
   listgen res = listgen_new(); collect_locals_rec(code, locals, ignore, cnt, &res); return res.xs;
 }
+my any add_local(any env, any name, any kind, int num) { return cons(cons(name, cons(kind, int2any(num))), env); }
 my any locals_for_lambda(any env, any args) { any res = NIL; int cnt = 0;
-  foreach(x, env) res = cons(cons(far(x), cons(s_env, int2any(cnt++))), res); cnt = 0;
-  foreach(x, args) res = cons(cons(x, cons(s_arg, int2any(cnt++))), res); return res;
+  foreach(x, env) res = add_local(res, far(x), s_env, cnt++); cnt = 0;
+  foreach(x, args) res = add_local(res, x, s_arg, cnt++); return res;
 }
 my any flatten_rest_x(any xs, int *len, int *take_rest) { // stores len w/o rest in `*len`.
   if(is_sym(xs)) { *take_rest = 1; return single(xs); } // only rest args
@@ -585,14 +586,24 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
     emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(pos, state); emit(OP_ADD_ENV, state); }
   emit(OP_MAKE_SUB, state);
 }
+my void compile_do(any body, any env, bool tail_context, compile_state *state) {
+  foreach_cons(x, body) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); }
+my void compile_with(any name, any expr, any body, any env, bool tail_context, compile_state *state) {
+  state->curr_locals++; if(state->curr_locals > state->max_locals) state->max_locals = state->curr_locals;
+  env = add_local(env, name, s_arg, state->curr_locals-1); compile_expr(expr, env, false, state);
+  emit(OP_SET_LOCAL, state); emit(int2any(state->curr_locals-1), state);
+  compile_do(body, add_local(env, name, s_arg, state->curr_locals-1), tail_context, state);
+  state->curr_locals--;
+}
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
   case t_num: case t_uniq: case t_str: case t_sub: case t_other: case t_reg: emit(OP_CONST, state); emit(e, state); break;
   case t_cons:; any first = far(e); any rest = fdr(e);
     if(first==s_quote) { emit(OP_CONST, state); emit(rest, state); break; } // FIXME: copy() to permanent?
-    if(first==s_do) { foreach_cons(x, rest) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); break; }
+    if(first==s_do) { compile_do(rest, env, tail_context, state); break; }
     if(first==s_if) { compile_if(rest, env, tail_context, state); break; }
     if(first==s_lambda) { compile_lambda(car(rest), cdr(rest), env, state); break; }
+    if(first==s_with) { compile_with(car(rest), car(cdr(rest)), cdr(cdr(rest)), env, tail_context, state); break; }
     compile_expr(first, env, false, state); emit(OP_PREPARE_CALL, state);
     foreach(arg, rest) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
@@ -602,11 +613,11 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     emit(OP_CONST, state); emit(fdr(global), state); break;
   }
 }
-my any compile2list(any expr, any env) { any res = single(BFALSE); compile_state state = {res,0};
-  compile_expr(expr, env, true, &state); emit(OP_RET, &state); return fdr(res);
+my any compile2list(any expr, any env, int *extra_locals) { any res = single(BFALSE); compile_state state = {res,0,0,0};
+  compile_expr(expr, env, true, &state); emit(OP_RET, &state); *extra_locals = state.max_locals; return fdr(res);
 }
-my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) { any raw = compile2list(expr, env);
-  reg_permanent(); sub_code code = make_sub_code(argc, take_rest, 0, env_size, len(raw)); reg_pop();
+my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) { int extra; any raw = compile2list(expr, env, &extra);
+  reg_permanent(); sub_code code = make_sub_code(argc, take_rest, extra, env_size, len(raw)); reg_pop();
   any *p = code->ops; foreach(x, raw) *p++ = x; return code;
 } // result is in permanent region.
 my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(mac_expand(e), NIL, 0, 0, 0);
