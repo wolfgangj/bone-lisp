@@ -12,6 +12,8 @@
 
 ## What?
 
+*Note: If you were looking for the great [Bones Scheme Compiler](http://www.call-with-current-continuation.org/bones/), that's a different project.*
+
 *Note: This software is currently in pre-alpha status.*
 
 Bone is an interpreter for a lexically scoped Lisp-1.
