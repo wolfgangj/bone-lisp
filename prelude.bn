@@ -156,6 +156,14 @@ The `bindings` are of the form `(name value)`."
   "Check whether the number `n` is zero."
   (=? 0 n))
 
+(defsub (>0? n)
+  "Check whether the number `n` is positive."
+  (>? n 0))
+
+(defsub (<0? n)
+  "Check whether the number `n` is negative."
+  (<? n 0))
+
 (defsub (++ n)
   "Increment `n` by one.  Short for `(+ n 1)`.
 
@@ -224,7 +232,7 @@ This can be useful for passing to higher order functions."
   "Concatenate all the `strs`."
   (str (apply cat (map unstr strs)))) 
 
-(defsub (str-skip s n)
+(defsub (str-drop n s)
   "Return str `s` without the first `n` characters."
   (str (nth-cons n (unstr s))))
 
@@ -233,7 +241,7 @@ This can be useful for passing to higher order functions."
   (let ((suff-len (str-len suff))
 	(s-len (str-len s)))
     (and (>=? s-len suff-len)
-	 (str=? suff (str-skip s (- s-len suff-len))))))
+	 (str=? suff (str-drop (- s-len suff-len) s)))))
 
 
 ;;;; Aliases
@@ -268,6 +276,9 @@ This can be useful for passing to higher order functions."
 (alias list-tail nth-cons)
 (alias list-ref nth)
 (alias =0? 0?)
+(alias zero? 0?)
+(alias positive? >0?)
+(alias negative? <0?)
 (alias str-cat str+)
 (alias str-append str+)
 
