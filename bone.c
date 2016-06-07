@@ -693,7 +693,7 @@ DEFSUB(fast_num_gtp)  { last_value = to_bool(any2int(args[0]) >  any2int(args[1]
 DEFSUB(fast_num_ltp)  { last_value = to_bool(any2int(args[0]) <  any2int(args[1])); }
 DEFSUB(fast_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
 DEFSUB(fast_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
-DEFSUB(each) { any arg = single(BFALSE); foreach(x, args[0]) { set_far(arg, x); apply(args[1], arg); } } // FIXME: call1
+DEFSUB(each) { foreach(x, args[0]) { call1(args[1], x); } }
 DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_value = int2any(ires); }
 DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
