@@ -27,9 +27,9 @@
 
 my jmp_buf exc_bufs[32]; // FIXME: thread-local
 my int exc_num = 0;
-jmp_buf *next_jb() { return &exc_bufs[exc_num++]; }
-jmp_buf *get_jb() { return &exc_bufs[--exc_num]; }
-void drop_jb() { exc_num--; }
+jmp_buf *next_jb_() { return &exc_bufs[exc_num++]; }
+jmp_buf *get_jb_() { return &exc_bufs[--exc_num]; }
+void drop_jb_() { exc_num--; }
 
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 #define x(tag, name) case tag: return name
@@ -744,7 +744,7 @@ DEFSUB(full_cat) { listgen lg = listgen_new();
   foreach_cons(c, args[0]) if(is_cons(c) && is_nil(fdr(c))) { listgen_tail(&lg, far(c)); break; } else listgen_add_list(&lg, far(c));
   last_value=lg.xs; }
 DEFSUB(refers_to) { last_value = to_bool(refers_to(args[0], args[1])); }
-DEFSUB(load) { char *file = str2charp(args[0]); try { bone_load(file); } catch { free(file); } }
+DEFSUB(load) { bone_load(symtext(args[0])); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);

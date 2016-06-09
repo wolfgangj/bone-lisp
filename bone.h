@@ -84,8 +84,8 @@ jmp_buf *next_jb();
 jmp_buf *get_jb();
 void drop_jb();
 
-#define try if(!setjmp(*next_jb())) {
-#define catch drop_jb(); } else
-#define throw() longjmp(*get_jb(), 1)
+#define try if(!setjmp(*next_jb_())) {
+#define catch drop_jb_(); } else
+#define throw() longjmp(*get_jb_(), 1)
 
 #endif /* BONE_H */
