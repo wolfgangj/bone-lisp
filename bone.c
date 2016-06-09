@@ -154,9 +154,8 @@ my char *list2charp(any x) {
 }
 char *str2charp(any x) { return list2charp(unstr(x)); }
 
-my bool chr_eql(any chr1, any chr2) { return chr1 == chr2; } // FIXME: grapheme clusters
 my bool str_eql(any s1, any s2) { s1=unstr(s1); s2=unstr(s2);
-  foreach(chr, s1) { if(is_nil(s2) || !chr_eql(chr, far(s2))) return false; s2=fdr(s2); }
+  foreach(chr, s1) { if(is_nil(s2) || chr==far(s2)) return false; s2=fdr(s2); }
   return is_nil(s2);
 }
 
@@ -304,7 +303,7 @@ my void print(any x) { switch(tag_of(x)) {
     break;
   case t_str: printf("\"");
     foreach(c, unstr(x))
-      switch(any2int(c)) { // FIXME: handle grapheme clusters
+      switch(any2int(c)) {
       case '"':  printf("\\\""); break; case '\\': printf("\\\\"); break; case '\n': printf("\\n"); break; case '\t': printf("\\t"); break;
       default: putchar(any2int(c)); }
     printf("\""); break;
@@ -316,8 +315,7 @@ my void print(any x) { switch(tag_of(x)) {
   case t_other: default: abort(); }
 }
 
-my void say_chr(any chr) { if(is_num(chr)) putchar(any2int(chr)); else foreach(x, chr) putchar(any2int(x)); }
-my void say_str(any s) { foreach(chr, unstr(s)) say_chr(chr); }
+my void say_str(any s) { foreach(chr, unstr(s)) putchar(any2int(chr)); }
 my void say(any x) { switch(tag_of(x)) {
   case t_str: say_str(x); break; case t_cons: foreach(e, x) say(e); break; default: print(x); }
 }
