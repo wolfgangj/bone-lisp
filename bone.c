@@ -29,6 +29,7 @@ my jmp_buf exc_bufs[32]; // FIXME: thread-local
 my int exc_num = 0;
 jmp_buf *next_jb() { return &exc_bufs[exc_num++]; }
 jmp_buf *get_jb() { return &exc_bufs[--exc_num]; }
+void drop_jb() { exc_num--; }
 
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 #define x(tag, name) case tag: return name
@@ -148,7 +149,7 @@ my any charp2list(const char *p) { return !*p ? NIL : cons(int2any(*p), charp2li
 any charp2str(const char *p) { return str(charp2list(p)); }
 my char *list2charp(any x) {
   char *res = malloc(len(x) + 1); // FIXME: longer for UTF-8
-  char *p = res; foreach(c, x) { *p = any2int(c); p++; }
+  char *p = res; try { foreach(c, x) { *p = any2int(c); p++; } } catch { free(res); throw(); }
   *p = '\0'; return res;
 }
 char *str2charp(any x) { return list2charp(unstr(x)); }
