@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <setjmp.h>
 
 #define STRINGIFY1(x) #x
 #define STRINGIFY(x) STRINGIFY1(x)
@@ -78,5 +79,12 @@ char *str2charp(any x); // created w/ malloc()
 
 any intern(const char *name);
 char *symtext(any sym);
+
+jmp_buf *next_jb();
+jmp_buf *get_jb();
+
+#define try if(!setjmp(*next_jb()))
+#define catch else
+#define throw() longjmp(*get_jb(), 1)
 
 #endif /* BONE_H */

@@ -25,6 +25,11 @@
 #include <sys/mman.h>
 #include "bone.h"
 
+my jmp_buf exc_bufs[32]; // FIXME: thread-local
+my int exc_num = 0;
+jmp_buf *next_jb() { return &exc_bufs[exc_num++]; }
+jmp_buf *get_jb() { return &exc_bufs[--exc_num]; }
+
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 #define x(tag, name) case tag: return name
 my const char *type_name(type_tag tag) { switch(tag) {
@@ -41,10 +46,10 @@ bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
-my void print(any x); my void backtrace();
-my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); backtrace(); abort(); }
+my void print(any x); my void backtrace(); // FIXME: to header?
+my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); backtrace(); throw(); }
 my void type_error(any x, type_tag t) { 
-  printf("ERR: typecheck failed: (%s? ", type_name(t)); print(x); printf(")\n"); backtrace(); abort(); }
+  printf("ERR: typecheck failed: (%s? ", type_name(t)); print(x); printf(")\n"); backtrace(); throw(); }
 my type_tag tag_of(any x) { return x & 7; }
 my bool is_tagged(any x, type_tag t) { return tag_of(x) == t; }
 my void check(any x, type_tag t) { if(!is_tagged(x, t)) type_error(x, t); }
@@ -318,7 +323,7 @@ my void say(any x) { switch(tag_of(x)) {
 
 //////////////// read ////////////////
 
-my void parse_error(const char *text) { printf("parse error: %s\n", text); abort(); } // FIXME
+my void parse_error(const char *text) { printf("parse error: %s\n", text); throw(); } // FIXME
 
 my bool allowed_chars[] = { // these can be used for syms in s-exprs
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -738,6 +743,7 @@ DEFSUB(full_cat) { listgen lg = listgen_new();
   foreach_cons(c, args[0]) if(is_cons(c) && is_nil(fdr(c))) { listgen_tail(&lg, far(c)); break; } else listgen_add_list(&lg, far(c));
   last_value=lg.xs; }
 DEFSUB(refers_to) { last_value = to_bool(refers_to(args[0], args[1])); }
+DEFSUB(load) { char *file = str2charp(args[0]); try { bone_load(file); } catch { free(file); } }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -819,6 +825,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_filter, "filter", 2, 0);
   bone_register_csub(CSUB_full_cat, "_full-cat", 0, 1);
   bone_register_csub(CSUB_refers_to, "_refers-to?", 2, 0);
+  bone_register_csub(CSUB_load, "_load", 1, 0);
 }
 
 //////////////// misc ////////////////
@@ -848,12 +855,14 @@ void bone_init(int argc, char **argv) {
   program_args = NIL; while(argc--) program_args = cons(charp2str(argv[argc]), program_args);
   bone_init_thread();
 }
-void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); any e;
-  while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
-  fclose(src); src = old; }
+void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); bool fail = false; any e;
+  try {
+    while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
+  } catch { fail = true; }
+  fclose(src); src = old; if(fail) throw(); }
 void bone_repl() { int line = 0;
-  while(1) { printf("\n@%d: ", line++); any e = bone_read();
-    if (e == ENDOFFILE) break; eval_toplevel_expr(e); print(last_value);
+  while(1) { printf("\n@%d: ", line++); try { any e = bone_read();
+    if (e == ENDOFFILE) break; eval_toplevel_expr(e); print(last_value); } catch { }
   } printf("\n");
 }
 
