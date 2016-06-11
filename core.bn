@@ -41,7 +41,7 @@ check for those values.")
     "Bind `name` to `value`, then evaluate the `exprs` in order.")
 
   (defspecial (lambda args . body)
-    "Create an anonymous sub with arguments `args` and code `body`.
+    "Create an anonymous sub with arguments `args` and code `body` (which may not be empty).
 
 `args` can be either a `sym` or a list of `sym`s; if it is a list, it
 may be improper, but only if it has a `sym` as rest.  This means:

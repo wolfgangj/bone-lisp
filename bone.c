@@ -604,6 +604,7 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
   int argc = 0; int take_rest; args = flatten_rest_x(args, &argc, &take_rest);
   int collected_env_len = 0; any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
   any env_of_sub = locals_for_lambda(collected_env, args);
+  if(is_nil(body)) generic_error("body of lambda expression is empty");
   sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, take_rest, collected_env_len);
   emit(OP_PREPARE_SUB, state); emit((any) sc, state);
   foreach(x, collected_env) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
