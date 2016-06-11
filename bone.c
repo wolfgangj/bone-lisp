@@ -876,7 +876,8 @@ void bone_init(int argc, char **argv) {
   any args = NIL; while(argc--) args = cons(charp2str(argv[argc]), args); set_dyn(intern("*program-args*"), args); 
   bone_init_thread();
 }
-void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); bool fail = false; any e;
+my char *mod2file(const char *mod) { char *res = malloc(strlen(mod) + 4); strcat(strcpy(res, mod), ".bn"); return res; }
+void bone_load(const char *mod) { char *fn = mod2file(mod); FILE *old = src; src = fopen(fn, "r"); free(fn); bool fail = false; any e;
   try {
     while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
   } catch { fail = true; }
