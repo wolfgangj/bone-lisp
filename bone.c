@@ -1377,6 +1377,9 @@ void bone_load(const char *mod) {
 }
 
 void bone_repl() {
+  set_dyn(intern("$"), BFALSE);
+  set_dyn(intern("$$"), BFALSE);
+
   int line = 0;
   while(1) {
     printf("\n@%d: ", line++);
@@ -1385,6 +1388,8 @@ void bone_repl() {
       if (e == ENDOFFILE) break;
       eval_toplevel_expr(e);
       print(last_value);
+      set_dyn(intern("$$"), get_dyn(intern("$")));
+      set_dyn(intern("$"), last_value);
     } catch { }
   }
   printf("\n");
