@@ -100,9 +100,8 @@ return `#f`.")
 
 See `waitpid(2)` syscall manpage for details on `pid`; for example,
 passing `-1` will wait for any child process.  The return value is a
-cons with the pid in the `car` and the status in the `cdr`.  The
-status can be analized with `sys.exitstatus?`, `sys.termsig?`,
-`sys.stopsig?` and `sys.continued`.
+list of the pid and the status.  The status can be analized with
+`sys.exitstatus?`, `sys.termsig?`, `sys.stopsig?` and `sys.continued`.
 
 We don't provide symbolic constants for `options` yet, so you should
 pass `0`.")

@@ -30,7 +30,8 @@
 my int my_errno; // b/c we might alloc mem to store result after syscall
 my void ses() { my_errno = errno; } // Safe Error Status
 DEFSUB(errno) { bone_result(int2any(my_errno)); }
-DEFSUB(errname) { switch(my_errno) {
+DEFSUB(errname) {
+  switch(my_errno) {
 #define x(n) case n: bone_result(intern(#n)); break
     x(EDOM); x(EILSEQ); x(ERANGE); // C99 + POSIX
     x(E2BIG); x(EACCES); x(EADDRINUSE); x(EADDRNOTAVAIL); x(EAFNOSUPPORT); x(EAGAIN); x(EALREADY); x(EBADF); x(EBADMSG); x(EBUSY);
@@ -52,13 +53,16 @@ DEFSUB(errname) { switch(my_errno) {
     //x(EDEADLOCK); // same as EDEADLK
 #endif
 #undef x
-    default: bone_result(BFALSE); } }
+    default: bone_result(BFALSE);
+  }
+}
 
 DEFSUB(getpid) { bone_result(int2any(getpid())); }
 DEFSUB(getuid) { bone_result(int2any(getuid())); }
 DEFSUB(geteuid) { bone_result(int2any(geteuid())); }
 DEFSUB(getgid) { bone_result(int2any(getgid())); }
 DEFSUB(getegid) { bone_result(int2any(getegid())); }
+
 my void getenv_any(char *name) { char *res = getenv(name); ses(); bone_result(res ? charp2str(res) : BFALSE); }
 my void getenv_str(any x) { char *name = str2charp(x); getenv_any(name); free(name); }
 my void getenv_sym(any x) { getenv_any(symtext(x)); }
@@ -66,11 +70,20 @@ DEFSUB(getenv) { if(is_str(args[0])) getenv_str(args[0]); else getenv_sym(args[0
 my void setenv_any(char *name, char *val, any ow) { bone_result(to_bool(!setenv(name, val, is(ow)))); ses(); }
 my void setenv_str(any x, char *val, any ow) { char *name = str2charp(x); setenv_any(name, val, ow); free(name); }
 my void setenv_sym(any x, char *val, any ow) { setenv_any(symtext(x), val, ow); }
-DEFSUB(setenv) { char *val = str2charp(args[1]);
-  if(is_str(args[0])) setenv_str(args[0], val, args[2]); else setenv_sym(args[0], val, args[2]); free(val); }
+DEFSUB(setenv) {
+  char *val = str2charp(args[1]);
+  if(is_str(args[0]))
+    setenv_str(args[0], val, args[2]);
+  else
+    setenv_sym(args[0], val, args[2]);
+  free(val);
+}
+
 DEFSUB(chdir) { char *d = str2charp(args[0]); bone_result(to_bool(!chdir(d))); ses(); free(d); }
 DEFSUB(getcwd) { char d[1024], *r = getcwd(d, 1024); ses(); bone_result((r == d) ? charp2str(d) : BFALSE); } // FIXME: 1024
+
 DEFSUB(time) { time_t t = time(NULL); ses(); bone_result((t!=-1) ? int2any(t) : BFALSE); } // FIXME: not Y2038-safe w/ 32bit-fixnums
+
 DEFSUB(mkdir) { char *d = str2charp(args[0]); int res = mkdir(d, any2int(args[1])); ses(); free(d); bone_result(to_bool(!res)); }
 DEFSUB(rmdir) { char *d = str2charp(args[0]); int res = rmdir(d); ses(); free(d); bone_result(to_bool(!res)); }
 DEFSUB(link) { char *old = str2charp(args[0]); char *new = str2charp(args[1]);
@@ -82,19 +95,41 @@ DEFSUB(rename) { char *old = str2charp(args[0]); char *new = str2charp(args[1]);
 DEFSUB(unlink) { char *f = str2charp(args[0]); int res = unlink(f); ses(); free(f); bone_result(to_bool(!res)); }
 DEFSUB(chmod) { char *f = str2charp(args[0]); int res = chmod(f, any2int(args[1])); ses(); free(f); bone_result(to_bool(!res)); }
 DEFSUB(umask) { bone_result(int2any(umask(any2int(args[0])))); }
-DEFSUB(dir_entries) { char *d = str2charp(args[0]); struct dirent **ents;
-  int n = scandir(d, &ents, NULL, alphasort); ses(); free(d); if(n == -1) { bone_result(BFALSE); return; }
-  listgen lg = listgen_new(); for(int i=0; i < n; i++) { listgen_add(&lg, charp2str(ents[i]->d_name)); free(ents[i]); }
-  free(ents); bone_result(lg.xs); }
+
+DEFSUB(dir_entries) {
+  char *d = str2charp(args[0]);
+  struct dirent **ents;
+
+  int n = scandir(d, &ents, NULL, alphasort);
+  ses();
+  free(d);
+  if(n == -1) {
+    bone_result(BFALSE);
+    return;
+  }
+
+  listgen lg = listgen_new();
+  for(int i=0; i < n; i++) {
+    listgen_add(&lg, charp2str(ents[i]->d_name));
+    free(ents[i]);
+  }
+  free(ents);
+  bone_result(lg.xs);
+}
 DEFSUB(kill) { int res = kill(any2int(args[0]), any2int(args[1])); ses(); bone_result(to_bool(!res)); }
 DEFSUB(exit) { exit(any2int(args[0])); }
 DEFSUB(fork) { int res = fork(); ses(); bone_result((res!=-1) ? int2any(res) : BFALSE); }
-DEFSUB(waitpid) { int status, res = waitpid(any2int(args[0]), &status, any2int(args[1])); ses(); // FIXME: flags as syms
-  bone_result((res!=-1) ? cons(int2any(res), int2any(status)) : BFALSE); } // FIXME: use record, not cons
+
+DEFSUB(waitpid) { // FIXME: flags as syms
+  int status, res = waitpid(any2int(args[0]), &status, any2int(args[1]));
+  ses();
+  bone_result((res!=-1) ? cons(int2any(res), single(int2any(status))) : BFALSE);
+}
+// With these you can analyze thestatus returned by waitpid:
 DEFSUB(w_exitstatus) { int x = any2int(args[0]); bone_result(WIFEXITED  (x) ? int2any(WEXITSTATUS(x)) : BFALSE); }
 DEFSUB(w_termsig)    { int x = any2int(args[0]); bone_result(WIFSIGNALED(x) ? int2any(WTERMSIG   (x)) : BFALSE); }
 DEFSUB(w_stopsig)    { int x = any2int(args[0]); bone_result(WIFSTOPPED (x) ? int2any(WSTOPSIG   (x)) : BFALSE); }
-DEFSUB(w_continued)  { bone_result(to_bool(WIFCONTINUED(any2int(args[0])))); } // these all belong to waitpid
+DEFSUB(w_continued)  { bone_result(to_bool(WIFCONTINUED(any2int(args[0])))); }
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
