@@ -46,7 +46,7 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Lists, strings, fixnums, symbols
 * Classic Lisp Macros
 * Optional dynamic scoping
-* (a few) POSIX bindings
+* POSIX bindings (but not many yet...)
 
 ### What it does not (yet)
 
@@ -162,6 +162,9 @@ Then you can set it for the dynamic extent of some expressions with `with-var`:
     (with-var *depth* (++ *depth*)
       (list *depth*))
     ;; => (1)
+    
+    *depth*
+    ;; => 0
 
 The use of regions is available via:
 
