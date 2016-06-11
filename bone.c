@@ -25,6 +25,8 @@
 #include <sys/mman.h>
 #include "bone.h"
 
+//my any L(any x) { print(x); puts(""); return x; } // for debugging
+
 my void fail(const char *msg) { fprintf(stderr, "%s\n", msg); exit(1); }
 my jmp_buf exc_bufs[32]; // FIXME: thread-local
 my int exc_num = 0;
@@ -45,6 +47,7 @@ my const char *type_name(type_tag tag) { switch(tag) {
 #define BINDING_DEFINED   UNIQ(103)
 #define BINDING_EXISTS    UNIQ(104)
 #define BINDING_DECLARED  UNIQ(105)
+#define VAR_UNBOUND       UNIQ(106)
 bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
@@ -301,7 +304,7 @@ my void print(any x) { switch(tag_of(x)) {
     case BTRUE: printf("#t"); break;
     case BFALSE: printf("#f"); break;
     case ENDOFFILE: printf("#{eof}"); break;
-    default: abort(); }
+    default: printf("#{?}");; }
     break;
   case t_str: printf("\"");
     foreach(c, unstr(x))
@@ -419,11 +422,37 @@ my any bone_read() {
   return x;
 }
 
+//////////////// bindings ////////////////
+
+my void add_name(hash namespace, any name, bool overwritable, any val) { any prev = hash_get(namespace, name);
+  if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
+  if(is_sub(val)) name_sub(any2sub(val), name);
+  reg_permanent(); hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, val)); reg_pop(); }
+
+my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
+my any get_binding(any name) { return hash_get(bindings, name); }
+my void bind(any name, bool overwritable, any subr) { add_name(bindings, name, overwritable, subr); }
+my bool is_bound(any name) { return get_binding(name) != BFALSE; }
+
+my hash macros; // FIXME: needs mutex protection, see above
+my void mac_bind(any name, bool overwritable, any subr) { add_name(macros, name, overwritable, subr); }
+my any get_mac(any name) { return hash_get(macros, name); }
+my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
+
+my any program_args; // FIXME: in dynamic scope
+
+// These are thread-local, therefore we have to look them up each time
+my hash dynamics; // FIXME: dynamics should be thread local (which is why we can't use `bindings` for this)
+my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
+my any get_dyn(any name) { return hash_get(dynamics, name); }
+my bool is_dyn_bound(any name) { return get_dyn(name) != VAR_UNBOUND; }
+my any get_existing_dyn(any name) { any x = get_dyn(name); if(x==VAR_UNBOUND) generic_error("dynamic var unbound", name); return x; }
+
 //////////////// evaluator ////////////////
 
 typedef enum {
   OP_CONST = 1, OP_GET_ENV, OP_GET_ARG, OP_SET_LOCAL, OP_WRAP, OP_PREPARE_CALL, OP_CALL, OP_TAILCALL, OP_ADD_ARG,
-  OP_JMP_IFN, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB, OP_MAKE_RECURSIVE
+  OP_JMP_IFN, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB, OP_MAKE_RECURSIVE, OP_DYN
 } opcode;
 
 my any last_value;
@@ -499,6 +528,7 @@ start:;
     case OP_ADD_ENV: *(lambda_envp++) = last_value; break;
     case OP_MAKE_SUB: last_value = sub2any(lambda); break;
     case OP_MAKE_RECURSIVE: any2sub(last_value)->env[any2int(ip[-2])] = last_value; break; // follows after OP_SET_LOCAL
+    case OP_DYN: last_value = get_existing_dyn(*ip++); break;
     default: printf("unknown vm instruction\n"); abort(); // FIXME
   }
 cleanup:
@@ -522,28 +552,7 @@ my void apply(any s, any xs) { sub subr = any2sub(s); sub_code sc = subr->code; 
 my void call0(any subr) { apply(subr, NIL); }
 my void call1(any subr, any x) { apply(subr, single(x)); }
 
-//////////////// bindings ////////////////
-
-my void add_name(hash namespace, any name, bool overwritable, any subr) { any prev = hash_get(namespace, name);
-  if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
-  name_sub(any2sub(subr), name);
-  reg_permanent(); hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, subr)); reg_pop(); }
-
-my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
-my any get_binding(any name) { return hash_get(bindings, name); }
-my void bind(any name, bool overwritable, any subr) { add_name(bindings, name, overwritable, subr); }
-my bool is_bound(any name) { return get_binding(name) != BFALSE; }
-
-my hash macros; // FIXME: needs mutex protection, see above
-my void mac_bind(any name, bool overwritable, any subr) { add_name(macros, name, overwritable, subr); }
-my any get_mac(any name) { return hash_get(macros, name); }
-my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
-
-// FIXME: dynamic scope
-my any program_args;
-
-
-//////////////// macro expansion ////////////////
+//////////////// compiler ////////////////
 
 my any mac_expand_1(any x) { if(!is_cons(x) || far(x)==s_quote) return x;
   if(is_sym(far(x))) { any mac = get_mac(far(x)); if(is(mac)) { apply(fdr(mac), fdr(x)); return last_value; } }
@@ -552,8 +561,6 @@ my any mac_expand_1(any x) { if(!is_cons(x) || far(x)==s_quote) return x;
   foreach(e, lst) { any new = mac_expand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
   return changed ? lg.xs : x; }
 my any mac_expand(any x) { any res; while(1) { res = mac_expand_1(x); if(res==x) return res; x = res; } }
-
-//////////////// compiler ////////////////
 
 typedef struct { any dst; int pos; int max_locals; int curr_locals; int extra_offset; } compile_state;
 my int extra_pos(compile_state *s) { return s->curr_locals + s->extra_offset - 1; }
@@ -632,8 +639,9 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
   case t_sym:; any local = assoc(e, env);
     if(is(local)) { emit(far(local) == s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
-    any global = get_binding(e); if(!is_cons(global)) generic_error("unbound sym", e);
-    emit(OP_CONST, state); emit(fdr(global), state); break;
+    any global = get_binding(e); if(is_cons(global)) { emit(OP_CONST, state); emit(fdr(global), state); break; }
+    any dyn = get_dyn(e); if(dyn!=VAR_UNBOUND) { emit(OP_DYN, state); emit(e, state); break; }
+    generic_error("unbound sym", e); break;
   }
 }
 my any compile2list(any expr, any env, int extra_offset, int *extra_locals) { any res = single(BFALSE);
@@ -745,6 +753,11 @@ DEFSUB(full_cat) { listgen lg = listgen_new();
   last_value=lg.xs; }
 DEFSUB(refers_to) { last_value = to_bool(refers_to(args[0], args[1])); }
 DEFSUB(load) { bone_load(symtext(args[0])); }
+DEFSUB(var_bind) { set_dyn(args[0], args[1]); }
+DEFSUB(with_var) { bool failed = false; any old = get_existing_dyn(args[0]);
+  set_dyn(args[0], args[1]); try { call0(args[2]); } catch { failed = true; }
+  set_dyn(args[0], old); if(failed) throw(); }
+DEFSUB(var_bound_p) { last_value = to_bool(is_dyn_bound(args[0])); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -827,6 +840,9 @@ my void init_csubs() {
   bone_register_csub(CSUB_full_cat, "_full-cat", 0, 1);
   bone_register_csub(CSUB_refers_to, "_refers-to?", 2, 0);
   bone_register_csub(CSUB_load, "_load", 1, 0);
+  bone_register_csub(CSUB_var_bind, "_var-bind", 2, 0);
+  bone_register_csub(CSUB_with_var, "_with-var", 3, 0);
+  bone_register_csub(CSUB_var_bound_p, "var-bound?", 1, 0);
 }
 
 //////////////// misc ////////////////
@@ -851,7 +867,7 @@ void bone_init(int argc, char **argv) {
   free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
   sym_ht = hash_new(997, (any) NULL); init_syms();
-  bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs();
+  bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs(); dynamics = hash_new(97, VAR_UNBOUND);
   src = stdin;
   program_args = NIL; while(argc--) program_args = cons(charp2str(argv[argc]), program_args);
   bone_init_thread();

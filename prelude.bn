@@ -152,6 +152,14 @@ The `bindings` are of the form `(name value)`."
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_in-reg (lambda () ,@body)))
 
+(defmac (defvar name val)
+  "Define the variable `name` and set its default value to `val`."
+  `(_var-bind ',name ,val))
+
+(defmac (with-var name val . body)
+  "Evaluate `body` with dynamic variable `name` bound to `val`."
+  `(_with-var ',name ,val (lambda () ,@body)))
+
 (defsub (0? n)
   "Check whether the number `n` is zero."
   (=? 0 n))
@@ -260,6 +268,7 @@ This can be useful for passing to higher order functions."
 (alias - _full-)
 (alias * _full*)
 (alias / _full/)
+(alias for-each each)
 (alias cons* list*)
 (alias contains? member?)
 (alias modulo mod)
