@@ -441,9 +441,10 @@ my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
 
 // These are thread-local, therefore we have to look them up each time
 my hash dynamics; // FIXME: dynamics should be thread local (which is why we can't use `bindings` for this)
-my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
 my any get_dyn(any name) { return hash_get(dynamics, name); }
 my bool is_dyn_bound(any name) { return get_dyn(name) != VAR_UNBOUND; }
+my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
+my void create_dyn(any name, any x) { if(is_dyn_bound(name)) generic_error("dynamic var bound twice", name); set_dyn(name, x); }
 my any get_existing_dyn(any name) { any x = get_dyn(name); if(x==VAR_UNBOUND) generic_error("dynamic var unbound", name); return x; }
 
 //////////////// evaluator ////////////////
@@ -752,11 +753,12 @@ DEFSUB(full_cat) { listgen lg = listgen_new();
   last_value=lg.xs; }
 DEFSUB(refers_to) { last_value = to_bool(refers_to(args[0], args[1])); }
 DEFSUB(load) { bone_load(symtext(args[0])); }
-DEFSUB(var_bind) { set_dyn(args[0], args[1]); }
+DEFSUB(var_bind) { create_dyn(args[0], args[1]); }
 DEFSUB(with_var) { bool failed = false; any old = get_existing_dyn(args[0]);
   set_dyn(args[0], args[1]); try { call0(args[2]); } catch { failed = true; }
   set_dyn(args[0], old); if(failed) throw(); }
 DEFSUB(var_bound_p) { last_value = to_bool(is_dyn_bound(args[0])); }
+DEFSUB(var_bang) { set_dyn(args[0], args[1]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -842,6 +844,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_var_bind, "_var-bind", 2, 0);
   bone_register_csub(CSUB_with_var, "_with-var", 3, 0);
   bone_register_csub(CSUB_var_bound_p, "var-bound?", 1, 0);
+  bone_register_csub(CSUB_var_bang, "_var!", 2, 0);
 }
 
 //////////////// misc ////////////////
