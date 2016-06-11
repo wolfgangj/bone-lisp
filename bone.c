@@ -55,7 +55,8 @@ any to_bool(int x) { return x ? BTRUE : BFALSE; }
 my void print(any x); my void backtrace(); // FIXME: to header?
 my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); backtrace(); throw(); }
 my void type_error(any x, type_tag t) { 
-  printf("ERR: typecheck failed: (%s? ", type_name(t)); print(x); printf(")\n"); backtrace(); throw(); }
+  printf("ERR: typecheck failed: (%s? ", type_name(t)); print(x); printf(")\n"); backtrace(); throw();
+}
 my type_tag tag_of(any x) { return x & 7; }
 my bool is_tagged(any x, type_tag t) { return tag_of(x) == t; }
 my void check(any x, type_tag t) { if(!is_tagged(x, t)) type_error(x, t); }
@@ -102,20 +103,30 @@ my void reg_push(reg r) { store_reg(*reg_sp); reg_sp++; *reg_sp = r;     load_re
 my reg reg_pop()        { store_reg(*reg_sp); reg r = *reg_sp; reg_sp--; load_reg(*reg_sp); return r; }
 my void reg_permanent() { reg_push(permanent_reg); }
 
-my any *reg_alloc(int n) { any *res = (any *) allocp; allocp += n;
-  if(block((any *) allocp) == current_block) return res;
-  current_block = block_new(current_block); allocp = (any **) &current_block[1]; return reg_alloc(n);
+my any *reg_alloc(int n) {
+  any *res = (any *) allocp;
+  allocp += n;
+  if(block((any *) allocp) == current_block)
+    return res; // normal case
+  current_block = block_new(current_block);
+  allocp = (any **) &current_block[1];
+  return reg_alloc(n);
 }
 
 my any reg2any(reg r) { return tag((any) r, t_reg); }
 my reg any2reg(any x) { return (reg) untag_check(x, t_reg); }
 
 my any copy(any x);
-my any copy_back(any x) { reg_push(reg_sp[-1]); any y = copy(x); reg_pop(); return y; }
+my any copy_back(any x) {
+  reg_push(reg_sp[-1]);
+  any y = copy(x);
+  reg_pop();
+  return y;
+ }
 
 //////////////// conses / lists ////////////////
 
-any cons(any a, any d) { any *p = reg_alloc(2); p[0] = a; p[1] = d; return (any) p; } // no tag() needed
+any cons(any a, any d) { any *p = reg_alloc(2); p[0] = a; p[1] = d; return (any) p; } // no tag() needed as t_cons==0
 any far(any x) { return ((any *) x)[0]; } // fast, no typecheck
 any fdr(any x) { return ((any *) x)[1]; } // likewise
 any car(any x) { check(x, t_cons); return far(x); }
@@ -128,39 +139,118 @@ bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 any single(any x) { return cons(x, NIL); }
 
 listgen listgen_new() { listgen res = { NIL, NIL }; return res; }
+
 void listgen_add(listgen *lg, any x) {
-  if(is_nil(lg->xs)) lg->xs = lg->last = single(x); else { any new = single(x); set_fdr(lg->last, new); lg->last = new; }
+  if(is_nil(lg->xs))
+    lg->xs = lg->last = single(x);
+  else {
+    any new = single(x);
+    set_fdr(lg->last, new);
+    lg->last = new;
+  }
 }
-my void listgen_add_list(listgen *lg, any xs) { foreach(x, xs) listgen_add(lg, x); }
-my void listgen_tail(listgen *lg, any x) { if(is_nil(lg->xs)) lg->xs=lg->last=x; else set_fdr(lg->last, x); }
 
-my int len(any x) { int n = 0; foreach_cons(e, x) n++; return n; }
-my any reverse(any xs) { any res = NIL; foreach(x, xs) res = cons(x, res); return res; }
-my bool is_member(any a, any xs) { foreach(x, xs) if(x == a) return true; return false; }
-my any assoc(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return fdr(x); return BFALSE; }
-my any assoc_entry(any obj, any xs) { foreach(x, xs) if(car(x) == obj) return x; return BFALSE; }
-my any cat2(any a, any b) { if(is_nil(a)) return b; listgen lg = listgen_new();
-  foreach(x, a) listgen_add(&lg, x); set_fdr(lg.last, b); return lg.xs; }
+my void listgen_add_list(listgen *lg, any xs) {
+  foreach(x, xs)
+    listgen_add(lg, x);
+}
 
-my any move_last_to_rest_x(any xs) { if(is_single(xs)) return far(xs);
-  foreach_cons(pair, xs) if(is_single(fdr(pair))) { set_fdr(pair, far(fdr(pair))); break; } return xs; }
+my void listgen_set_tail(listgen *lg, any x) {
+  if(is_nil(lg->xs))
+    lg->xs=lg->last=x;
+  else
+    set_fdr(lg->last, x);
+}
+
+my int len(any x) {
+  int n = 0;
+  foreach_cons(e, x)
+    n++;
+  return n;
+}
+
+my any reverse(any xs) {
+  any res = NIL;
+  foreach(x, xs)
+    res = cons(x, res);
+  return res;
+}
+
+my bool is_member(any a, any xs) {
+  foreach(x, xs)
+    if(x == a)
+      return true;
+  return false;
+}
+
+my any assoc(any obj, any xs) {
+  foreach(x, xs)
+    if(car(x) == obj)
+      return fdr(x);
+  return BFALSE;
+}
+
+my any assoc_entry(any obj, any xs) {
+  foreach(x, xs)
+    if(car(x) == obj)
+      return x;
+  return BFALSE;
+}
+
+my any cat2(any a, any b) {
+  if(is_nil(a)) return b;
+  listgen lg = listgen_new();
+  foreach(x, a)
+    listgen_add(&lg, x);
+  set_fdr(lg.last, b);
+  return lg.xs;
+}
+
+my any move_last_to_rest_x(any xs) {
+  if(is_single(xs)) return far(xs);
+  foreach_cons(pair, xs)
+    if(is_single(fdr(pair))) {
+      set_fdr(pair, far(fdr(pair))); break;
+    }
+  return xs;
+}
 
 //////////////// strs ////////////////
 
 bool is_str(any x) { return is_tagged(x, t_str); }
-my any str(any chrs) { any *p = reg_alloc(1); *p = chrs; return tag((any) p, t_str); }
+
+my any str(any chrs) {
+  any *p = reg_alloc(1);
+  *p = chrs;
+  return tag((any) p, t_str);
+}
+
 my any unstr(any s) { return *(any *) untag_check(s, t_str); }
+
 my any charp2list(const char *p) { return !*p ? NIL : cons(int2any(*p), charp2list(p+1)); } // FIXME: for short strings only
 any charp2str(const char *p) { return str(charp2list(p)); }
 my char *list2charp(any x) {
   char *res = malloc(len(x) + 1); // FIXME: longer for UTF-8
-  char *p = res; try { foreach(c, x) { *p = any2int(c); p++; } } catch { free(res); throw(); }
+  char *p = res;
+  try {
+    foreach(c, x) {
+      *p = any2int(c); p++;
+    }
+  } catch {
+    free(res);
+    throw();
+  }
   *p = '\0'; return res;
 }
 char *str2charp(any x) { return list2charp(unstr(x)); }
 
-my bool str_eql(any s1, any s2) { s1=unstr(s1); s2=unstr(s2);
-  foreach(chr, s1) { if(is_nil(s2) || chr==far(s2)) return false; s2=fdr(s2); }
+my bool str_eql(any s1, any s2) {
+  s1=unstr(s1); s2=unstr(s2);
+  foreach(chr, s1) {
+    if(is_nil(s2) || chr==far(s2))
+      return false;
+    s2=fdr(s2);
+  }
   return is_nil(s2);
 }
 
@@ -169,7 +259,8 @@ my bool str_eql(any s1, any s2) { s1=unstr(s1); s2=unstr(s2);
 #define MAXLOAD 175 // Value between 0 and 255; 128 will cause an average of two probes.
 typedef struct { unsigned size, taken_slots; any *keys, *vals; any default_value; } *hash;
 
-my hash hash_new(unsigned initsize, any default_val) { hash h = malloc(sizeof(*h));
+my hash hash_new(unsigned initsize, any default_val) {
+  hash h = malloc(sizeof(*h));
   h->size = initsize; h->taken_slots = 0; h->default_value = default_val;
   h->keys = malloc(initsize*sizeof(any)); h->vals = malloc(initsize*sizeof(any));
   for(unsigned i = 0; i != initsize; i++) h->keys[i] = HASH_SLOT_UNUSED; return h;
@@ -180,7 +271,8 @@ my void hash_free(hash h) { free(h->keys); free(h->vals); free(h); }
    Return true if there is an entry with this key already.  If there
    is none, *POS will contain the position of the slot we can use to
    add it. */
-my bool find_slot(hash h, any key, unsigned *pos) { int first_deleted = -1;
+my bool find_slot(hash h, any key, unsigned *pos) {
+  int first_deleted = -1;
   *pos = key % h->size;
   while(1) {
     if(h->keys[*pos] == key) return true;
@@ -192,25 +284,52 @@ my bool find_slot(hash h, any key, unsigned *pos) { int first_deleted = -1;
 
 my void hash_set(hash h, any key, any val);
 my bool slot_used(any x) { return x != HASH_SLOT_UNUSED && x != HASH_SLOT_DELETED; } 
-my void enlarge_table(hash h) { hash new = hash_new(h->size * 2 + 1, NIL);
-  for(unsigned i = 0; i != h->size; i++) if(slot_used(h->keys[i])) hash_set(new, h->keys[i], h->vals[i]);
+
+my void enlarge_table(hash h) {
+  hash new = hash_new(h->size * 2 + 1, NIL);
+  for(unsigned i = 0; i != h->size; i++)
+    if(slot_used(h->keys[i]))
+      hash_set(new, h->keys[i], h->vals[i]);
   free(h->keys); free(h->vals); h->size = new->size; h->keys = new->keys; h->vals = new->vals; free(new);
 }
-my void hash_set(hash h, any key, any val) { unsigned pos;
+
+my void hash_set(hash h, any key, any val) {
+  unsigned pos;
   if(!find_slot(h, key, &pos)) {  // adding a new entry
     h->taken_slots++;
-    if(((h->taken_slots << 8) / h->size) > MAXLOAD) { enlarge_table(h); find_slot(h, key, &pos); }
+    if(((h->taken_slots << 8) / h->size) > MAXLOAD) {
+      enlarge_table(h);
+      find_slot(h, key, &pos);
+    }
   }
-  h->keys[pos] = key; h->vals[pos] = val;
+  h->keys[pos] = key;
+  h->vals[pos] = val;
 }
-my any hash_get(hash h, any key) { unsigned pos; return find_slot(h, key, &pos) ? h->vals[pos] : h->default_value; }
-my void hash_rm(hash h, any key) { unsigned pos; if(find_slot(h, key, &pos)) { h->keys[pos] = HASH_SLOT_DELETED; h->taken_slots--; } }
+
+my any hash_get(hash h, any key) {
+  unsigned pos;
+  return find_slot(h, key, &pos) ? h->vals[pos] : h->default_value;
+}
+
+my void hash_rm(hash h, any key) {
+  unsigned pos;
+  if(find_slot(h, key, &pos)) {
+    h->keys[pos] = HASH_SLOT_DELETED;
+    h->taken_slots--;
+  }
+}
+
 #if 0 // FIXME: hash_iter
 my void hash_each(hash h, hash_iter fn, void *hook) {
-  for(unsigned i = 0; i != h->size; i++) if(slot_used(h->keys[i])) fn(hook, h->keys[i], h->vals[i]);
+  for(unsigned i = 0; i != h->size; i++)
+    if(slot_used(h->keys[i])) fn(hook, h->keys[i], h->vals[i]);
 }
 my void hash_print(hash h) { // useful for debugging
-  for(unsigned i = 0; i != h->size; i++) if(slot_used(h->keys[i])) { print(h->keys[i]); putchar('='); print(h->vals[i]); putchar('\n'); } }
+  for(unsigned i = 0; i != h->size; i++)
+    if(slot_used(h->keys[i])) {
+      print(h->keys[i]); putchar('='); print(h->vals[i]); putchar('\n');
+    }
+}
 #endif
 
 //////////////// syms ////////////////
@@ -225,10 +344,15 @@ my any string_hash(const char *s, size_t *len) {  // This is the djb2 algorithm.
 char *symtext(any sym) { return (char *) untag_check(sym, t_sym); }
 my any as_sym(char *name) { return tag((any) name, t_sym); } // `name` must be interned
 my any add_sym(const char *name, size_t len, any id) {
-  reg_permanent(); char *new = (char *) reg_alloc(bytes2words(len+1)); reg_pop();
-  memcpy(new, name, len); hash_set(sym_ht, id, (any) new); return as_sym(new);
+  reg_permanent();
+  char *new = (char *) reg_alloc(bytes2words(len+1));
+  reg_pop();
+  memcpy(new, name, len);
+  hash_set(sym_ht, id, (any) new);
+  return as_sym(new);
 }
-any intern(const char *name) { size_t len; any id = string_hash(name, &len);
+any intern(const char *name) {
+  size_t len; any id = string_hash(name, &len);
   while(1) {
     char *candidate = (char *) hash_get(sym_ht, id);
     if(candidate == NULL) return add_sym(name, len, id);
@@ -236,9 +360,18 @@ any intern(const char *name) { size_t len; any id = string_hash(name, &len);
     id++;
   }
 }
-my any intern_from_chars(any chrs) { char *s = list2charp(chrs); any res = intern(s); free(s); return res; }
-my any gensym() { static int gensyms = 0; reg_permanent(); char *new = (char *) reg_alloc(1); reg_pop();
-  snprintf(new, sizeof(any), "_g%05d", gensyms++); return as_sym(new); }
+my any intern_from_chars(any chrs) {
+  char *s = list2charp(chrs);
+  any res = intern(s);
+  free(s);
+  return res;
+}
+my any gensym() {
+  static int gensyms = 0;
+  reg_permanent(); char *new = (char *) reg_alloc(1); reg_pop();
+  snprintf(new, sizeof(any), "_g%05d", gensyms++);
+  return as_sym(new);
+}
 
 my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_list, s_cat, s_dot, s_do, s_arg, s_env;
 #define x(name) s_ ## name = intern(#name)
@@ -270,32 +403,44 @@ typedef struct { sub_code code; any env[0]; } *sub;
 my bool is_sub(any x) { return is_tagged(x, t_sub); }
 my any sub2any(sub s) { return tag((any) s, t_sub); }
 my sub any2sub(any x) { return (sub) untag_check(x, t_sub); }
+
 my any copy(any x);
-my any copy_sub(any x) { sub s = any2sub(x); int envsize = s->code->size_of_env;
-  any *p = reg_alloc(1+envsize); *p++ = (any) s->code; for(int i = 0; i != envsize; i++) *p++ = copy(s->env[i]);
+my any copy_sub(any x) {
+  sub s = any2sub(x);
+  int envsize = s->code->size_of_env;
+  any *p = reg_alloc(1+envsize);
+  *p++ = (any) s->code;
+  for(int i = 0; i != envsize; i++)
+    *p++ = copy(s->env[i]);
   return tag((any) p, t_sub);
 }
+
 my void name_sub(sub subr, any name) { if(!is(subr->code->name)) subr->code->name = name; }
 
 //////////////// printer ////////////////
 
-my void print_args(any x) {
+my void print_sub_args(any x) {
   if(!is_cons(x)) { if(!is_nil(x)) { printf(". "); print(x); printf(" "); } return; }
   print(far(x)); printf(" "); print_args(fdr(x));
 }
-my void print(any x) { switch(tag_of(x)) {
-  case t_cons:; any a = far(x);
+
+my void print(any x) {
+  switch(tag_of(x)) {
+  case t_cons: {
+    any a = far(x);
     if(is_sym(a)) {
       if(a == s_quote)            { printf("'");  print(fdr(x)); break; }
       if(a == s_quasiquote)       { printf("`");  print(fdr(x)); break; }
       if(a == s_unquote)          { printf(",");  print(fdr(x)); break; }
       if(a == s_unquote_splicing) { printf(",@"); print(fdr(x)); break; }
       if(a == s_lambda && is_cons(fdr(x)) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
-	printf("| "); print_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
-      } }
+	printf("| "); print_sub_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
+      }
+    }
     bool first = true; printf("(");
     do { if(first) first=false; else printf(" "); print(far(x)); x=fdr(x); } while(is_tagged(x, t_cons));
     if(x != NIL) { printf(" . "); print(x); } printf(")"); break;
+  }
   case t_sym: printf("%s", symtext(x)); break;
   case t_num: printf("%d", any2int(x)); break;
   case t_uniq:
@@ -304,25 +449,38 @@ my void print(any x) { switch(tag_of(x)) {
     case BTRUE: printf("#t"); break;
     case BFALSE: printf("#f"); break;
     case ENDOFFILE: printf("#{eof}"); break;
-    default: printf("#{?}");; }
+    default: printf("#{?}"); }
     break;
-  case t_str: printf("\"");
+  case t_str:
+    printf("\"");
     foreach(c, unstr(x))
       switch(any2int(c)) {
-      case '"':  printf("\\\""); break; case '\\': printf("\\\\"); break; case '\n': printf("\\n"); break; case '\t': printf("\\t"); break;
+      case '"':  printf("\\\""); break;
+      case '\\': printf("\\\\"); break;
+      case '\n': printf("\\n"); break;
+      case '\t': printf("\\t"); break;
       default: putchar(any2int(c)); }
     printf("\""); break;
   case t_reg: printf("#reg(%p)", (void *) x); break;
-  case t_sub: printf("#sub(id=%p name=", (void *) x); sub_code code = any2sub(x)->code; print(code->name);
-    //FIXME: printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(")");
-    printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(" localc=%d)", code->extra_localc);
+  case t_sub:
+    printf("#sub(id=%p name=", (void *) x);
+    sub_code code = any2sub(x)->code;
+    print(code->name);
+    printf(" argc=%d take-rest?=", code->argc); print(code->take_rest ? BTRUE : BFALSE); printf(")");
     break;
   case t_other: default: abort(); }
 }
 
 my void say_str(any s) { foreach(chr, unstr(s)) putchar(any2int(chr)); }
-my void say(any x) { switch(tag_of(x)) {
-  case t_str: say_str(x); break; case t_cons: foreach(e, x) say(e); break; default: print(x); }
+my void say(any x) {
+  switch(tag_of(x)) {
+  case t_str: say_str(x); break;
+  case t_cons:
+    foreach(e, x)
+      say(e);
+    break;
+  default: print(x);
+  }
 }
 
 //////////////// read ////////////////
@@ -342,6 +500,7 @@ my FILE *src;
 my int look() { int c = nextc(); ungetc(c, src); return c; }
 
 my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
+
 my int find_token() {
   while(1) { int c = nextc();
     switch(c) {
@@ -352,8 +511,9 @@ my int find_token() {
   }
 }
 my int digit2int (any chr) { int dig = any2int(chr) - '0'; return (dig >= 0 && dig <= 9) ? dig : -1; }
-my any chars2num(any chrs) { int ires = 0, pos = 0;
-  bool is_positive = true, is_num = false; // to catch "", "+" and "-"
+
+my any chars2num(any chrs) {
+  int ires = 0, pos = 0; bool is_positive = true, is_num = false; // need `is_num` to catch "", "+" and "-"
   foreach(chr, chrs) {
     int dig = digit2int(chr); pos++;
     if(dig == -1) {
@@ -367,13 +527,23 @@ my any chars2num(any chrs) { int ires = 0, pos = 0;
   return !is_num ? BFALSE : int2any(is_positive ? ires : -ires);
 }
 my any chars_to_num_or_sym(any cs) { any num = chars2num(cs); return is(num) ? num : intern_from_chars(cs); }
-my any read_sym_chars(int start_char) { listgen lg = listgen_new(); listgen_add(&lg, int2any(start_char)); int c;
-  while(is_symchar(c = look())) listgen_add(&lg, int2any(nextc())); return lg.xs; }
-my any read_str() { listgen lg = listgen_new();
+
+my any read_sym_chars(int start_char) {
+  listgen lg = listgen_new();
+  listgen_add(&lg, int2any(start_char));
+  int c;
+  while(is_symchar(c = look()))
+    listgen_add(&lg, int2any(nextc()));
+  return lg.xs;
+}
+
+my any read_str() {
+  listgen lg = listgen_new();
   while(1) { int c = nextc();
     if(c == '"') return str(lg.xs);
     if(c == EOF) parse_error("end of file inside of a str");
-    if(c == '\\') switch(c = nextc()) {
+    if(c == '\\')
+      switch(c = nextc()) {
       case '\\': case '"': break;
       case 'n': c = '\n'; break;
       case 't': c = '\t'; break;
@@ -383,24 +553,40 @@ my any read_str() { listgen lg = listgen_new();
     listgen_add(&lg, int2any(c)); }
 }
 my any reader(); // for mutual recursion
-my any read_list() { any x = reader();
+my any read_list() {
+  any x = reader();
   if(x == READER_LIST_END) return NIL;
   if(x == ENDOFFILE) parse_error("end of file in list (use `M-x check-parens`)");
-  if(x == s_dot) { x = reader(); if(reader() != READER_LIST_END) parse_error("invalid improper list"); return x; }
+  if(x == s_dot) {
+    x = reader();
+    if(reader() != READER_LIST_END)
+      parse_error("invalid improper list");
+    return x;
+  }
   return cons(x, read_list());
 }
-my any short_lambda_parser(any *body) { any x = reader();
+my any short_lambda_parser(any *body) {
+  any x = reader();
   if(is_cons(x)) { *body = x; return NIL; }
   if(!is_sym(x)) { parse_error("invalid lambda short form (expected sym)"); }
   if(x == s_dot) { any rest = reader(); *body = reader(); return rest; }
   return cons(x, short_lambda_parser(body));
 }
-my any read_lambda_short_form() { any body, args = short_lambda_parser(&body); return cons(s_lambda, cons(args, single(body))); }
-my any read_unquote() { any q = s_unquote; int c = look();
-  if(c == '@') { nextc(); q = s_unquote_splicing; }
+my any read_lambda_short_form() {
+  any body, args = short_lambda_parser(&body);
+  return cons(s_lambda, cons(args, single(body)));
+}
+my any read_unquote() {
+  any q = s_unquote;
+  int c = look();
+  if(c == '@') {
+    nextc();
+    q = s_unquote_splicing; }
   return cons(q, reader());
 }
-my any reader() { int c = find_token(); switch(c) {
+my any reader() {
+  int c = find_token();
+  switch(c) {
   case ')': return READER_LIST_END;
   case '(': return read_list();
   case '|': return read_lambda_short_form();
@@ -408,13 +594,16 @@ my any reader() { int c = find_token(); switch(c) {
   case '`': return cons(s_quasiquote, reader());
   case ',': return read_unquote();
   case '"': return read_str();
-  case '#': switch(c = nextc()) {
+  case '#':
+    switch(c = nextc()) {
     case 'f': return BFALSE;
     case 't': return BTRUE;
     case '!': skip_until('\n'); return reader(); // ignore Unix-style script header
-    default: parse_error("invalid character after #"); }
+    default: parse_error("invalid character after #");
+    }
   case EOF: return ENDOFFILE;
-  default: return(chars_to_num_or_sym(read_sym_chars(c))); }
+  default: return(chars_to_num_or_sym(read_sym_chars(c)));
+  }
 }
 my any bone_read() {
   any x = reader();
@@ -424,10 +613,14 @@ my any bone_read() {
 
 //////////////// bindings ////////////////
 
-my void add_name(hash namespace, any name, bool overwritable, any val) { any prev = hash_get(namespace, name);
+my void add_name(hash namespace, any name, bool overwritable, any val) {
+  any prev = hash_get(namespace, name);
   if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
   if(is_sub(val)) name_sub(any2sub(val), name);
-  reg_permanent(); hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, val)); reg_pop(); }
+  reg_permanent();
+  hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, val));
+  reg_pop();
+}
 
 my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
 my any get_binding(any name) { return hash_get(bindings, name); }
@@ -444,8 +637,19 @@ my hash dynamics; // FIXME: dynamics should be thread local (which is why we can
 my any get_dyn(any name) { return hash_get(dynamics, name); }
 my bool is_dyn_bound(any name) { return get_dyn(name) != VAR_UNBOUND; }
 my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
-my void create_dyn(any name, any x) { if(is_dyn_bound(name)) generic_error("dynamic var bound twice", name); set_dyn(name, x); }
-my any get_existing_dyn(any name) { any x = get_dyn(name); if(x==VAR_UNBOUND) generic_error("dynamic var unbound", name); return x; }
+
+my void create_dyn(any name, any x) {
+  if(is_dyn_bound(name))
+    generic_error("dynamic var bound twice", name);
+  set_dyn(name, x);
+}
+
+my any get_existing_dyn(any name) {
+  any x = get_dyn(name);
+  if(x==VAR_UNBOUND)
+    generic_error("dynamic var unbound", name);
+  return x;
+}
 
 //////////////// evaluator ////////////////
 
@@ -458,17 +662,43 @@ my any last_value;
 void bone_result(any x) { last_value = x; }
 my any locals_stack[1024];
 my any *locals_sp;
-my any *alloc_locals(int n) { any *res = locals_sp; locals_sp += n; return res; }
+
+my any *alloc_locals(int n) {
+  any *res = locals_sp;
+  locals_sp += n;
+  return res;
+}
+
 my void drop_locals(int n) { locals_sp -= n; }
+
 struct call_stack_entry { sub subr; any *args; int tail_calls; } call_stack[256], *call_sp;
 my bool is_self_evaluating(any x) { return !(is_sym(x) || is_cons(x)); }
-my void print_arg(any x) { if(!is_self_evaluating(x)) printf("'"); print(x); }
-my void backtrace() { printf("BACKTRACE:\n");
-  for(struct call_stack_entry *e = call_sp; e > call_stack; e--) { int i = 0;
-    printf("("); if(is(e->subr->code->name)) print(e->subr->code->name); else printf("<unknown>");
-    for(i = 0; i != e->subr->code->argc; i++) { printf(" "); print_arg(e->args[i]); }
-    if(e->subr->code->take_rest) foreach(x, e->args[i]) { printf(" "); print_arg(x); }
-    printf(")\n"); if(e->tail_calls) printf(";; hidden tail calls: %d\n", e->tail_calls);
+my void print_arg(any x) {
+  if(!is_self_evaluating(x))
+    printf("'");
+  print(x);
+}
+my void backtrace() {
+  printf("BACKTRACE:\n");
+  for(struct call_stack_entry *e = call_sp; e > call_stack; e--) {
+    printf("(");
+    if(is(e->subr->code->name))
+      print(e->subr->code->name);
+    else
+      printf("<unknown>");
+
+    int i;
+    for(i = 0; i != e->subr->code->argc; i++) {
+      printf(" ");
+      print_arg(e->args[i]);
+    }
+    if(e->subr->code->take_rest)
+      foreach(x, e->args[i]) {
+	printf(" "); print_arg(x);
+      }
+    printf(")\n");
+    if(e->tail_calls)
+      printf(";; hidden tail calls: %d\n", e->tail_calls);
   }
 }
 
@@ -483,7 +713,8 @@ my void args_error(sub_code sc, any xs) { generic_error("wrong number of args", 
 my void args_error_unspecific(sub_code sc) { args_error(sc, single(intern("..."))); }
 
 my void add_nonrest_arg() { *(next_call->next_arg++) = last_value; }
-my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
+my void add_rest_arg() {
+  sub_code sc = next_call->to_be_called->code;
   if(!sc->take_rest) args_error_unspecific(sc);
   if(next_call->rest_constructor == NIL) { // first rest arg
     next_call->rest_constructor = next_call->args[sc->argc] = single(last_value);
@@ -492,38 +723,69 @@ my void add_rest_arg() { sub_code sc = next_call->to_be_called->code;
   }
 }
 my void verify_argc(struct upcoming_call *the_call) {
-  if(the_call->nonrest_args_left) args_error_unspecific(the_call->to_be_called->code);
+  if(the_call->nonrest_args_left)
+    args_error_unspecific(the_call->to_be_called->code);
 }
-my void call(sub subr, any *args, int locals_cnt) { sub lambda; any *lambda_envp;
+my void call(sub subr, any *args, int locals_cnt) {
+  sub lambda; any *lambda_envp;
   call_sp++; call_sp->subr = subr; call_sp->args = args; call_sp->tail_calls = 0;
 start:;
-  any *env = subr->env; any *ip = subr->code->ops;
-  while(1) switch(*ip++) {
+  any *env = subr->env;
+  any *ip = subr->code->ops;
+  while(1)
+    switch(*ip++) {
     case OP_CONST: last_value = *ip++; break;
     case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
     case OP_GET_ARG: last_value = args[any2int(*ip++)]; break; // args+locals
     case OP_SET_LOCAL: args[any2int(*ip++)] = last_value; break;
     case OP_WRAP: ((csub) *ip)(args); goto cleanup;
-    case OP_PREPARE_CALL: { sub to_be_called = any2sub(last_value); sub_code sc = to_be_called->code;
-	next_call++; next_call->to_be_called = to_be_called;
-	next_call->nonrest_args_left = sc->argc;
-	next_call->locals_cnt = count_locals(sc);
-	next_call->next_arg = next_call->args = alloc_locals(next_call->locals_cnt);
-	if(sc->take_rest) { next_call->rest_constructor = next_call->args[sc->argc] = NIL; }
-	break; }
-    case OP_CALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call);
-	call(the_call->to_be_called, the_call->args, the_call->locals_cnt); break; }
-    case OP_TAILCALL: { struct upcoming_call *the_call = next_call--; verify_argc(the_call); locals_cnt = the_call->locals_cnt;
-	for(int i = 0; i < locals_cnt; i++) args[i] = the_call->args[i]; locals_sp = &args[locals_cnt];
-	subr = the_call->to_be_called; call_sp->subr = subr; call_sp->args = args; call_sp->tail_calls++; goto start; }
+    case OP_PREPARE_CALL: {
+      sub to_be_called = any2sub(last_value);
+      sub_code sc = to_be_called->code;
+      next_call++;
+      next_call->to_be_called = to_be_called;
+      next_call->nonrest_args_left = sc->argc;
+      next_call->locals_cnt = count_locals(sc);
+      next_call->next_arg = next_call->args = alloc_locals(next_call->locals_cnt);
+      if(sc->take_rest) { next_call->rest_constructor = next_call->args[sc->argc] = NIL; }
+      break;
+    }
+    case OP_CALL: {
+      struct upcoming_call *the_call = next_call--;
+      verify_argc(the_call);
+      call(the_call->to_be_called, the_call->args, the_call->locals_cnt);
+      break;
+    }
+    case OP_TAILCALL: {
+      struct upcoming_call *the_call = next_call--;
+      verify_argc(the_call);
+      locals_cnt = the_call->locals_cnt;
+      for(int i = 0; i < locals_cnt; i++)
+	args[i] = the_call->args[i];
+      locals_sp = &args[locals_cnt];
+      subr = the_call->to_be_called;
+      call_sp->subr = subr;
+      call_sp->args = args;
+      call_sp->tail_calls++;
+      goto start;
+    }
     case OP_ADD_ARG:
-      if(next_call->nonrest_args_left) { next_call->nonrest_args_left--; add_nonrest_arg(); } else add_rest_arg();
+      if(next_call->nonrest_args_left) {
+	next_call->nonrest_args_left--;
+	add_nonrest_arg();
+      } else
+	add_rest_arg();
       break;
     case OP_JMP_IFN: if(is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
     case OP_RET: goto cleanup;
-    case OP_PREPARE_SUB: { sub_code lc = (sub_code) *ip++; lambda = (sub) reg_alloc(1+lc->size_of_env);
-	lambda->code = lc; lambda_envp = lambda->env; break; }
+    case OP_PREPARE_SUB: {
+      sub_code lc = (sub_code) *ip++;
+      lambda = (sub) reg_alloc(1+lc->size_of_env);
+      lambda->code = lc;
+      lambda_envp = lambda->env;
+      break;
+    }
     case OP_ADD_ENV: *(lambda_envp++) = last_value; break;
     case OP_MAKE_SUB: last_value = sub2any(lambda); break;
     case OP_MAKE_RECURSIVE: any2sub(last_value)->env[any2int(ip[-2])] = last_value; break; // follows after OP_SET_LOCAL
@@ -535,14 +797,23 @@ cleanup:
   drop_locals(locals_cnt); 
 }
 
-my void apply(any s, any xs) { sub subr = any2sub(s); sub_code sc = subr->code; int argc = sc->argc, pos = 0;
+my void apply(any s, any xs) {
+  sub subr = any2sub(s); sub_code sc = subr->code; int argc = sc->argc, pos = 0;
   int locals_cnt = count_locals(sc); any *args = alloc_locals(locals_cnt); listgen lg;
   foreach(x, xs) {
     if(pos <  argc) { args[pos] = x; pos++; continue; } // non-rest arg
-    if(pos == argc) { if(!sc->take_rest) args_error(sc, xs); // starting rest args
-      lg = listgen_new(); listgen_add(&lg, x); args[pos] = lg.xs; pos++; continue;
+    if(pos == argc) {
+      // starting rest args
+      if(!sc->take_rest) args_error(sc, xs);
+      lg = listgen_new();
+      listgen_add(&lg, x);
+      args[pos] = lg.xs;
+      pos++;
+      continue;
     }
-    listgen_add(&lg, x); pos++; // adding another rest arg
+    // adding another rest arg
+    listgen_add(&lg, x);
+    pos++;
   }
   if(pos < argc) args_error(sc, xs);
   if(pos == argc) args[argc] = NIL;
@@ -553,72 +824,193 @@ my void call1(any subr, any x) { apply(subr, single(x)); }
 
 //////////////// compiler ////////////////
 
-my any mac_expand_1(any x) { if(!is_cons(x) || far(x)==s_quote) return x;
-  if(is_sym(far(x))) { any mac = get_mac(far(x)); if(is(mac)) { apply(fdr(mac), fdr(x)); return last_value; } }
+my any mac_expand_1(any x) {
+  if(!is_cons(x) || far(x)==s_quote) return x;
+  if(is_sym(far(x))) {
+    any mac = get_mac(far(x));
+    if(is(mac)) {
+      apply(fdr(mac), fdr(x));
+      return last_value;
+    }
+  }
   bool changed = false; listgen lg = listgen_new(); any lst = x;
-  if(far(x)==s_lambda) { listgen_add(&lg, s_lambda); listgen_add(&lg, car(fdr(x))); lst = fdr(fdr(x)); } 
-  foreach(e, lst) { any new = mac_expand_1(e); if(new!=e) changed=true; listgen_add(&lg, new); }
-  return changed ? lg.xs : x; }
-my any mac_expand(any x) { any res; while(1) { res = mac_expand_1(x); if(res==x) return res; x = res; } }
+  if(far(x)==s_lambda) {
+    listgen_add(&lg, s_lambda);
+    listgen_add(&lg, car(fdr(x)));
+    lst = fdr(fdr(x));
+  } 
+  foreach(e, lst) {
+    any new = mac_expand_1(e);
+    if(new!=e)
+      changed=true;
+    listgen_add(&lg, new);
+  }
+  return changed ? lg.xs : x;
+}
+my any mac_expand(any x) {
+  any res; while(1) {
+    res = mac_expand_1(x);
+    if(res==x)
+      return res;
+    x = res;
+  }
+}
 
 typedef struct { any dst; int pos; int max_locals; int curr_locals; int extra_offset; } compile_state;
 my int extra_pos(compile_state *s) { return s->curr_locals + s->extra_offset - 1; }
-my void emit(any x, compile_state *state) { any next = single(x); set_fdr(state->dst, next); state->dst = next; state->pos++; }
+
+my void emit(any x, compile_state *state) {
+  any next = single(x);
+  set_fdr(state->dst, next);
+  state->dst = next;
+  state->pos++;
+}
+
 my void compile_expr(any e, any env, bool tail_context, compile_state *state); // decl for mutual recursion
 my void compile_if(any e, any env, bool tail_context, compile_state *state) {
-  compile_expr(car(e), env, false, state); e = fdr(e);
-  emit(OP_JMP_IFN, state); emit(0, state); compile_state to_else_jmp = *state;
-  compile_expr(car(e), env, tail_context, state); emit(OP_JMP, state); emit(0, state); e = fdr(e);
-  set_far(to_else_jmp.dst, int2any(state->pos + 1 - to_else_jmp.pos)); compile_state after_then_jmp = *state;
+  compile_expr(car(e), env, false, state);
+  e = fdr(e);
+  emit(OP_JMP_IFN, state);
+  emit(0, state);
+  compile_state to_else_jmp = *state;
+
+  compile_expr(car(e), env, tail_context, state);
+  emit(OP_JMP, state);
+  emit(0, state);
+  e = fdr(e);
+  set_far(to_else_jmp.dst, int2any(state->pos + 1 - to_else_jmp.pos));
+  compile_state after_then_jmp = *state;
+
   compile_expr(car(e), env, tail_context, state);
   set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
 }
-my any lambda_ignore_list(any old, any args) { listgen lg = listgen_new();
-  foreach_cons(x, args) { listgen_add(&lg, far(x)); if(!is_cons(fdr(x)) && !is_nil(fdr(x))) listgen_add(&lg, fdr(x)); }
-  if(is_nil(lg.last)) return old; set_fdr(lg.last, old); return lg.xs; }
-my void found_local(any local, listgen *lg, int *cnt) { if(!is(assoc(far(local), lg->xs))) { (*cnt)++; listgen_add(lg, local); } }
-my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *lg) {
-  foreach(x, code) switch(tag_of(x)) { // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
-  case t_sym: { any local = assoc_entry(x, locals); if(is(local) && !is_member(x, ignore)) { found_local(local, lg, cnt); } break; }
-  case t_cons: if(far(x)==s_quote) continue;
-    if(far(x)==s_with) { collect_locals_rec(cdr(fdr(x)), locals, cons(car(fdr(x)), ignore), cnt, lg); continue; }
-    if(far(x)==s_lambda) { collect_locals_rec(cdr(fdr(x)), locals, lambda_ignore_list(ignore, car(fdr(x))), cnt, lg); continue; }
-    collect_locals_rec(x, locals, ignore, cnt, lg); break;
-  default:; }
+
+my any lambda_ignore_list(any old, any args) {
+  listgen lg = listgen_new();
+  foreach_cons(x, args) {
+    listgen_add(&lg, far(x));
+    if(!is_cons(fdr(x)) && !is_nil(fdr(x)))
+      listgen_add(&lg, fdr(x));
+  }
+  if(is_nil(lg.last))
+    return old;
+  set_fdr(lg.last, old);
+  return lg.xs;
 }
+
+my void found_local(any local, listgen *lg, int *cnt) {
+  if(!is(assoc(far(local), lg->xs))) {
+    (*cnt)++;
+    listgen_add(lg, local);
+  }
+}
+
+// `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
+my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *lg) {
+  foreach(x, code)
+    switch(tag_of(x)) {
+    case t_sym: {
+      any local = assoc_entry(x, locals);
+      if(is(local) && !is_member(x, ignore)) {
+	found_local(local, lg, cnt);
+      }
+      break;
+    }
+    case t_cons:
+      if(far(x)==s_quote) continue;
+      if(far(x)==s_with) { collect_locals_rec(cdr(fdr(x)), locals, cons(car(fdr(x)), ignore), cnt, lg); continue; }
+      if(far(x)==s_lambda) { collect_locals_rec(cdr(fdr(x)), locals, lambda_ignore_list(ignore, car(fdr(x))), cnt, lg); continue; }
+      collect_locals_rec(x, locals, ignore, cnt, lg);
+      break;
+    default:;
+    }
+}
+
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
-  listgen res = listgen_new(); collect_locals_rec(code, locals, ignore, cnt, &res); return res.xs;
+  listgen res = listgen_new();
+  collect_locals_rec(code, locals, ignore, cnt, &res);
+  return res.xs;
 }
 my any add_local(any env, any name, any kind, int num) { return cons(cons(name, cons(kind, int2any(num))), env); }
-my any locals_for_lambda(any env, any args) { any res = NIL; int cnt = 0;
-  foreach(x, env) res = add_local(res, far(x), s_env, cnt++); cnt = 0;
-  foreach(x, args) res = add_local(res, x, s_arg, cnt++); return res;
+my any locals_for_lambda(any env, any args) {
+  any res = NIL; int cnt = 0;
+  foreach(x, env) res = add_local(res, far(x), s_env, cnt++);
+  cnt = 0;
+  foreach(x, args) res = add_local(res, x, s_arg, cnt++);
+  return res;
 }
+
 my any flatten_rest_x(any xs, int *len, int *take_rest) { // stores len w/o rest in `*len`.
   if(is_sym(xs)) { *take_rest = 1; return single(xs); } // only rest args
-  foreach_cons(x, xs) { (*len)++; any tail = fdr(x); if(is_sym(tail)) { set_fdr(x, single(tail)); *take_rest = 1; return xs; } }
-  *take_rest = 0; return xs; }
+  foreach_cons(x, xs) {
+    (*len)++;
+    any tail = fdr(x);
+    if(is_sym(tail)) {
+      set_fdr(x, single(tail));
+      *take_rest = 1;
+      return xs;
+    }
+  }
+  *take_rest = 0;
+  return xs;
+}
+
 my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size);
 my void compile_lambda(any args, any body, any env, compile_state *state) {
-  int argc = 0; int take_rest; args = flatten_rest_x(args, &argc, &take_rest);
-  int collected_env_len = 0; any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
+  int argc = 0, take_rest;
+  args = flatten_rest_x(args, &argc, &take_rest);
+  int collected_env_len = 0;
+  any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
   any env_of_sub = locals_for_lambda(collected_env, args);
   if(is_nil(body)) generic_error("body of lambda expression is empty", body);
   sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, take_rest, collected_env_len);
-  emit(OP_PREPARE_SUB, state); emit((any) sc, state);
-  foreach(x, collected_env) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
-    emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(pos, state); emit(OP_ADD_ENV, state); }
+  emit(OP_PREPARE_SUB, state);
+  emit((any) sc, state);
+
+  foreach(x, collected_env) {
+    any env_or_arg = far(fdr(x));
+    any pos = fdr(fdr(x));
+
+    emit(env_or_arg==s_arg ? OP_GET_ARG : OP_GET_ENV, state);
+    emit(pos, state);
+    emit(OP_ADD_ENV, state);
+  }
   emit(OP_MAKE_SUB, state);
 }
+
 my void compile_do(any body, any env, bool tail_context, compile_state *state) {
-  foreach_cons(x, body) compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state); }
-my bool arglist_contains(any args, any name) { if(is_nil(args)) return false; if(is_sym(args)) return args==name;
-  if(car(args)==name) return true; return arglist_contains(fdr(args), name); }
-my bool refers_to(any expr, any name) { if(is_sym(expr)) return expr==name; if(!is_cons(expr)) return false;
+  foreach_cons(x, body)
+    compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state);
+}
+
+my bool arglist_contains(any args, any name) {
+  if(is_nil(args)) return false;
+  if(is_sym(args)) return args==name;
+  if(car(args)==name) return true;
+  return arglist_contains(fdr(args), name);
+}
+
+my bool refers_to(any expr, any name) {
+  if(is_sym(expr)) return expr==name;
+  if(!is_cons(expr)) return false;
   if(far(expr)==s_quote) return false;
-  if(far(expr)==s_with) { if(car(fdr(expr))==name) return false; return refers_to(fdr(fdr(expr)), name); }
-  if(far(expr)==s_lambda) { if(arglist_contains(car(fdr(expr)), name)) return false; return refers_to(fdr(fdr(expr)), name); }
-  foreach(x, expr) if(refers_to(x, name)) return true; return false; }
+  if(far(expr)==s_with) {
+    if(car(fdr(expr))==name)
+      return false;
+    return refers_to(fdr(fdr(expr)), name);
+  }
+  if(far(expr)==s_lambda) {
+    if(arglist_contains(car(fdr(expr)), name))
+      return false;
+    return refers_to(fdr(fdr(expr)), name);
+  }
+
+  foreach(x, expr)
+    if(refers_to(x, name))
+      return true;
+  return false;
+}
+
 my void compile_with(any name, any expr, any body, any env, bool tail_context, compile_state *state) {
   state->curr_locals++; if(state->curr_locals > state->max_locals) state->max_locals = state->curr_locals;
   env = add_local(env, name, s_arg, extra_pos(state)); compile_expr(expr, env, false, state);
@@ -627,8 +1019,12 @@ my void compile_with(any name, any expr, any body, any env, bool tail_context, c
 }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
-  case t_num: case t_uniq: case t_str: case t_sub: case t_other: case t_reg: emit(OP_CONST, state); emit(e, state); break;
-  case t_cons:; any first = far(e); any rest = fdr(e);
+  case t_num: case t_uniq: case t_str: case t_sub: case t_other: case t_reg:
+    emit(OP_CONST, state);
+    emit(e, state);
+    break;
+  case t_cons: {
+    any first = far(e); any rest = fdr(e);
     if(first==s_quote) { emit(OP_CONST, state); emit(rest, state); break; } // FIXME: copy() to permanent?
     if(first==s_do) { compile_do(rest, env, tail_context, state); break; }
     if(first==s_if) { compile_if(rest, env, tail_context, state); break; }
@@ -637,37 +1033,66 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     compile_expr(first, env, false, state); emit(OP_PREPARE_CALL, state);
     foreach(arg, rest) { compile_expr(arg, env, false, state); emit(OP_ADD_ARG, state); }
     emit(tail_context ? OP_TAILCALL : OP_CALL, state); break;
-  case t_sym:; any local = assoc(e, env);
-    if(is(local)) { emit(far(local) == s_arg ? OP_GET_ARG : OP_GET_ENV, state); emit(fdr(local), state); break; }
-    any global = get_binding(e); if(is_cons(global)) { emit(OP_CONST, state); emit(fdr(global), state); break; }
-    any dyn = get_dyn(e); if(dyn!=VAR_UNBOUND) { emit(OP_DYN, state); emit(e, state); break; }
-    generic_error("unbound sym", e); break;
+    }
+  case t_sym: {
+    any local = assoc(e, env);
+    if(is(local)) {
+      emit(far(local) == s_arg ? OP_GET_ARG : OP_GET_ENV, state);
+      emit(fdr(local), state);
+      break;
+    }
+    any global = get_binding(e);
+    if(is_cons(global)) {
+      emit(OP_CONST, state);
+      emit(fdr(global), state);
+      break;
+    }
+    any dyn = get_dyn(e);
+    if(dyn!=VAR_UNBOUND) {
+      emit(OP_DYN, state);
+      emit(e, state);
+      break;
+    }
+    generic_error("unbound sym", e);
+    break;
+  }
   }
 }
-my any compile2list(any expr, any env, int extra_offset, int *extra_locals) { any res = single(BFALSE);
+my any compile2list(any expr, any env, int extra_offset, int *extra_locals) {
+  any res = single(BFALSE);
   compile_state state = {res,0,0,0,extra_offset};
-  compile_expr(expr, env, true, &state); emit(OP_RET, &state); *extra_locals = state.max_locals; return fdr(res);
+  compile_expr(expr, env, true, &state);
+  emit(OP_RET, &state);
+  *extra_locals = state.max_locals;
+  return fdr(res);
 }
-my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) { int extra;
-  any raw = compile2list(expr, env, argc+take_rest, &extra);
-  reg_permanent(); sub_code code = make_sub_code(argc, take_rest, extra, env_size, len(raw)); reg_pop();
+my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) { // result is in permanent region.
+  int extra; any raw = compile2list(expr, env, argc+take_rest, &extra);
+  reg_permanent();
+  sub_code code = make_sub_code(argc, take_rest, extra, env_size, len(raw));
+  reg_pop();
   any *p = code->ops; foreach(x, raw) *p++ = x; return code;
-} // result is in permanent region.
-my sub_code compile_toplevel_expr(any e) { sub_code res = compile2sub_code(mac_expand(e), NIL, 0, 0, 0);
-  name_sub((sub) &res, intern("<top>")); return res; }
+}
+my sub_code compile_toplevel_expr(any e) {
+  sub_code res = compile2sub_code(mac_expand(e), NIL, 0, 0, 0);
+  name_sub((sub) &res, intern("<top>"));
+  return res;
+}
 my void eval_toplevel_expr(any e) { sub_code code = compile_toplevel_expr(e); call0(sub2any((sub) &code)); }
 
 //////////////// quasiquote ////////////////
 
 my any quasiquote(any x);
-my any qq_list(any x) { if(!is_cons(x)) return cons(s_quote, single(x));
+my any qq_list(any x) {
+  if(!is_cons(x)) return cons(s_quote, single(x));
   if(far(x)==s_unquote) return cons(s_list, single(fdr(x)));
   if(far(x)==s_unquote_splicing) return fdr(x);
   if(far(x)==s_quasiquote) return qq_list(quasiquote(fdr(x)));
   return cons(s_list, single(cons(s_cat, cons(qq_list(far(x)), single(quasiquote(fdr(x)))))));
 }
 my any qq_id(any x) { return !is_sym(x) ? x : cons(s_quote, x); }
-my any quasiquote(any x) { if(!is_cons(x)) return qq_id(x);
+my any quasiquote(any x) {
+  if(!is_cons(x)) return qq_id(x);
   if(far(x)==s_unquote) return fdr(x);
   if(far(x)==s_unquote_splicing) generic_error("invalid quasiquote form", x);
   if(far(x)==s_quasiquote) return quasiquote(quasiquote(fdr(x)));
@@ -745,25 +1170,55 @@ DEFSUB(boundp) { last_value = to_bool(is_bound(args[0])); }
 DEFSUB(mac_bound_p) { last_value = to_bool(is_mac_bound(args[0])); }
 DEFSUB(eval) { eval_toplevel_expr(args[0]); }
 DEFSUB(gensym) { last_value = gensym(); }
-DEFSUB(map) { any s=args[0]; listgen lg=listgen_new(); foreach(x, args[1]) { call1(s, x); listgen_add(&lg, last_value); } last_value=lg.xs; }
-DEFSUB(filter) { any s = args[0]; listgen lg = listgen_new();
-  foreach(x, args[1]) { call1(s, x); if(is(last_value)) listgen_add(&lg, x); } last_value=lg.xs; }
-DEFSUB(full_cat) { listgen lg = listgen_new();
-  foreach_cons(c, args[0]) if(is_cons(c) && is_nil(fdr(c))) { listgen_tail(&lg, far(c)); break; } else listgen_add_list(&lg, far(c));
-  last_value=lg.xs; }
+DEFSUB(map) {
+  any s=args[0];
+  listgen lg=listgen_new();
+  foreach(x, args[1]) {
+    call1(s, x);
+    listgen_add(&lg, last_value);
+  }
+  last_value=lg.xs;
+}
+DEFSUB(filter) {
+  any s = args[0];
+  listgen lg = listgen_new();
+  foreach(x, args[1]) {
+    call1(s, x);
+    if(is(last_value))
+      listgen_add(&lg, x);
+  }
+  last_value=lg.xs;
+}
+DEFSUB(full_cat) {
+  listgen lg = listgen_new();
+  foreach_cons(c, args[0])
+    if(is_cons(c) && is_nil(fdr(c))) {
+      listgen_set_tail(&lg, far(c));
+      break;
+    } else
+      listgen_add_list(&lg, far(c));
+  last_value=lg.xs;
+}
 DEFSUB(refers_to) { last_value = to_bool(refers_to(args[0], args[1])); }
 DEFSUB(load) { bone_load(symtext(args[0])); }
 DEFSUB(var_bind) { create_dyn(args[0], args[1]); }
-DEFSUB(with_var) { bool failed = false; any old = get_existing_dyn(args[0]);
-  set_dyn(args[0], args[1]); try { call0(args[2]); } catch { failed = true; }
-  set_dyn(args[0], old); if(failed) throw(); }
+DEFSUB(with_var) {
+  bool failed = false;
+  any old = get_existing_dyn(args[0]);
+  set_dyn(args[0], args[1]);
+  try { call0(args[2]); } catch { failed = true; }
+  set_dyn(args[0], old); if(failed) throw();
+}
 DEFSUB(var_bound_p) { last_value = to_bool(is_dyn_bound(args[0])); }
 DEFSUB(var_bang) { set_dyn(args[0], args[1]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
-  code->ops[0] = OP_WRAP; code->ops[1] = (any) cptr;
-  sub subr = (sub) reg_alloc(1); subr->code = code; return sub2any(subr);
+  code->ops[0] = OP_WRAP;
+  code->ops[1] = (any) cptr;
+  sub subr = (sub) reg_alloc(1);
+  subr->code = code;
+  return sub2any(subr);
 }
 void bone_register_csub(csub cptr, const char *name, int argc, int take_rest) {
   bind(intern(name), false, make_csub(cptr, argc, take_rest));
@@ -879,15 +1334,35 @@ void bone_init(int argc, char **argv) {
   any args = NIL; while(argc--) args = cons(charp2str(argv[argc]), args); set_dyn(intern("*program-args*"), args); 
   bone_init_thread();
 }
-my char *mod2file(const char *mod) { char *res = malloc(strlen(mod) + 4); strcat(strcpy(res, mod), ".bn"); return res; }
-void bone_load(const char *mod) { char *fn = mod2file(mod); FILE *old = src; src = fopen(fn, "r"); free(fn); bool fail = false; any e;
+
+my char *mod2file(const char *mod) {
+  char *res = malloc(strlen(mod) + 4);
+  strcat(strcpy(res, mod), ".bn");
+  return res;
+}
+void bone_load(const char *mod) {
+  char *fn = mod2file(mod);
+  FILE *old = src;
+  src = fopen(fn, "r");
+  free(fn);
+  bool fail = false; any e;
   try {
-    while((e = bone_read()) != ENDOFFILE) eval_toplevel_expr(e);
+    while((e = bone_read()) != ENDOFFILE)
+      eval_toplevel_expr(e);
   } catch { fail = true; }
-  fclose(src); src = old; if(fail) throw(); }
-void bone_repl() { int line = 0;
-  while(1) { printf("\n@%d: ", line++); try { any e = bone_read();
-    if (e == ENDOFFILE) break; eval_toplevel_expr(e); print(last_value); } catch { }
-  } printf("\n");
+  fclose(src); src = old; if(fail) throw();
 }
 
+void bone_repl() {
+  int line = 0;
+  while(1) {
+    printf("\n@%d: ", line++);
+    try {
+      any e = bone_read();
+      if (e == ENDOFFILE) break;
+      eval_toplevel_expr(e);
+      print(last_value);
+    } catch { }
+  }
+  printf("\n");
+}
