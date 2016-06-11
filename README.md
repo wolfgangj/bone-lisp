@@ -166,6 +166,10 @@ Then you can set it for the dynamic extent of some expressions with `with-var`:
     *depth*
     ;; => 0
 
+A source file should declare for which version of Bone Lisp it was written:
+
+    (version 0 2)  ; for v0.2.x
+
 The use of regions is available via:
 
     (in-reg expr1 expr2 ...)
