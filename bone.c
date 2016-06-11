@@ -25,11 +25,13 @@
 #include <sys/mman.h>
 #include "bone.h"
 
+my void fail(const char *msg) { fprintf(stderr, "%s\n", msg); exit(1); }
 my jmp_buf exc_bufs[32]; // FIXME: thread-local
 my int exc_num = 0;
 jmp_buf *next_jb_() { return &exc_bufs[exc_num++]; }
-jmp_buf *get_jb_() { return &exc_bufs[--exc_num]; }
-void drop_jb_() { exc_num--; }
+void exc_buf_nonempty() { if(!exc_num) fail("internal error: throw/catch mismatch"); }
+jmp_buf *get_jb_() { exc_buf_nonempty(); return &exc_bufs[--exc_num]; }
+void drop_jb_() { exc_buf_nonempty(); exc_num--; }
 
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 #define x(tag, name) case tag: return name
