@@ -26,15 +26,7 @@
 #include "bone.h"
 
 //my any L(any x) { print(x); puts(""); return x; } // for debugging
-
 my void fail(const char *msg) { fprintf(stderr, "%s\n", msg); exit(1); }
-my jmp_buf exc_bufs[32]; // FIXME: thread-local
-my int exc_num = 0;
-jmp_buf *next_jb_() { return &exc_bufs[exc_num++]; }
-void exc_buf_nonempty() { if(!exc_num) fail("internal error: throw/catch mismatch"); }
-jmp_buf *get_jb_() { exc_buf_nonempty(); return &exc_bufs[--exc_num]; }
-void drop_jb_() { exc_buf_nonempty(); exc_num--; }
-
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
 #define x(tag, name) case tag: return name
 my const char *type_name(type_tag tag) { switch(tag) {
@@ -102,6 +94,10 @@ my void store_reg(reg r) { r->allocp = allocp; r->current_block = current_block;
 my void reg_push(reg r) { store_reg(*reg_sp); reg_sp++; *reg_sp = r;     load_reg(*reg_sp); }
 my reg reg_pop()        { store_reg(*reg_sp); reg r = *reg_sp; reg_sp--; load_reg(*reg_sp); return r; }
 my void reg_permanent() { reg_push(permanent_reg); }
+my void rollback_reg_sp(reg *p) {
+  while(reg_sp != p)
+    reg_free(reg_pop());
+}
 
 my any *reg_alloc(int n) {
   any *res = (any *) allocp;
@@ -122,7 +118,34 @@ my any copy_back(any x) {
   any y = copy(x);
   reg_pop();
   return y;
- }
+}
+
+//////////////// excepions ////////////////
+
+my struct { jmp_buf buf; reg *reg_sp; } exc_bufs[32]; // FIXME: thread-local
+my int exc_num = 0;
+
+jmp_buf *begin_try_() {
+  exc_bufs[exc_num].reg_sp = reg_sp;
+  return &exc_bufs[exc_num++].buf;
+}
+
+my void exc_buf_nonempty() {
+  if(!exc_num)
+    fail("internal error: throw/catch mismatch");
+}
+
+jmp_buf *throw_() {
+  exc_buf_nonempty();
+  exc_num--;
+  rollback_reg_sp(exc_bufs[exc_num].reg_sp);
+  return &exc_bufs[exc_num].buf;
+}
+
+void end_try_() {
+  exc_buf_nonempty();
+  exc_num--;
+}
 
 //////////////// conses / lists ////////////////
 
@@ -421,7 +444,7 @@ my void name_sub(sub subr, any name) { if(!is(subr->code->name)) subr->code->nam
 
 my void print_sub_args(any x) {
   if(!is_cons(x)) { if(!is_nil(x)) { printf(". "); print(x); printf(" "); } return; }
-  print(far(x)); printf(" "); print_args(fdr(x));
+  print(far(x)); printf(" "); print_sub_args(fdr(x));
 }
 
 my void print(any x) {

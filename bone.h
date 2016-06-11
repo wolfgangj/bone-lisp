@@ -80,12 +80,12 @@ char *str2charp(any x); // created w/ malloc()
 any intern(const char *name);
 char *symtext(any sym);
 
-jmp_buf *next_jb();
-jmp_buf *get_jb();
-void drop_jb();
+jmp_buf *begin_try_();
+jmp_buf *throw_();
+void end_try_();
 
-#define try if(!setjmp(*next_jb_())) {
-#define catch drop_jb_(); } else
-#define throw() longjmp(*get_jb_(), 1)
+#define try if(!setjmp(*begin_try_())) {
+#define throw() longjmp(*throw_(), 1)
+#define catch end_try_(); } else
 
 #endif /* BONE_H */
