@@ -166,10 +166,6 @@ Then you can set it for the dynamic extent of some expressions with `with-var`:
     *depth*
     ;; => 0
 
-A source file should declare for which version of Bone Lisp it was written:
-
-    (version 0 2)  ; for v0.2.x
-
 The use of regions is available via:
 
     (in-reg expr1 expr2 ...)
@@ -177,6 +173,18 @@ The use of regions is available via:
 The given `expr`s will be evaluated with objects allocated in a new region.
 The return value (of the last `expr`) will be copied to the previous region.
 Finally, the new region will be freed.
+
+A source file should declare for which version of Bone Lisp it was written:
+
+    (version 0 2)  ; for v0.2.x
+
+There is no real module system, but you can load files with:
+
+    (use foo)
+
+This will load `foo.bn`.
+Each file will be loaded only once.
+Recursive loading will be detected and reported as an error.
 
 ## License
 
