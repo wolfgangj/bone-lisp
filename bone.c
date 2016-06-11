@@ -439,8 +439,6 @@ my void mac_bind(any name, bool overwritable, any subr) { add_name(macros, name,
 my any get_mac(any name) { return hash_get(macros, name); }
 my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
 
-my any program_args; // FIXME: in dynamic scope
-
 // These are thread-local, therefore we have to look them up each time
 my hash dynamics; // FIXME: dynamics should be thread local (which is why we can't use `bindings` for this)
 my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
@@ -604,7 +602,7 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
   int argc = 0; int take_rest; args = flatten_rest_x(args, &argc, &take_rest);
   int collected_env_len = 0; any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
   any env_of_sub = locals_for_lambda(collected_env, args);
-  if(is_nil(body)) generic_error("body of lambda expression is empty");
+  if(is_nil(body)) generic_error("body of lambda expression is empty", body);
   sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, take_rest, collected_env_len);
   emit(OP_PREPARE_SUB, state); emit((any) sc, state);
   foreach(x, collected_env) { any env_or_arg = far(fdr(x)); any pos = fdr(fdr(x));
@@ -863,14 +861,19 @@ my void bone_init_thread() {
   next_call = upcoming_calls;
 }
 
+my any add_info_entry(const char *name, int n, any prev) { return cons(cons(intern(name), single(int2any(n))), prev); } 
 void bone_init(int argc, char **argv) {
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
   sym_ht = hash_new(997, (any) NULL); init_syms();
   bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs(); dynamics = hash_new(97, VAR_UNBOUND);
+  { any lisp_info = add_info_entry("major-version", BONE_MAJOR, NIL);
+    lisp_info = add_info_entry("minor-version", BONE_MINOR, lisp_info);
+    lisp_info = add_info_entry("patch-version", BONE_PATCH, lisp_info);
+    set_dyn(intern("_*lisp-info*"), lisp_info); }
   src = stdin;
-  program_args = NIL; while(argc--) program_args = cons(charp2str(argv[argc]), program_args);
+  any args = NIL; while(argc--) args = cons(charp2str(argv[argc]), args); set_dyn(intern("*program-args*"), args); 
   bone_init_thread();
 }
 void bone_load(const char *file) { FILE *old = src; src = fopen(file, "r"); bool fail = false; any e;

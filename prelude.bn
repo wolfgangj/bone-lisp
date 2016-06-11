@@ -291,3 +291,15 @@ This can be useful for passing to higher order functions."
 (alias str-cat str+)
 (alias str-append str+)
 
+;;;; Implementation informaion
+
+(defsub (lisp-info item)
+  "Get implementation information about `item`."
+  (assocar? item _*lisp-info*))
+
+(defsub (version major minor)
+  "Declare that the following code is compatible with interpreter version `major`.`minor`."
+  (when (not (and (=?  major (lisp-info 'major-version))
+		  (<=? minor (lisp-info 'minor-version))))
+    (say "--- WARNING: code may not be compatible with implementation version ---\n")))
+
