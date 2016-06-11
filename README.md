@@ -45,28 +45,28 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Tail call elimination
 * Lists, strings, fixnums, symbols
 * Classic Lisp Macros
-* POSIX bindings (just started adding a few of these)
+* Optional dynamic scoping
+* (a few) POSIX bindings
 
 ### What it does not (yet)
 
+* I/O streams
 * Reader macros
 * Multithreading
-* Keywords
-* Optional dynamic scoping
-* I/O streams
 * Floating point numbers
 * Unicode
-* Records / structures
 
 ### What it does not (unsure whether it ever will)
 
-These are open for discussion, but I currently have no plans for these.
+These are open for discussion.
 
 * Arrays
 * Hash tables
 * Exceptions
 * Module system
 * Bignums
+* Records / structures
+* Keywords
 
 ### What it does not (and won't)
 
@@ -153,7 +153,15 @@ The primitive form that introduces a (single) new binding - which may be recusiv
     ;; => 4
 
 `let` is simply defined as a macro that expands to nested `with`s.
- Therefore it works like a combination of traditional `let*` and `letrec`.
+Therefore it works like a combination of traditional `let*` and `letrec`.
+
+Dynamic scope can be used by defining a variable first with `defvar`.
+Then you can set it for the dynamic extent of some expressions with `with-var`:
+
+    (defvar *depth* 0)
+    (with-var *depth* (++ *depth*)
+      (list *depth*))
+    ;; => (1)
 
 The use of regions is available via:
 
