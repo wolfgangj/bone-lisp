@@ -1125,7 +1125,12 @@ my any quasiquote(any x) {
 //////////////// library ////////////////
 
 DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
-DEFSUB(fullplus) { int ires = 0; foreach(n, args[0]) ires += any2int(n); last_value = int2any(ires); }
+DEFSUB(fullplus) {
+  int ires = 0;
+  foreach(n, args[0])
+    ires += any2int(n);
+  last_value = int2any(ires);
+}
 DEFSUB(cons) { last_value = cons(args[0], args[1]); }
 DEFSUB(print) { print(args[0]); last_value = single(args[0]); }
 DEFSUB(apply) { apply(args[0], move_last_to_rest_x(args[1])); }
@@ -1148,21 +1153,40 @@ DEFSUB(intern) { last_value = intern_from_chars(unstr(args[0])); }
 DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) { foreach(x, args[0]) say(x); last_value = args[0]; }
 DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
-DEFSUB(fullminus) { int res = any2int(args[0]); foreach(x, args[1]) res -= any2int(x); last_value = int2any(res); }
+DEFSUB(fullminus) {
+  int res = any2int(args[0]);
+  foreach(x, args[1])
+    res -= any2int(x);
+  last_value = int2any(res);
+}
 DEFSUB(fast_num_eqp)  { last_value = to_bool(any2int(args[0]) == any2int(args[1])); }
 DEFSUB(fast_num_neqp) { last_value = to_bool(any2int(args[0]) != any2int(args[1])); }
 DEFSUB(fast_num_gtp)  { last_value = to_bool(any2int(args[0]) >  any2int(args[1])); }
 DEFSUB(fast_num_ltp)  { last_value = to_bool(any2int(args[0]) <  any2int(args[1])); }
 DEFSUB(fast_num_geqp) { last_value = to_bool(any2int(args[0]) >= any2int(args[1])); }
 DEFSUB(fast_num_leqp) { last_value = to_bool(any2int(args[0]) <= any2int(args[1])); }
-DEFSUB(each) { foreach(x, args[0]) { call1(args[1], x); } }
+DEFSUB(each) {
+  check(args[1], t_sub);
+  foreach(x, args[0])
+    call1(args[1], x);
+}
 DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
-DEFSUB(fullmult) { int ires = 1; foreach(n, args[0]) ires *= any2int(n); last_value = int2any(ires); }
+DEFSUB(fullmult) {
+  int ires = 1;
+  foreach(n, args[0])
+    ires *= any2int(n);
+  last_value = int2any(ires);
+}
 DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
 DEFSUB(fulldiv) { CSUB_fullmult(&args[1]); last_value = int2any(any2int(args[0]) / any2int(last_value)); }
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
-DEFSUB(in_reg) { reg_push(reg_new()); call0(args[0]); last_value = copy_back(last_value); reg_free(reg_pop()); }
+DEFSUB(in_reg) {
+  reg_push(reg_new());
+  call0(args[0]);
+  last_value = copy_back(last_value);
+  reg_free(reg_pop());
+}
 DEFSUB(bind) { bind(args[0], is(args[1]), args[2]); }
 DEFSUB(assoc_entry) { last_value = assoc_entry(args[0], args[1]); }
 DEFSUB(str_eql) { last_value = to_bool(str_eql(args[0], args[1])); }
