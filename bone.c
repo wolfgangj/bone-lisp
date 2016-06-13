@@ -1195,6 +1195,7 @@ DEFSUB(eval) { eval_toplevel_expr(args[0]); }
 DEFSUB(gensym) { last_value = gensym(); }
 DEFSUB(map) {
   any s=args[0];
+  check(s, t_sub);
   listgen lg=listgen_new();
   foreach(x, args[1]) {
     call1(s, x);
