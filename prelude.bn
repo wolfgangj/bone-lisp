@@ -240,6 +240,10 @@ This can be useful for passing to higher order functions."
   "Like `map`, but with reversed argument order."
   (map sub xs))
 
+(defsub (cat-lists xs)
+  "Concatenate all the lists in `xs` together."
+  (apply cat xs))
+
 (defsub (nth-cons n xs)
   "Return the `n`th cons of `xs`."
   (if (0? n)
