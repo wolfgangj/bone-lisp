@@ -17,40 +17,49 @@
 (_bind 'cat #f _full-cat)
 (_mac-bind 'cat #f
   (lambda args
-    (cons (if (_fast=? 2 (len args)) '_fast-cat 'full-cat) args)))
+    (cons (if (_fast=? 2 (len args)) '_fast-cat '_full-cat) args)))
+
+(_bind '_make-nonrecursive-binder #t
+  (lambda (binder spec body overwritable)
+    `(,binder ',(car spec) ,overwritable
+	      (lambda ,(cdr spec) ,@body))))
+
+(_bind '_make-recursive-binder #t
+  (lambda (binder spec body overwritable)
+    `(with ,(car spec) (lambda ,(cdr spec) ,@body)
+	(,binder ',(car spec) ,overwritable ,(car spec)))))
+
+(_bind '_make-binder #t
+  (lambda (binder spec body overwritable)
+    ((if (not (_refers-to? body (car spec)))
+	  _make-nonrecursive-binder
+	_make-recursive-binder)
+     binder spec body overwritable)))
 
 ;; FIXME: defmac has no docstring...
 (_mac-bind 'defmac #f
   (lambda (spec doc . body)
-    `(_mac-bind ',(car spec) #f
-       (lambda ,(cdr spec) ,@body))))
+    (_make-binder '_mac-bind spec body #f)))
 
 (defmac (defsub spec doc . body)
   "Define a sub with name/args as in `spec`, docstring `doc` and code `body`."
-  (if (not (_refers-to? body (car spec)))
-      `(_bind ',(car spec) #f (lambda ,(cdr spec) ,@body))
-    `(with ,(car spec) (lambda ,(cdr spec) ,@body)
-	(_bind ',(car spec) #f ,(car spec)))))
+  (_make-binder '_bind spec body #f))
 
 (defmac (internmac spec . body)
   "Define an internal macro."
-  `(_mac-bind ',(car spec) #f
-     (lambda ,(cdr spec) ,@body)))
+  (_make-binder '_mac-bind spec body #f))
 
 (defmac (internsub spec . body)
   "Define an internal sub."
-  `(_bind ',(car spec) #f
-     (lambda ,(cdr spec) ,@body)))
+  (_make-binder '_bind spec body #f))
 
 (defmac (mymac spec . body)
   "Define a locally used mac."
-  `(_mac-bind ',(car spec) #t
-     (lambda ,(cdr spec) ,@body)))
+  (_make-binder '_mac-bind spec body #t))
 
 (defmac (mysub spec . body)
   "Define a locally used sub."
-  `(_bind ',(car spec) #t
-     (lambda ,(cdr spec) ,@body)))
+  (_make-binder '_bind spec body #t))
 
 (internmac (_optimize name binary n-ary)
   `(internmac (,name . args)
