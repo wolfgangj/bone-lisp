@@ -1234,6 +1234,23 @@ DEFSUB(with_var) {
 }
 DEFSUB(var_bound_p) { last_value = to_bool(is_dyn_bound(args[0])); }
 DEFSUB(var_bang) { set_dyn(args[0], args[1]); }
+DEFSUB(reg_loop) {
+  reg_push(reg_new());
+  call0(args[0]);
+
+  while(1) {
+    reg old = reg_pop();
+    reg_push(reg_new());
+    any sub_args = copy(last_value);
+    reg_free(old);
+    apply(args[1], sub_args);
+    if(!is(car(last_value)))
+      break;
+    last_value = fdr(last_value);
+  }
+  last_value = copy_back(fdr(last_value));
+  reg_free(reg_pop());
+}
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1323,6 +1340,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_with_var, "_with-var", 3, 0);
   bone_register_csub(CSUB_var_bound_p, "var-bound?", 1, 0);
   bone_register_csub(CSUB_var_bang, "_var!", 2, 0);
+  bone_register_csub(CSUB_reg_loop, "_reg-loop", 2, 0);
 }
 
 //////////////// misc ////////////////

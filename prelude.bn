@@ -152,6 +152,26 @@ The `bindings` are of the form `(name value)`."
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_in-reg (lambda () ,@body)))
 
+(defmac (reg-loop init loop)
+  "Evaluate `body` repeatedly in a new region, passing its result as args to the next iteration.
+
+First, `init` will be evaluated in a new region.  This new region will
+be freed after copying the result to a another new region.  We apply
+that result to the sub `loop` (while using the second new region).  It
+is expected to return a list with an indicator in its car that decides
+whether we want to continue the iteration (with `#f` meaning that we
+should not continue).  The rest of the list will either be used as the
+return value, or applied to `loop` in the next iteration after copying
+to a new region and freeing the previous region.  Example:
+
+    (reg-loop (list 1 2 3)
+      | a b c (cons (<? (+ a b c) 100)
+                    (map (list a b c) ++)))
+
+This will increment the three values until their sum is larger than
+100, return a list of the values eventually."
+  `(_reg-loop (lambda () ,init) ,loop))
+
 (defmac (defvar name val)
   "Define the variable `name` and set its default value to `val`."
   `(_var-bind ',name ,val))
