@@ -910,11 +910,15 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
 
 my any lambda_ignore_list(any old, any args) {
   listgen lg = listgen_new();
-  foreach_cons(x, args) {
-    listgen_add(&lg, far(x));
-    if(!is_cons(fdr(x)) && !is_nil(fdr(x)))
-      listgen_add(&lg, fdr(x));
-  }
+  if(is_sym(args))
+    listgen_add(&lg, args);  // only rest arg
+  else
+    foreach_cons(x, args) {
+      listgen_add(&lg, far(x));
+      if(!is_cons(fdr(x)) && !is_nil(fdr(x)))
+	listgen_add(&lg, fdr(x));
+    }
+
   if(is_nil(lg.last))
     return old;
   set_fdr(lg.last, old);
