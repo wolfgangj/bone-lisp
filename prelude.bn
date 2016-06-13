@@ -148,6 +148,11 @@ The `bindings` are of the form `(name value)`."
 			(equal? (cdr a) (cdr b))))
 	(#t (eq? a b))))
 
+(defsub (compose sub1 sub2)
+  "Return a sub that calls `sub2` with its arguments, then `sub1` on the result."
+  (lambda args
+    (sub1 (apply sub2 args))))
+
 (defmac (in-reg . body)
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_in-reg (lambda () ,@body)))
@@ -166,7 +171,7 @@ to a new region and freeing the previous region.  Example:
 
     (reg-loop (list 1 2 3)
       | a b c (cons (<? (+ a b c) 100)
-                    (map (list a b c) ++)))
+                    (mapx (list a b c) ++)))
 
 This will increment the three values until their sum is larger than
 100, return a list of the values eventually."
@@ -288,7 +293,6 @@ This can be useful for passing to higher order functions."
 (alias - _full-)
 (alias * _full*)
 (alias / _full/)
-(alias for-each each)
 (alias cons* list*)
 (alias contains? member?)
 (alias modulo mod)
