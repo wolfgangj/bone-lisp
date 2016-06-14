@@ -29,11 +29,19 @@
     `(with ,(car spec) (lambda ,(cdr spec) ,@body)
        (,binder ',(car spec) ,overwritable ,(car spec)))))
 
+(_bind '_make-binder-without-lambda #t
+  (lambda (binder name body overwritable)
+    (if (not (single? body))
+	(err "too many expressions in definition of " name)
+      `(,binder ',name ,overwritable ,(car body)))))
+
 (_bind '_make-binder #t
   (lambda (binder spec body overwritable)
-    ((if (not (_refers-to? body (car spec)))
+    ((if (sym? spec)
+	 _make-binder-without-lambda
+       (if (not (_refers-to? body (car spec)))
 	  _make-nonrecursive-binder
-	_make-recursive-binder)
+	_make-recursive-binder))
      binder spec body overwritable)))
 
 ;; FIXME: defmac has no docstring...
@@ -229,12 +237,6 @@ See `++` for background information."
 
 This can be useful for passing to higher order functions."
   (cons a d))
-
-(defsub (single? x)
-  "Check whether `x` is a list of exactly one element.
-
-`x` may be any object, it does not have to be a list."
-  (and (cons? x) (nil? (cdr x))))
 
 (defsub (mapx xs sub)
   "Like `map`, but with reversed argument order."
