@@ -1416,12 +1416,19 @@ void bone_load(const char *mod) {
   FILE *old = src;
   src = fopen(fn, "r");
   free(fn);
+  if(!src) {
+    src = old;
+    generic_error("could not open module", intern(mod));
+  }
+
   bool fail = false; any e;
   try {
     while((e = bone_read()) != ENDOFFILE)
       eval_toplevel_expr(e);
   } catch { fail = true; }
-  fclose(src); src = old; if(fail) throw();
+  fclose(src);
+  src = old;
+  if(fail) throw();
 }
 
 void bone_repl() {
