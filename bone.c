@@ -591,8 +591,12 @@ my any read_list() {
 my any short_lambda_parser(any *body) {
   any x = reader();
   if(is_cons(x)) { *body = x; return NIL; }
-  if(!is_sym(x)) { parse_error("invalid lambda short form (expected sym)"); }
-  if(x == s_dot) { any rest = reader(); *body = reader(); return rest; }
+  if(!is_sym(x)) parse_error("invalid lambda short form (expected argument or body)");
+  if(x == s_dot) {
+    any rest = reader();
+    *body = reader();
+    return rest;
+  }
   return cons(x, short_lambda_parser(body));
 }
 my any read_lambda_short_form() {
