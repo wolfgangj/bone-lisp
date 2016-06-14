@@ -444,10 +444,14 @@ my void name_sub(sub subr, any name) { if(!is(subr->code->name)) subr->code->nam
 
 //////////////// bindings ////////////////
 
+my any get_existing_dyn(any name);
 my void add_name(hash namespace, any name, bool overwritable, any val) {
   any prev = hash_get(namespace, name);
-  if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
-  if(is_sub(val)) name_sub(any2sub(val), name);
+  if(is(prev) && far(prev)==BINDING_DEFINED && !is(get_existing_dyn(intern("_*allow-overwrites*"))))
+    generic_error("already defined", name);
+  if(is_sub(val))
+    name_sub(any2sub(val), name);
+
   reg_permanent();
   hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, val));
   reg_pop();
@@ -475,7 +479,7 @@ my bool is_dyn_bound(any name) { return get_dyn(name) != VAR_UNBOUND; }
 my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
 
 my void create_dyn(any name, any x) {
-  if(is_dyn_bound(name))
+  if(is_dyn_bound(name) && !is(get_existing_dyn(intern("_*allow-overwrites*"))))
     generic_error("dynamic var bound twice", name);
   set_dyn(name, x);
 }
@@ -1332,6 +1336,16 @@ DEFSUB(reader_t) { last_value = BTRUE; }
 DEFSUB(reader_f) { last_value = BFALSE; }
 DEFSUB(reader_bind) { reader_bind(args[0], is(args[1]), args[2]); }
 DEFSUB(reader_bound_p) { last_value = to_bool(is_reader_bound(args[0])); }
+DEFSUB(reload) {
+  any old = get_existing_dyn(intern("_*allow-overwrites*"));
+  set_dyn(intern("_*allow-overwrites*"), BTRUE);
+  bool failed = false;
+  try {
+    CSUB_load(args);
+  } catch { failed = true; }
+  set_dyn(intern("_*allow-overwrites*"), old);
+  if(failed) throw();
+}
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1435,6 +1449,7 @@ my void init_csubs() {
   register_creader(CSUB_reader_f, "f");
   bone_register_csub(CSUB_reader_bind, "_reader-bind", 3, 0);
   bone_register_csub(CSUB_reader_bound_p, "reader-bound?", 1, 0);
+  bone_register_csub(CSUB_reload, "_reload", 1, 0);
 }
 
 //////////////// misc ////////////////
@@ -1472,6 +1487,7 @@ void bone_init(int argc, char **argv) {
     lisp_info = add_info_entry("minor-version", BONE_MINOR, lisp_info);
     lisp_info = add_info_entry("patch-version", BONE_PATCH, lisp_info);
     set_dyn(intern("_*lisp-info*"), lisp_info); }
+  set_dyn(intern("_*allow-overwrites*"), BFALSE);
   src = stdin;
   any args = NIL; while(argc--) args = cons(charp2str(argv[argc]), args); set_dyn(intern("*program-args*"), args); 
   bone_init_thread();

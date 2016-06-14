@@ -377,3 +377,6 @@ This can be useful for passing to higher order functions."
   "Use the modules listed in `mods`.  Don't call this inside of the dynamic extent of `in-reg`." ; FIXME. :-/
   `(each ',mods _use-mod))
 
+(defmac (reload mod)
+  "Load the module `mod`; existing bindings can be overwritten by it."
+  `(_reload ',mod))
