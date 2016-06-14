@@ -45,7 +45,7 @@ bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
 my void print(any x); my void backtrace(); // FIXME: to header?
-my void generic_error(const char *msg, any x) { printf("%s: ", msg); print(x); printf("\n"); backtrace(); throw(); }
+my void generic_error(const char *msg, any x) { printf("ERR: %s: ", msg); print(x); printf("\n"); backtrace(); throw(); }
 my void type_error(any x, type_tag t) { 
   printf("ERR: typecheck failed: (%s? ", type_name(t)); print(x); printf(")\n"); backtrace(); throw();
 }
@@ -1285,6 +1285,12 @@ DEFSUB(reg_loop) {
   last_value = copy_back(fdr(last_value));
   reg_free(reg_pop());
 }
+DEFSUB(err) {
+  CSUB_say(args); // FIXME use stderr
+  backtrace();
+  throw();
+}
+DEFSUB(singlep) { last_value = to_bool(is_single(args[0])); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1375,6 +1381,8 @@ my void init_csubs() {
   bone_register_csub(CSUB_var_bound_p, "var-bound?", 1, 0);
   bone_register_csub(CSUB_var_bang, "_var!", 2, 0);
   bone_register_csub(CSUB_reg_loop, "_reg-loop", 2, 0);
+  bone_register_csub(CSUB_err, "err", 0, 1);
+  bone_register_csub(CSUB_singlep, "single?", 1, 0);
 }
 
 //////////////// misc ////////////////

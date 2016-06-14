@@ -85,6 +85,9 @@ resulting list, i.e.:
   (defsub (mac-bound? sym)
     "Check whether `sym` is bound in the macro namespace.")
 
+  (defsub (var-bound? sym)
+    "Check whether `sym` is bound in the dynamic variable namespace.")
+
   (defsub (eval x)
     "Evaluate `x`; this allows to generate code at runtime.")
 
@@ -161,6 +164,12 @@ See `car` for additional usage information.")
 This is the same as `no`, but `no` often reads more naturally, as in:
 
     (if (no xs) ... ...)")
+
+  (defsub (single? x)
+    "Check whether `x` is a list of exactly one element.
+
+`x` may be any object, it does not have to be a list.")
+
 
   (defsub (list? x)
     "Return whether `x` is a list (i.e. either a `cons` or nil).")
@@ -323,6 +332,9 @@ The differences to the `print` sub are:
 * A `str` is printed without the quote signs and without escape sequences.
 * A list is printed by applying it to `say`.
 * All other objects are printed as with `print`.")
+
+  (defsub (err . xs)
+    "Print all of `xs` as with `say`, then raise an error.")
 
 );end of section
 (defsection "Symbols (`sym`s)"
