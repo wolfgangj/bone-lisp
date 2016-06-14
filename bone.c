@@ -25,6 +25,8 @@
 #include <sys/mman.h>
 #include "bone.h"
 
+my any last_value; // FIXME: thread-local
+
 //my any L(any x) { print(x); puts(""); return x; } // for debugging
 my void fail(const char *msg) { fprintf(stderr, "%s\n", msg); exit(1); }
 my size_t bytes2words(size_t n) { return (n-1)/sizeof(any) + 1; }
@@ -440,6 +442,51 @@ my any copy_sub(any x) {
 
 my void name_sub(sub subr, any name) { if(!is(subr->code->name)) subr->code->name = name; }
 
+//////////////// bindings ////////////////
+
+my void add_name(hash namespace, any name, bool overwritable, any val) {
+  any prev = hash_get(namespace, name);
+  if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
+  if(is_sub(val)) name_sub(any2sub(val), name);
+  reg_permanent();
+  hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, val));
+  reg_pop();
+}
+
+my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
+my any get_binding(any name) { return hash_get(bindings, name); }
+my void bind(any name, bool overwritable, any subr) { add_name(bindings, name, overwritable, subr); }
+my bool is_bound(any name) { return get_binding(name) != BFALSE; }
+
+my hash macros; // FIXME: needs mutex protection, see above
+my void mac_bind(any name, bool overwritable, any subr) { add_name(macros, name, overwritable, subr); }
+my any get_mac(any name) { return hash_get(macros, name); }
+my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
+
+my hash readers; // FIXME: needs mutex protection, see above
+my void reader_bind(any name, bool overwritable, any subr) { add_name(readers, name, overwritable, subr); }
+my any get_reader(any name) { return hash_get(readers, name); }
+my bool is_reader_bound(any name) { return get_reader(name) != BFALSE; }
+
+// These are thread-local, therefore we have to look them up each time
+my hash dynamics; // FIXME: dynamics should be thread local (which is why we can't use `bindings` for this)
+my any get_dyn(any name) { return hash_get(dynamics, name); }
+my bool is_dyn_bound(any name) { return get_dyn(name) != VAR_UNBOUND; }
+my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
+
+my void create_dyn(any name, any x) {
+  if(is_dyn_bound(name))
+    generic_error("dynamic var bound twice", name);
+  set_dyn(name, x);
+}
+
+my any get_existing_dyn(any name) {
+  any x = get_dyn(name);
+  if(x==VAR_UNBOUND)
+    generic_error("dynamic var unbound", name);
+  return x;
+}
+
 //////////////// printer ////////////////
 
 my void print_sub_args(any x) {
@@ -506,7 +553,7 @@ my void say(any x) {
   }
 }
 
-//////////////// read ////////////////
+//////////////// reader ////////////////
 
 my void parse_error(const char *text) { printf("parse error: %s\n", text); throw(); } // FIXME
 
@@ -549,7 +596,11 @@ my any chars2num(any chrs) {
   }
   return !is_num ? BFALSE : int2any(is_positive ? ires : -ires);
 }
-my any chars_to_num_or_sym(any cs) { any num = chars2num(cs); return is(num) ? num : intern_from_chars(cs); }
+
+my any chars_to_num_or_sym(any cs) {
+  any num = chars2num(cs);
+  return is(num) ? num : intern_from_chars(cs);
+}
 
 my any read_sym_chars(int start_char) {
   listgen lg = listgen_new();
@@ -621,60 +672,24 @@ my any reader() {
   case '`': return cons(s_quasiquote, reader());
   case ',': return read_unquote();
   case '"': return read_str();
-  case '#':
-    switch(c = nextc()) {
-    case 'f': return BFALSE;
-    case 't': return BTRUE;
-    case '!': skip_until('\n'); return reader(); // ignore Unix-style script header
-    default: parse_error("invalid character after #");
-    }
+  case '#': {
+    any which = reader();
+    if(!is_sym(which))
+      parse_error("not a sym after #");
+    any query = get_reader(which);
+    if(!is(query))
+      parse_error("unknown reader requested");
+    call0(fdr(query));
+    return last_value;
+  }
   case EOF: return ENDOFFILE;
   default: return(chars_to_num_or_sym(read_sym_chars(c)));
   }
 }
+
 my any bone_read() {
   any x = reader();
   if(x == READER_LIST_END) parse_error("unexpected closing parenthesis (use `M-x check-parens`)");
-  return x;
-}
-
-//////////////// bindings ////////////////
-
-my void add_name(hash namespace, any name, bool overwritable, any val) {
-  any prev = hash_get(namespace, name);
-  if(is(prev) && far(prev)==BINDING_DEFINED) generic_error("already defined", name);
-  if(is_sub(val)) name_sub(any2sub(val), name);
-  reg_permanent();
-  hash_set(namespace, name, cons(overwritable?BINDING_EXISTS:BINDING_DEFINED, val));
-  reg_pop();
-}
-
-my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
-my any get_binding(any name) { return hash_get(bindings, name); }
-my void bind(any name, bool overwritable, any subr) { add_name(bindings, name, overwritable, subr); }
-my bool is_bound(any name) { return get_binding(name) != BFALSE; }
-
-my hash macros; // FIXME: needs mutex protection, see above
-my void mac_bind(any name, bool overwritable, any subr) { add_name(macros, name, overwritable, subr); }
-my any get_mac(any name) { return hash_get(macros, name); }
-my bool is_mac_bound(any name) { return get_mac(name) != BFALSE; }
-
-// These are thread-local, therefore we have to look them up each time
-my hash dynamics; // FIXME: dynamics should be thread local (which is why we can't use `bindings` for this)
-my any get_dyn(any name) { return hash_get(dynamics, name); }
-my bool is_dyn_bound(any name) { return get_dyn(name) != VAR_UNBOUND; }
-my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
-
-my void create_dyn(any name, any x) {
-  if(is_dyn_bound(name))
-    generic_error("dynamic var bound twice", name);
-  set_dyn(name, x);
-}
-
-my any get_existing_dyn(any name) {
-  any x = get_dyn(name);
-  if(x==VAR_UNBOUND)
-    generic_error("dynamic var unbound", name);
   return x;
 }
 
@@ -685,7 +700,6 @@ typedef enum {
   OP_JMP_IFN, OP_JMP, OP_RET, OP_PREPARE_SUB, OP_ADD_ENV, OP_MAKE_SUB, OP_MAKE_RECURSIVE, OP_DYN
 } opcode;
 
-my any last_value;
 void bone_result(any x) { last_value = x; }
 my any locals_stack[1024];
 my any *locals_sp;
@@ -846,8 +860,12 @@ my void apply(any s, any xs) {
   if(pos == argc) args[argc] = NIL;
   call(subr, args, locals_cnt);
 }
-my void call0(any subr) { apply(subr, NIL); }
-my void call1(any subr, any x) { apply(subr, single(x)); }
+void call0(any subr) {
+  apply(subr, NIL);
+}
+void call1(any subr, any x) {
+  apply(subr, single(x));
+}
 
 //////////////// compiler ////////////////
 
@@ -1294,6 +1312,10 @@ DEFSUB(singlep) { last_value = to_bool(is_single(args[0])); }
 DEFSUB(read) { last_value = bone_read(); }
 DEFSUB(chr_read) { int c = nextc(); last_value = c!=-1 ? int2any(c) : ENDOFFILE; }
 DEFSUB(chr_look) { int c = look();  last_value = c!=-1 ? int2any(c) : ENDOFFILE; }
+DEFSUB(reader_t) { last_value = BTRUE; }
+DEFSUB(reader_f) { last_value = BFALSE; }
+DEFSUB(reader_bind) { reader_bind(args[0], is(args[1]), args[2]); }
+DEFSUB(reader_bound_p) { last_value = to_bool(is_reader_bound(args[0])); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1309,13 +1331,17 @@ void bone_register_csub(csub cptr, const char *name, int argc, int take_rest) {
 my void register_cmac(csub cptr, const char *name, int argc, int take_rest) {
   mac_bind(intern(name), false, make_csub(cptr, argc, take_rest));
 }
+my void register_creader(csub cptr, const char *name) {
+  reader_bind(intern(name), false, make_csub(cptr, 0, 0));
+}
 my void init_csubs() {
   bone_register_csub(CSUB_fastplus, "_fast+", 2, 0);
   bone_register_csub(CSUB_fullplus, "_full+", 0, 1);
   bone_register_csub(CSUB_cons, "cons", 2, 0);
   bone_register_csub(CSUB_print, "print", 1, 0);
   bone_register_csub(CSUB_apply, "apply", 1, 1);
-  bone_register_csub(CSUB_id, "id", 1, 0); bone_register_csub(CSUB_id, "list", 0, 1);
+  bone_register_csub(CSUB_id, "id", 1, 0);
+  bone_register_csub(CSUB_id, "list", 0, 1);
   bone_register_csub(CSUB_nilp, "nil?", 1, 0);
   bone_register_csub(CSUB_eqp, "eq?", 2, 0);
   bone_register_csub(CSUB_not, "not", 1, 0);
@@ -1389,6 +1415,10 @@ my void init_csubs() {
   bone_register_csub(CSUB_read, "read", 0, 0);
   bone_register_csub(CSUB_chr_read, "chr-read", 0, 0);
   bone_register_csub(CSUB_chr_look, "chr-look", 0, 0);
+  register_creader(CSUB_reader_t, "t");
+  register_creader(CSUB_reader_f, "f");
+  bone_register_csub(CSUB_reader_bind, "_reader-bind", 3, 0);
+  bone_register_csub(CSUB_reader_bound_p, "reader-bound?", 1, 0);
 }
 
 //////////////// misc ////////////////
@@ -1408,13 +1438,20 @@ my void bone_init_thread() {
   next_call = upcoming_calls;
 }
 
-my any add_info_entry(const char *name, int n, any prev) { return cons(cons(intern(name), single(int2any(n))), prev); } 
+my any add_info_entry(const char *name, int n, any prev) {
+  return cons(cons(intern(name), single(int2any(n))), prev);
+} 
+
 void bone_init(int argc, char **argv) {
   blocksize = sysconf(_SC_PAGESIZE); blockmask = ~(blocksize - 1); blockwords = blocksize/sizeof(any);
   free_block = fresh_blocks();
   permanent_reg = reg_new(); reg_stack[0] = permanent_reg; load_reg(permanent_reg);
   sym_ht = hash_new(997, (any) NULL); init_syms();
-  bindings = hash_new(997, BFALSE); macros = hash_new(397, BFALSE); init_csubs(); dynamics = hash_new(97, VAR_UNBOUND);
+  bindings = hash_new(997, BFALSE);
+  macros = hash_new(397, BFALSE);
+  readers = hash_new(97, BFALSE);
+  init_csubs();
+  dynamics = hash_new(97, VAR_UNBOUND);
   { any lisp_info = add_info_entry("major-version", BONE_MAJOR, NIL);
     lisp_info = add_info_entry("minor-version", BONE_MINOR, lisp_info);
     lisp_info = add_info_entry("patch-version", BONE_PATCH, lisp_info);

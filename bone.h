@@ -73,6 +73,9 @@ typedef struct { any xs, last; } listgen;
 listgen listgen_new();
 void listgen_add(listgen *lg, any x);
 
+void call0(any subr);
+void call1(any subr, any x);
+
 bool is_str(any x);
 any charp2str(const char *p);
 char *str2charp(any x); // created w/ malloc()

@@ -69,6 +69,14 @@
   "Define a locally used sub."
   (_make-binder '_bind spec body #t))
 
+(defmac (defreader name doc . body)
+  "Register the reader macro `name` with code `body`; docstring being `doc`."
+  `(_reader-bind ',name #f (lambda () ,@body)))
+
+(defmac (myreader name . body)
+  "Register the locally used reader macro `name` with code `body`."
+  `(_reader-bind ',name #t (lambda () ,@body)))
+
 (internmac (_optimize name binary n-ary)
   `(internmac (,name . args)
      (cons (if (_fast=? 2 (len args)) ',binary ',n-ary) args)))
@@ -291,6 +299,14 @@ This can be useful for passing to higher order functions."
     (and (>=? s-len suff-len)
 	 (str=? suff (str-drop (- s-len suff-len) s)))))
 
+
+(defreader chr
+  "Get the code point of a character; should be followed by a 1-character str"
+  (with s (read)
+    (if (or (not (str? s))
+	    (<>? 1 (str-len s)))
+	(err "chr reader requires a 1-character str")
+      (car (unstr s)))))
 
 ;;;; Aliases
 
