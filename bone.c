@@ -518,8 +518,8 @@ my bool allowed_chars[] = { // these can be used for syms in s-exprs
 }; // disallowed are the first 32 and " #'(),@:;[]`{}|
 my bool is_symchar(int c) { return (c >= 0 && c < 256) ? allowed_chars[c] : c!=EOF; }
 
-my FILE *src;
-#define nextc() getc(src) // FIXME: should be a defvar
+my FILE *src; // FIXME: should be thread-local
+#define nextc() getc(src)
 my int look() { int c = nextc(); ungetc(c, src); return c; }
 
 my void skip_until(char end) { int c; do { c = nextc(); } while(c!=end && c!=EOF); }
@@ -865,7 +865,7 @@ my any mac_expand_1(any x) {
     listgen_add(&lg, s_lambda);
     listgen_add(&lg, car(fdr(x)));
     lst = fdr(fdr(x));
-  } 
+  }
   foreach(e, lst) {
     any new = mac_expand_1(e);
     if(new!=e)
@@ -1291,6 +1291,9 @@ DEFSUB(err) {
   throw();
 }
 DEFSUB(singlep) { last_value = to_bool(is_single(args[0])); }
+DEFSUB(read) { last_value = bone_read(); }
+DEFSUB(chr_read) { int c = nextc(); last_value = c!=-1 ? int2any(c) : ENDOFFILE; }
+DEFSUB(chr_look) { int c = look();  last_value = c!=-1 ? int2any(c) : ENDOFFILE; }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1383,6 +1386,9 @@ my void init_csubs() {
   bone_register_csub(CSUB_reg_loop, "_reg-loop", 2, 0);
   bone_register_csub(CSUB_err, "err", 0, 1);
   bone_register_csub(CSUB_singlep, "single?", 1, 0);
+  bone_register_csub(CSUB_read, "read", 0, 0);
+  bone_register_csub(CSUB_chr_read, "chr-read", 0, 0);
+  bone_register_csub(CSUB_chr_look, "chr-look", 0, 0);
 }
 
 //////////////// misc ////////////////

@@ -336,6 +336,15 @@ The differences to the `print` sub are:
   (defsub (err . xs)
     "Print all of `xs` as with `say`, then raise an error.")
 
+  (defsub (read)
+    "Read a symbolic expression from the current src.")
+
+  (defsub (chr-read)
+    "Read a single character from the current src.")
+
+  (defsub (chr-look)
+    "Look ahead at the next character from the current src without reading it.")
+
 );end of section
 (defsection "Symbols (`sym`s)"
   "A `sym` is similar to a `str`, but only a single `sym` object
