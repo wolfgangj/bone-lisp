@@ -1,4 +1,4 @@
-;;;; prelude.bn -- Basic definitions of Bone Lisp.   -*- lisp -*-
+;;;; prelude.bn -- Basic definitions of Bone Lisp.   -*- bone -*-
 ;;;; Copyright (C) 2016 Wolfgang Jaehrling
 ;;;;
 ;;;; Permission to use, copy, modify, and/or distribute this software for any
@@ -27,7 +27,7 @@
 (_bind '_make-recursive-binder #t
   (lambda (binder spec body overwritable)
     `(with ,(car spec) (lambda ,(cdr spec) ,@body)
-	(,binder ',(car spec) ,overwritable ,(car spec)))))
+       (,binder ',(car spec) ,overwritable ,(car spec)))))
 
 (_bind '_make-binder #t
   (lambda (binder spec body overwritable)
@@ -248,11 +248,11 @@ This can be useful for passing to higher order functions."
   "Return the `n`th cons of `xs`."
   (if (0? n)
       xs
-    (nth-cons (cdr xs) (-- n))))
+    (nth-cons (-- n) (cdr xs))))
 
 (defsub (nth n xs)
   "Return the `n`th element of `xs`."
-  (car (nth-cons xs n)))
+  (car (nth-cons n xs)))
 
 (defsub (car? x)
   "If `x` is a cons, return its car, otherwise return `#f`."
@@ -327,8 +327,10 @@ This can be useful for passing to higher order functions."
 (alias negative? <0?)
 (alias str-cat str+)
 (alias str-append str+)
+(alias head car)
+(alias tail cdr)
 
-;;;; Implementation informaion
+;;;; Implementation information
 
 (defsub (lisp-info item)
   "Get implementation information about `item`."
