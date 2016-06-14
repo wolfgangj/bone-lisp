@@ -494,6 +494,14 @@ my void print_sub_args(any x) {
   print(far(x)); printf(" "); print_sub_args(fdr(x));
 }
 
+my bool is_arglist(any x) {
+  if(is_nil(x) || is_sym(x))
+    return true;
+  if(is_cons(x) && is_sym(far(x)) && is_arglist(fdr(x)))
+    return true;
+  return false;
+}
+
 my void print(any x) {
   switch(tag_of(x)) {
   case t_cons: {
@@ -503,7 +511,7 @@ my void print(any x) {
       if(a == s_quasiquote)       { printf("`");  print(fdr(x)); break; }
       if(a == s_unquote)          { printf(",");  print(fdr(x)); break; }
       if(a == s_unquote_splicing) { printf(",@"); print(fdr(x)); break; }
-      if(a == s_lambda && is_cons(fdr(x)) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
+      if(a == s_lambda && is_cons(fdr(x)) && is_arglist(far(fdr(x))) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
 	printf("| "); print_sub_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
       }
     }
@@ -580,7 +588,11 @@ my int find_token() {
     }
   }
 }
-my int digit2int (any chr) { int dig = any2int(chr) - '0'; return (dig >= 0 && dig <= 9) ? dig : -1; }
+
+my int digit2int (any chr) {
+  int dig = any2int(chr) - '0';
+  return (dig >= 0 && dig <= 9) ? dig : -1;
+}
 
 my any chars2num(any chrs) {
   int ires = 0, pos = 0; bool is_positive = true, is_num = false; // need `is_num` to catch "", "+" and "-"
@@ -626,6 +638,7 @@ my any read_str() {
       }
     listgen_add(&lg, int2any(c)); }
 }
+
 my any reader(); // for mutual recursion
 my any read_list() {
   any x = reader();
@@ -639,6 +652,7 @@ my any read_list() {
   }
   return cons(x, read_list());
 }
+
 my any short_lambda_parser(any *body) {
   any x = reader();
   if(is_cons(x)) { *body = x; return NIL; }
@@ -654,6 +668,7 @@ my any read_lambda_short_form() {
   any body, args = short_lambda_parser(&body);
   return cons(s_lambda, cons(args, single(body)));
 }
+
 my any read_unquote() {
   any q = s_unquote;
   int c = look();
@@ -662,6 +677,7 @@ my any read_unquote() {
     q = s_unquote_splicing; }
   return cons(q, reader());
 }
+
 my any reader() {
   int c = find_token();
   switch(c) {
