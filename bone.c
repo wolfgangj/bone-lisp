@@ -1259,7 +1259,8 @@ DEFSUB(with_var) {
   any old = get_existing_dyn(args[0]);
   set_dyn(args[0], args[1]);
   try { call0(args[2]); } catch { failed = true; }
-  set_dyn(args[0], old); if(failed) throw();
+  set_dyn(args[0], old);
+  if(failed) throw();
 }
 DEFSUB(var_bound_p) { last_value = to_bool(is_dyn_bound(args[0])); }
 DEFSUB(var_bang) { set_dyn(args[0], args[1]); }
@@ -1437,7 +1438,7 @@ void bone_repl() {
       print(last_value);
       set_dyn(intern("$$"), get_dyn(intern("$")));
       set_dyn(intern("$"), last_value);
-    } catch { }
+    } catch { call_sp = call_stack; }
   }
   printf("\n");
 }
