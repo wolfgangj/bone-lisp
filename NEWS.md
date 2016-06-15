@@ -4,6 +4,7 @@
 
 * Dynamic scoping is now possible via `defvar` and `with-var`.
 * Reader macros can be registered with `defreader` or `myreader`.
+* You can code character constants with the reader macro `#chr`.
 * Errors now just bring you back to the REPL like they should.
 * The previous values on the REPL are available via `$` and `$$`.
 * You can access the command line args via `*program-args*`.
