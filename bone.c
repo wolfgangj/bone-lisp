@@ -849,7 +849,7 @@ start:;
     }
     case OP_ADD_ENV: *(lambda_envp++) = last_value; break;
     case OP_MAKE_SUB: last_value = sub2any(lambda); break;
-    case OP_MAKE_RECURSIVE: any2sub(last_value)->env[any2int(ip[-2])] = last_value; break; // follows after OP_SET_LOCAL
+    case OP_MAKE_RECURSIVE: any2sub(last_value)->env[0] = last_value; break;
     case OP_DYN: last_value = get_existing_dyn(*ip++); break;
     default: printf("unknown vm instruction\n"); abort(); // FIXME
   }
@@ -968,7 +968,7 @@ my any lambda_ignore_list(any old, any args) {
 }
 
 my void found_local(any local, listgen *lg, int *cnt) {
-  if(!is(assoc(far(local), lg->xs))) {
+  if(!is_member(local, lg->xs)) {
     (*cnt)++;
     listgen_add(lg, local);
   }
@@ -981,7 +981,7 @@ my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *
     case t_sym: {
       any local = assoc_entry(x, locals);
       if(is(local) && !is_member(x, ignore)) {
-	found_local(local, lg, cnt);
+	found_local(far(local), lg, cnt);
       }
       break;
     }
@@ -996,8 +996,13 @@ my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *
 }
 
 my any collect_locals(any code, any locals, any ignore, int *cnt) {
+  listgen collected = listgen_new();
+  collect_locals_rec(code, locals, ignore, cnt, &collected);
   listgen res = listgen_new();
-  collect_locals_rec(code, locals, ignore, cnt, &res);
+  // keep the original order:
+  foreach(candidate, locals)
+    if(is_member(far(candidate), collected.xs))
+      listgen_add(&res, candidate);
   return res.xs;
 }
 my any add_local(any env, any name, any kind, int num) { return cons(cons(name, cons(kind, int2any(num))), env); }
@@ -1081,10 +1086,18 @@ my bool refers_to(any expr, any name) {
 }
 
 my void compile_with(any name, any expr, any body, any env, bool tail_context, compile_state *state) {
-  state->curr_locals++; if(state->curr_locals > state->max_locals) state->max_locals = state->curr_locals;
-  env = add_local(env, name, s_arg, extra_pos(state)); compile_expr(expr, env, false, state);
-  emit(OP_SET_LOCAL, state); emit(int2any(extra_pos(state)), state);
-  if(refers_to(expr, name)) emit(OP_MAKE_RECURSIVE, state); compile_do(body, env, tail_context, state); state->curr_locals--;
+  state->curr_locals++;
+  if(state->curr_locals > state->max_locals)
+    state->max_locals = state->curr_locals;
+
+  env = add_local(env, name, s_arg, extra_pos(state));
+  compile_expr(expr, env, false, state);
+  emit(OP_SET_LOCAL, state);
+  emit(int2any(extra_pos(state)), state);
+
+  if(refers_to(expr, name))
+    emit(OP_MAKE_RECURSIVE, state);
+  compile_do(body, env, tail_context, state); state->curr_locals--;
 }
 my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch(tag_of(e)) {
