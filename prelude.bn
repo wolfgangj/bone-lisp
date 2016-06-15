@@ -240,6 +240,11 @@ infix?) and thus was rejected in favor of the C notation."
 See `++` for background information."
   (- n 1))
 
+(defsub (percent perc n)
+  "Return `perc` percent of `n`."
+  (/ (* 100 n) (/ 10000 perc)))
+
+
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
 
