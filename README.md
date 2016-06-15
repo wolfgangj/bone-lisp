@@ -14,7 +14,7 @@
 
 *Note: If you were looking for the great [Bones Scheme Compiler](http://www.call-with-current-continuation.org/bones/), that's a different project.*
 
-*Note: This software is currently in pre-alpha status.*
+*Note: This software is currently in alpha status.*
 
 Bone is an interpreter for a lexically scoped Lisp-1.
 It is based on immutable values and does tail-call elimination.
@@ -41,17 +41,17 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 ### What it does
 
 * Lexical scoping & closures
-* Explicit regions memory management
+* Optional dynamic scoping
 * Tail call elimination
+* Explicit regions memory management
 * Lists, strings, fixnums, symbols
 * Classic Lisp Macros
-* Optional dynamic scoping
+* Reader macros
 * POSIX bindings (but not many yet...)
 
 ### What it does not (yet)
 
 * I/O streams
-* Reader macros
 * Multithreading
 * Floating point numbers
 * Unicode
@@ -174,7 +174,7 @@ The given `expr`s will be evaluated with objects allocated in a new region.
 The return value (of the last `expr`) will be copied to the previous region.
 Finally, the new region will be freed.
 
-A source file should declare for which version of Bone Lisp it was written:
+A source file should declare which version of Bone Lisp it was written for:
 
     (version 0 2)  ; for v0.2.x
 
