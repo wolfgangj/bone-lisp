@@ -210,6 +210,14 @@ This will increment the three values until their sum is larger than
   "Evaluate `body` with dynamic variable `name` bound to `val`."
   `(_with-var ',name ,val (lambda () ,@body)))
 
+(defsub (fold kons knil xs)
+  "Fold the list `xs` by means of `kons` into a result, starting with `knil`."
+  (with loop (lambda (rest ans)
+	       (if (nil? rest)
+		   ans
+		 (loop (cdr rest) (kons (car rest) ans))))
+    (loop xs knil)))
+
 (defsub (0? n)
   "Check whether the number `n` is zero."
   (=? 0 n))
@@ -246,11 +254,17 @@ See `++` for background information."
 
 (defsub (max . xs)
   "Return the maximum numeric value in `xs` (which may not be empty)."
-  (with loop (lambda (so-far rest)
-	       (cond ((nil? rest) so-far)
-		     ((>? (car rest) so-far) (loop (car rest) (cdr rest)))
-		     (#t (loop so-far (cdr rest)))))
-    (loop (car xs) (cdr xs))))
+  (fold (lambda (x so-far)
+	  (if (>? x so-far) x so-far))
+	(car xs)
+	(cdr xs)))
+
+(defsub (min . xs)
+  "Return the minimum numeric value in `xs` (which may not be empty)."
+  (fold (lambda (x so-far)
+	  (if (<? x so-far) x so-far))
+	(car xs)
+	(cdr xs)))
 
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
