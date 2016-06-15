@@ -244,6 +244,13 @@ See `++` for background information."
   "Return `perc` percent of `n`."
   (/ (* 100 n) (/ 10000 perc)))
 
+(defsub (max . xs)
+  "Return the maximum numeric value in `xs` (which may not be empty)."
+  (with loop (lambda (so-far rest)
+	       (cond ((nil? rest) so-far)
+		     ((>? (car rest) so-far) (loop (car rest) (cdr rest)))
+		     (#t (loop so-far (cdr rest)))))
+    (loop (car xs) (cdr xs))))
 
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
