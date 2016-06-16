@@ -282,24 +282,6 @@ infix?) and thus was rejected in favor of the C notation."
 See `++` for background information."
   (- n 1))
 
-(defsub (percent perc n)
-  "Return `perc` percent of `n`."
-  (/ (* 100 n) (/ 10000 perc)))
-
-(defsub (max . xs)
-  "Return the maximum numeric value in `xs` (which may not be empty)."
-  (fold (lambda (x so-far)
-	  (if (>? x so-far) x so-far))
-	(car xs)
-	(cdr xs)))
-
-(defsub (min . xs)
-  "Return the minimum numeric value in `xs` (which may not be empty)."
-  (fold (lambda (x so-far)
-	  (if (<? x so-far) x so-far))
-	(car xs)
-	(cdr xs)))
-
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
 
@@ -418,7 +400,7 @@ This can be useful for passing to higher order functions."
   "Declare that the following code is compatible with interpreter version `major`.`minor`."
   (when (not (and (=?  major (lisp-info 'major-version))
 		  (<=? minor (lisp-info 'minor-version))))
-    (say "--- WARNING: code may not be compatible with implementation version ---\n")))
+    (err "code is not compatible with implementation version")))
 
 ;;;; Modules
 
