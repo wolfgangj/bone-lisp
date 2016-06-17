@@ -31,3 +31,14 @@
 	(car xs)
 	(cdr xs)))
 
+(defsub (sum xs)
+  "The sum of all values in `xs`."
+  (apply + xs))
+
+(defsub (abs n)
+  "Absolute numerical value of `n`."
+  (if (<0? n) (- 0 n) n))
+
+(defsub (difference a b)
+  "Return the (positive) difference between numbers `a` and `b`."
+  (abs (- a b)))
