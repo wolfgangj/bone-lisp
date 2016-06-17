@@ -52,3 +52,14 @@ The step size `step` may be negative, in which case `to` needs to be lower than 
 	  (lambda (n) (+ n step))
 	  from))
 
+(defsub (mean . xs)
+  "Calculate the arithmetic mean of `xs`."
+  (/ (sum xs) (len xs)))
+
+(defsub (even? n)
+  "Return whether `n` is an even number."
+  (0? (mod n 2)))
+
+(defsub (odd? n)
+  "Return whether `n` is an odd number."
+  (not (even? n)))
