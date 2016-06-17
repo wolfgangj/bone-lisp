@@ -131,6 +131,8 @@ DEFSUB(w_termsig)    { int x = any2int(args[0]); bone_result(WIFSIGNALED(x) ? in
 DEFSUB(w_stopsig)    { int x = any2int(args[0]); bone_result(WIFSTOPPED (x) ? int2any(WSTOPSIG   (x)) : BFALSE); }
 DEFSUB(w_continued)  { bone_result(to_bool(WIFCONTINUED(any2int(args[0])))); }
 
+DEFSUB(random) { bone_result(int2any(random() % any2int(args[0]))); }
+
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
   bone_register_csub(CSUB_errname, "sys.errname?", 0, 0);
@@ -161,4 +163,7 @@ void bone_posix_init() {
   bone_register_csub(CSUB_w_termsig, "sys.termsig?", 1, 0);
   bone_register_csub(CSUB_w_stopsig, "sys.stopsig?", 1, 0);
   bone_register_csub(CSUB_w_continued, "sys.continued?", 1, 0);
+  bone_register_csub(CSUB_random, "sys.random", 1, 0);
+
+  srandom(time(NULL));
 }
