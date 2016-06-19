@@ -69,9 +69,6 @@ resulting list, i.e.:
     `(a b c ,@(list 1 2 3) d e f)
     ; => (a b c 1 2 3 d e f)")
 
-  (defreader .
-    "Evaluate the next expression at read-time.")
-
 );end of section
 (defsection "Development utilities and reflection"
 
