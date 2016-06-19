@@ -240,6 +240,54 @@ my any move_last_to_rest_x(any xs) {
   return xs;
 }
 
+my any mergesort_x(any bigger_p, any hd) {
+  if(is_nil(hd)) return NIL;
+  int area = 1; // size of a part we currently process
+  while(1) {
+    any p = hd;
+    hd = NIL;
+    any tl = NIL;
+    int merge_cnt = 0;
+    while(!is_nil(p)) {
+      merge_cnt++;
+      any q = p;
+      int len_of_p = 0;
+      for(int i = 0; i < area; i++) {
+	len_of_p++;
+	q = fdr(q);
+	if(is_nil(q)) break;
+      }
+      int len_of_q = area;
+      while(len_of_p > 0 || (len_of_q > 0 && !is_nil(q))) {
+	// determine source of next element:
+	bool from_p;
+	if(len_of_p == 0)
+	  from_p = false;
+	else if(len_of_q == 0 || is_nil(q))
+	  from_p = true;
+	else {
+	  call2(bigger_p, far(p), far(q));
+	  from_p = !is(last_value);
+	}
+	any e;
+	if(from_p) { len_of_p--; e = p; p = fdr(p); }
+	else       { len_of_q--; e = q; q = fdr(q); }
+	if(!is_nil(tl))
+	  set_fdr(tl, e);
+	else
+	  hd = e;
+	tl = e;
+      }
+      p = q;
+    }
+    set_fdr(tl, NIL);
+    if(merge_cnt <= 1)
+      return hd;
+    area *= 2;
+  }
+}
+
+
 //////////////// strs ////////////////
 
 bool is_str(any x) { return is_tagged(x, t_str); }
@@ -880,11 +928,17 @@ my void apply(any s, any xs) {
   if(pos == argc) args[argc] = NIL;
   call(subr, args, locals_cnt);
 }
+
 void call0(any subr) {
   apply(subr, NIL);
 }
+
 void call1(any subr, any x) {
   apply(subr, single(x));
+}
+
+void call2(any subr, any x, any y) {
+  apply(subr, cons(x, single(y)));
 }
 
 //////////////// compiler ////////////////
@@ -1359,6 +1413,7 @@ DEFSUB(reload) {
   set_dyn(intern("_*allow-overwrites*"), old);
   if(failed) throw();
 }
+DEFSUB(sort) { last_value = mergesort_x(args[0], copy(args[1])); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1463,6 +1518,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_reader_bind, "_reader-bind", 3, 0);
   bone_register_csub(CSUB_reader_bound_p, "reader-bound?", 1, 0);
   bone_register_csub(CSUB_reload, "_reload", 1, 0);
+  bone_register_csub(CSUB_sort, "sort", 2, 0);
 }
 
 //////////////// misc ////////////////

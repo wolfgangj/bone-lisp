@@ -213,6 +213,9 @@ The result should be ignored, but will be the result of the last call to `sub`."
   (defsub (filter keep? xs)
     "Call `keep?` for each element in `xs` and return a list of the elements where the result was true.")
 
+  (defsub (sort is>? xs)
+    "Sort `xs` according to the predicate `is>?`.")
+
 );end of section
 (defsection "Association Lists (`alists`)"
   "An `alist` is an 'association list': Each of it elements is a cons

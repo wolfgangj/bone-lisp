@@ -75,6 +75,7 @@ void listgen_add(listgen *lg, any x);
 
 void call0(any subr);
 void call1(any subr, any x);
+void call2(any subr, any x, any y);
 
 bool is_str(any x);
 any charp2str(const char *p);
