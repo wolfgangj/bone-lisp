@@ -320,7 +320,7 @@ char *str2charp(any x) { return list2charp(unstr(x)); }
 my bool str_eql(any s1, any s2) {
   s1=unstr(s1); s2=unstr(s2);
   foreach(chr, s1) {
-    if(is_nil(s2) || chr==far(s2))
+    if(is_nil(s2) || chr!=far(s2))
       return false;
     s2=fdr(s2);
   }
