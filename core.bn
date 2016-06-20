@@ -367,6 +367,9 @@ compared for equality with `eq?`."
 
 If it does not exist yet, it will be created.")
 
+  (defsub (sym->str symbol)
+    "Return the name of the sym `symbol` as a str.")
+
   (defsub (gensym)
     "Return a new non-interned sym.
 
