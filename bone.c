@@ -327,6 +327,12 @@ my bool str_eql(any s1, any s2) {
   return is_nil(s2);
 }
 
+my any num2str(any n) {
+  char buf[32];
+  snprintf(buf, 32, "%d", any2int(n));
+  return charp2str(buf);
+}
+
 //////////////// hash tables ////////////////
 
 #define MAXLOAD 175 // Value between 0 and 255; 128 will cause an average of two probes.
@@ -1414,6 +1420,7 @@ DEFSUB(reload) {
   if(failed) throw();
 }
 DEFSUB(sort) { last_value = mergesort_x(args[0], copy(args[1])); }
+DEFSUB(num2str) { last_value = num2str(args[0]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1519,6 +1526,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_reader_bound_p, "reader-bound?", 1, 0);
   bone_register_csub(CSUB_reload, "_reload", 1, 0);
   bone_register_csub(CSUB_sort, "sort", 2, 0);
+  bone_register_csub(CSUB_num2str, "num->str", 1, 0);
 }
 
 //////////////// misc ////////////////

@@ -315,6 +315,9 @@ followed by zero or more continuing code points."
   (defsub (str<>? s1 s2)
     "Return whether `str1` and `str2` consist of different characters.")
 
+  (defsub (num->str n)
+    "Return a representation of `n` as a str.")
+
 );end of section
 (defsection "Input/Output"
   "Currently, the I/O facilities are rather limited."
