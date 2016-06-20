@@ -1,0 +1,58 @@
+;;;; std/bases.bn -- Standard positional numeral systems library.   -*- bone -*-
+;;;; Copyright (C) 2016 Wolfgang Jaehrling
+;;;;
+;;;; Permission to use, copy, modify, and/or distribute this software for any
+;;;; purpose with or without fee is hereby granted, provided that the above
+;;;; copyright notice and this permission notice appear in all copies.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+;;;; WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+;;;; MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+;;;; ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+;;;; WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+(mysub (_chr->val c)
+  (cond ((<=? #chr "0" c #chr "9")    (- c #chr "0"))
+	((<=? #chr "a" c #chr "z") (+ (- c #chr "a") 10))
+	((<=? #chr "A" c #chr "Z") (+ (- c #chr "A") 10))
+	(#t #f)))
+
+(mysub (_valid-in-base? base n)
+  (<? n base))
+
+(mysub (_sign)
+  (with c (chr-look)
+    (cond ((=? c #chr "-") (chr-read) -1)
+	  ((=? c #chr "+") (chr-read) 1)
+	  (#t 1))))
+
+(mysub (_read-in-base base)
+  (chr-read) ; skip space
+  (with sign (_sign)
+    (with loop
+	(lambda (so-far)
+	  (with val (_chr->val (chr-look))
+	    (if (or (not val)
+		    (not (_valid-in-base? base val)))
+		so-far
+	      (do (chr-read) ; it was valid, so remove it from src
+		  (loop (+ (* base so-far) val))))))
+      (* sign (loop 0)))))
+
+(defreader bin
+  "Read a number in base two (binary)."
+  (_read-in-base 2))
+
+(defreader oct
+  "Read a number in base eight (octal)."
+  (_read-in-base 8))
+
+(defreader hex
+  "Read a number in base sixteen (hexadecimal)."
+  (_read-in-base 16))
+
+(defreader in-base
+  "Read a number in the given base."
+  (_read-in-base (read)))
