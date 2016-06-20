@@ -125,3 +125,6 @@ pass `0`.")
   "Return whether the child was continued with `SIGCONT`.
 
 `status` should be a value that was returned by `sys.waitpid?`.")
+
+(defsub (sys.random n)
+  "Return a random number in the range from 0 to `n`-1.")
