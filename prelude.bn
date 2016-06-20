@@ -362,6 +362,10 @@ This can be useful for passing to higher order functions."
   "Check whether `string` starts with `prefix`."
   (str=? prefix (str-take (str-len prefix) string)))
 
+(defsub (str-empty? s)
+  "Check whether str `s` is the empty str."
+  (str=? "" s))
+
 (defreader eval
   "Evaluate the next expression at read-time."
   (eval (read)))
@@ -387,6 +391,7 @@ This can be useful for passing to higher order functions."
 (alias length len)
 (alias size len)
 (alias str->sym intern)
+(alias unintern sym->str)
 (alias - _full-)
 (alias * _full*)
 (alias / _full/)
@@ -413,6 +418,7 @@ This can be useful for passing to higher order functions."
 (alias str-append str+)
 (alias head car)
 (alias tail cdr)
+(alias str-nil? str-empty?)
 
 ;;;; Implementation information
 
