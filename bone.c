@@ -452,6 +452,8 @@ my any gensym() {
   return as_sym(new);
 }
 
+my any sym2str(any sym) { return charp2str(symtext(sym)); }
+
 my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with, s_if, s_list, s_cat, s_dot, s_do, s_arg, s_env;
 #define x(name) s_ ## name = intern(#name)
 my void init_syms() { x(quote);x(quasiquote);x(unquote);s_unquote_splicing=intern("unquote-splicing");
@@ -1421,6 +1423,7 @@ DEFSUB(reload) {
 }
 DEFSUB(sort) { last_value = mergesort_x(args[0], copy(args[1])); }
 DEFSUB(num2str) { last_value = num2str(args[0]); }
+DEFSUB(sym2str) { last_value = sym2str(args[0]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -1527,6 +1530,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_reload, "_reload", 1, 0);
   bone_register_csub(CSUB_sort, "sort", 2, 0);
   bone_register_csub(CSUB_num2str, "num->str", 1, 0);
+  bone_register_csub(CSUB_sym2str, "sym->str", 1, 0);
 }
 
 //////////////// misc ////////////////
