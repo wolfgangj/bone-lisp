@@ -806,11 +806,15 @@ my void create_dyn(any name, any x) {
   dyn_cnt++;
 }
 
-my any get_dyn_val(any name) {
+my any get_existing_dyn(any name) {
   any x = get_dyn(name);
   if (!is(x))
     generic_error("dynamic var unbound", name);
-  return dynamic_vals[any2int(x)];
+  return x;
+}
+
+my any get_dyn_val(any name) {
+  return dynamic_vals[any2int(get_existing_dyn(name))];
 }
 
 //////////////// printer ////////////////
@@ -1981,15 +1985,17 @@ DEFSUB(refers_to) { last_value = to_bool(refers_to(args[0], args[1])); }
 DEFSUB(load) { bone_load(symtext(args[0])); }
 DEFSUB(var_bind) { create_dyn(args[0], args[1]); }
 DEFSUB(with_var) {
+  int dyn_pos = any2int(get_existing_dyn(args[0]));
+  any old = dynamic_vals[dyn_pos];
+  dynamic_vals[dyn_pos] = args[1];
+
   bool failed = false;
-  any old = get_dyn_val(args[0]);
-  set_dyn_val(args[0], args[1]);
   try {
     call0(args[2]);
   } catch {
     failed = true;
   }
-  set_dyn_val(args[0], old);
+  dynamic_vals[dyn_pos] = old;
   if (failed)
     throw();
 }
