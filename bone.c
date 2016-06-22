@@ -59,7 +59,6 @@ my const char *type_name(type_tag tag) {
 #define BINDING_DEFINED UNIQ(103)
 #define BINDING_EXISTS UNIQ(104)
 #define BINDING_DECLARED UNIQ(105)
-#define VAR_UNBOUND UNIQ(106)
 bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
@@ -746,11 +745,11 @@ my void name_sub(sub subr, any name) {
 
 //////////////// bindings ////////////////
 
-my any get_existing_dyn(any name);
+my any get_dyn_val(any name);
 my void add_name(hash namespace, any name, bool overwritable, any val) {
   any prev = hash_get(namespace, name);
   if (is(prev) && far(prev) == BINDING_DEFINED &&
-      !is(get_existing_dyn(intern("_*allow-overwrites*"))))
+      !is(get_dyn_val(intern("_*allow-overwrites*"))))
     generic_error("already defined", name);
   if (is_sub(val))
     name_sub(any2sub(val), name);
@@ -783,25 +782,35 @@ my void reader_bind(any name, bool overwritable, any subr) {
 my any get_reader(any name) { return hash_get(readers, name); }
 my bool is_reader_bound(any name) { return get_reader(name) != BFALSE; }
 
-// These are thread-local, therefore we have to look them up each time
-my hash dynamics; // FIXME: dynamics should be thread local (which is why we
-                  // can't use `bindings` for this)
+my hash dynamics; // this is shared by threads, it just contains numbers as values
+my any dynamic_vals[256]; // FIXME: thread-local
+my int dyn_cnt = 0;
 my any get_dyn(any name) { return hash_get(dynamics, name); }
-my bool is_dyn_bound(any name) { return get_dyn(name) != VAR_UNBOUND; }
-my void set_dyn(any name, any x) { hash_set(dynamics, name, x); }
+my bool is_dyn_bound(any name) { return is(get_dyn(name)); }
+
+my void set_dyn_val(any name, any x) {
+  any n = get_dyn(name);
+  if (!is(n))
+    generic_error("dynamic var unbound", name);
+
+  dynamic_vals[any2int(n)] = x;  
+}
 
 my void create_dyn(any name, any x) {
   if (is_dyn_bound(name) &&
-      !is(get_existing_dyn(intern("_*allow-overwrites*"))))
+      !is(get_dyn_val(intern("_*allow-overwrites*"))))
     generic_error("dynamic var bound twice", name);
-  set_dyn(name, x);
+
+  hash_set(dynamics, name, int2any(dyn_cnt));
+  dynamic_vals[dyn_cnt] = x;
+  dyn_cnt++;
 }
 
-my any get_existing_dyn(any name) {
+my any get_dyn_val(any name) {
   any x = get_dyn(name);
-  if (x == VAR_UNBOUND)
+  if (!is(x))
     generic_error("dynamic var unbound", name);
-  return x;
+  return dynamic_vals[any2int(x)];
 }
 
 //////////////// printer ////////////////
@@ -1322,7 +1331,7 @@ start:;
       any2sub(last_value)->env[0] = last_value;
       break;
     case OP_DYN:
-      last_value = get_existing_dyn(*ip++);
+      last_value = dynamic_vals[any2int(*ip++)];
       break;
     default:
       printf("unknown vm instruction\n");
@@ -1690,9 +1699,9 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
       break;
     }
     any dyn = get_dyn(e);
-    if (dyn != VAR_UNBOUND) {
+    if (is(dyn)) {
       emit(OP_DYN, state);
-      emit(e, state);
+      emit(dyn, state);
       break;
     }
     generic_error("unbound sym", e);
@@ -1973,19 +1982,19 @@ DEFSUB(load) { bone_load(symtext(args[0])); }
 DEFSUB(var_bind) { create_dyn(args[0], args[1]); }
 DEFSUB(with_var) {
   bool failed = false;
-  any old = get_existing_dyn(args[0]);
-  set_dyn(args[0], args[1]);
+  any old = get_dyn_val(args[0]);
+  set_dyn_val(args[0], args[1]);
   try {
     call0(args[2]);
   } catch {
     failed = true;
   }
-  set_dyn(args[0], old);
+  set_dyn_val(args[0], old);
   if (failed)
     throw();
 }
 DEFSUB(var_bound_p) { last_value = to_bool(is_dyn_bound(args[0])); }
-DEFSUB(var_bang) { set_dyn(args[0], args[1]); }
+DEFSUB(var_bang) { set_dyn_val(args[0], args[1]); }
 DEFSUB(reg_loop) {
   reg_push(reg_new());
   call0(args[0]);
@@ -2023,15 +2032,15 @@ DEFSUB(reader_f) { last_value = BFALSE; }
 DEFSUB(reader_bind) { reader_bind(args[0], is(args[1]), args[2]); }
 DEFSUB(reader_bound_p) { last_value = to_bool(is_reader_bound(args[0])); }
 DEFSUB(reload) {
-  any old = get_existing_dyn(intern("_*allow-overwrites*"));
-  set_dyn(intern("_*allow-overwrites*"), BTRUE);
+  any old = get_dyn_val(intern("_*allow-overwrites*"));
+  set_dyn_val(intern("_*allow-overwrites*"), BTRUE);
   bool failed = false;
   try {
     CSUB_load(args);
   } catch {
     failed = true;
   }
-  set_dyn(intern("_*allow-overwrites*"), old);
+  set_dyn_val(intern("_*allow-overwrites*"), old);
   if (failed)
     throw();
 }
@@ -2190,25 +2199,29 @@ void bone_init(int argc, char **argv) {
   permanent_reg = reg_new();
   reg_stack[0] = permanent_reg;
   load_reg(permanent_reg);
+
   sym_ht = hash_new(997, (any)NULL);
   init_syms();
+
   bindings = hash_new(997, BFALSE);
   macros = hash_new(397, BFALSE);
   readers = hash_new(97, BFALSE);
   init_csubs();
-  dynamics = hash_new(97, VAR_UNBOUND);
+  dynamics = hash_new(97, BFALSE);
   {
     any lisp_info = add_info_entry("major-version", BONE_MAJOR, NIL);
     lisp_info = add_info_entry("minor-version", BONE_MINOR, lisp_info);
     lisp_info = add_info_entry("patch-version", BONE_PATCH, lisp_info);
-    set_dyn(intern("_*lisp-info*"), lisp_info);
+    create_dyn(intern("_*lisp-info*"), lisp_info);
   }
-  set_dyn(intern("_*allow-overwrites*"), BFALSE);
+  create_dyn(intern("_*allow-overwrites*"), BFALSE);
   src = stdin;
+
   any args = NIL;
   while (argc--)
     args = cons(charp2str(argv[argc]), args);
-  set_dyn(intern("*program-args*"), args);
+  create_dyn(intern("*program-args*"), args);
+
   bone_init_thread();
 }
 
@@ -2248,8 +2261,8 @@ void bone_load(const char *mod) {
 }
 
 void bone_repl() {
-  set_dyn(intern("$"), BFALSE);
-  set_dyn(intern("$$"), BFALSE);
+  create_dyn(intern("$"), BFALSE); // FIXME: repl can now only be called once
+  create_dyn(intern("$$"), BFALSE);
 
   int line = 0;
   while (1) {
@@ -2260,8 +2273,8 @@ void bone_repl() {
         break;
       eval_toplevel_expr(e);
       print(last_value);
-      set_dyn(intern("$$"), get_dyn(intern("$")));
-      set_dyn(intern("$"), last_value);
+      set_dyn_val(intern("$$"), get_dyn_val(intern("$")));
+      set_dyn_val(intern("$"), last_value);
     } catch {
       call_sp = call_stack;
     }
