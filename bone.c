@@ -254,30 +254,30 @@ my any mergesort_x(any bigger_p, any hd) {
       any q = p;
       int len_of_p = 0;
       for(int i = 0; i < area; i++) {
-	len_of_p++;
-	q = fdr(q);
-	if(is_nil(q)) break;
+        len_of_p++;
+        q = fdr(q);
+        if(is_nil(q)) break;
       }
       int len_of_q = area;
       while(len_of_p > 0 || (len_of_q > 0 && !is_nil(q))) {
-	// determine source of next element:
-	bool from_p;
-	if(len_of_p == 0)
-	  from_p = false;
-	else if(len_of_q == 0 || is_nil(q))
-	  from_p = true;
-	else {
-	  call2(bigger_p, far(p), far(q));
-	  from_p = !is(last_value);
-	}
-	any e;
-	if(from_p) { len_of_p--; e = p; p = fdr(p); }
-	else       { len_of_q--; e = q; q = fdr(q); }
-	if(!is_nil(tl))
-	  set_fdr(tl, e);
-	else
-	  hd = e;
-	tl = e;
+        // determine source of next element:
+        bool from_p;
+        if(len_of_p == 0)
+          from_p = false;
+        else if(len_of_q == 0 || is_nil(q))
+          from_p = true;
+        else {
+          call2(bigger_p, far(p), far(q));
+          from_p = !is(last_value);
+        }
+        any e;
+        if(from_p) { len_of_p--; e = p; p = fdr(p); }
+        else       { len_of_q--; e = q; q = fdr(q); }
+        if(!is_nil(tl))
+          set_fdr(tl, e);
+        else
+          hd = e;
+        tl = e;
       }
       p = q;
     }
@@ -573,7 +573,7 @@ my void print(any x) {
       if(a == s_unquote)          { printf(",");  print(fdr(x)); break; }
       if(a == s_unquote_splicing) { printf(",@"); print(fdr(x)); break; }
       if(a == s_lambda && is_cons(fdr(x)) && is_arglist(far(fdr(x))) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
-	printf("| "); print_sub_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
+        printf("| "); print_sub_args(far(fdr(x))); print(far(fdr(fdr(x)))); break;
       }
     }
     bool first = true; printf("(");
@@ -812,7 +812,7 @@ my void backtrace() {
     }
     if(e->subr->code->take_rest)
       foreach(x, e->args[i]) {
-	printf(" "); print_arg(x);
+        printf(" "); print_arg(x);
       }
     printf(")\n");
     if(e->tail_calls)
@@ -879,7 +879,7 @@ start:;
       verify_argc(the_call);
       locals_cnt = the_call->locals_cnt;
       for(int i = 0; i < locals_cnt; i++)
-	args[i] = the_call->args[i];
+        args[i] = the_call->args[i];
       locals_sp = &args[locals_cnt];
       subr = the_call->to_be_called;
       call_sp->subr = subr;
@@ -889,10 +889,10 @@ start:;
     }
     case OP_ADD_ARG:
       if(next_call->nonrest_args_left) {
-	next_call->nonrest_args_left--;
-	add_nonrest_arg();
+        next_call->nonrest_args_left--;
+        add_nonrest_arg();
       } else
-	add_rest_arg();
+        add_rest_arg();
       break;
     case OP_JMP_IFN: if(is(last_value)) { ip++; break; } // else fall through
     case OP_JMP: ip += any2int(*ip); break;
@@ -1021,7 +1021,7 @@ my any lambda_ignore_list(any old, any args) {
     foreach_cons(x, args) {
       listgen_add(&lg, far(x));
       if(!is_cons(fdr(x)) && !is_nil(fdr(x)))
-	listgen_add(&lg, fdr(x));
+        listgen_add(&lg, fdr(x));
     }
 
   if(is_nil(lg.last))
@@ -1044,7 +1044,7 @@ my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *
     case t_sym: {
       any local = assoc_entry(x, locals);
       if(is(local) && !is_member(x, ignore)) {
-	found_local(far(local), lg, cnt);
+        found_local(far(local), lg, cnt);
       }
       break;
     }
