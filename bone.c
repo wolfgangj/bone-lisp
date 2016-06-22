@@ -2213,7 +2213,10 @@ void bone_init(int argc, char **argv) {
 }
 
 my char *mod2file(const char *mod) {
-  char *res = malloc(strlen(mod) + 4);
+  size_t len = strlen(mod);
+  if (len > 3 && strcmp(".bn", mod + (len - 3)) == 0)
+    return strdup(mod);
+  char *res = malloc(len + 4);
   strcat(strcpy(res, mod), ".bn");
   return res;
 }
@@ -2231,6 +2234,8 @@ void bone_load(const char *mod) {
   bool fail = false;
   any e;
   try {
+    if (look() == '#')
+      skip_until('\n');
     while ((e = bone_read()) != ENDOFFILE)
       eval_toplevel_expr(e);
   } catch {
