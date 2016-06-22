@@ -15,14 +15,15 @@
  */
 
 #define _GNU_SOURCE 1 // for mmap()s MAP_ANONYMOUS
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include <string.h>
-#include <assert.h>
-#include <unistd.h>
 #include <sys/mman.h>
+#include <unistd.h>
+
 #include "bone.h"
 
 my any last_value; // FIXME: thread-local
