@@ -85,6 +85,11 @@ char *str2charp(any x); // created w/ malloc()
 any intern(const char *name);
 char *symtext(any sym);
 
+any fp2src(FILE *fp);
+any fp2dst(FILE *fp);
+FILE *src2fp(any x);
+FILE *dst2fp(any x);
+
 jmp_buf *begin_try_();
 jmp_buf *throw_();
 void end_try_();

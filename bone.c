@@ -823,8 +823,8 @@ my any fp2any(FILE *fp, type_other_tag t) {
   return tag((any)p, t_other);
 }
 
-my any fp2src(FILE *fp) { return fp2any(fp, t_other_src); }
-my any fp2dst(FILE *fp) { return fp2any(fp, t_other_dst); }
+any fp2src(FILE *fp) { return fp2any(fp, t_other_src); }
+any fp2dst(FILE *fp) { return fp2any(fp, t_other_dst); }
 
 my FILE *any2fp(any x, type_other_tag t) {
   any *p = (any *)untag_check(x, t_other);
@@ -833,8 +833,8 @@ my FILE *any2fp(any x, type_other_tag t) {
   return (FILE *)p[1];
 }
 
-my FILE *src2fp(any x) { return any2fp(x, t_other_src); }
-my FILE *dst2fp(any x) { return any2fp(x, t_other_dst); }
+FILE *src2fp(any x) { return any2fp(x, t_other_src); }
+FILE *dst2fp(any x) { return any2fp(x, t_other_dst); }
 
 my int dyn_src, dyn_dst;
 

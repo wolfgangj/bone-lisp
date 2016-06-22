@@ -253,25 +253,50 @@ DEFSUB(waitpid) { // FIXME: flags as syms
                           : BFALSE);
 }
 
-// With these you can analyze thestatus returned by waitpid:
+// With these you can analyze the status returned by waitpid:
 DEFSUB(w_exitstatus) {
   int x = any2int(args[0]);
   bone_result(WIFEXITED(x) ? int2any(WEXITSTATUS(x)) : BFALSE);
 }
-
 DEFSUB(w_termsig) {
   int x = any2int(args[0]);
   bone_result(WIFSIGNALED(x) ? int2any(WTERMSIG(x)) : BFALSE);
 }
-
 DEFSUB(w_stopsig) {
   int x = any2int(args[0]);
   bone_result(WIFSTOPPED(x) ? int2any(WSTOPSIG(x)) : BFALSE);
 }
-
 DEFSUB(w_continued) { bone_result(to_bool(WIFCONTINUED(any2int(args[0])))); }
 
 DEFSUB(random) { bone_result(int2any(random() % any2int(args[0]))); }
+
+DEFSUB(src_open) {
+  char *fname = str2charp(args[0]);
+  FILE *fp = fopen(fname, "r");
+  ses();
+  free(fname);
+  bone_result(fp ? fp2src(fp) : BFALSE);
+}
+
+DEFSUB(src_close) {
+  bool res = (fclose(src2fp(args[0])) == 0);
+  ses();
+  bone_result(to_bool(res));
+}
+
+DEFSUB(dst_open) {
+  char *fname = str2charp(args[0]);
+  FILE *fp = fopen(fname, "w");
+  ses();
+  free(fname);
+  bone_result(fp ? fp2dst(fp) : BFALSE);
+}
+
+DEFSUB(dst_close) {
+  bool res = (fclose(dst2fp(args[0])) == 0);
+  ses();
+  bone_result(to_bool(res));
+}
 
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
@@ -304,6 +329,10 @@ void bone_posix_init() {
   bone_register_csub(CSUB_w_stopsig, "sys.stopsig?", 1, 0);
   bone_register_csub(CSUB_w_continued, "sys.continued?", 1, 0);
   bone_register_csub(CSUB_random, "sys.random", 1, 0);
+  bone_register_csub(CSUB_src_open, "sys.src-open?", 1, 0);
+  bone_register_csub(CSUB_src_open, "sys.src-close?", 1, 0);
+  bone_register_csub(CSUB_dst_open, "sys.dst-open?", 1, 0);
+  bone_register_csub(CSUB_dst_open, "sys.dst-close?", 1, 0);
 
   srandom(time(NULL));
 }
