@@ -15,9 +15,9 @@
 
 (mysub (_chr->val c)
   (cond ((<=? #chr "0" c #chr "9")    (- c #chr "0"))
-	((<=? #chr "a" c #chr "z") (+ (- c #chr "a") 10))
-	((<=? #chr "A" c #chr "Z") (+ (- c #chr "A") 10))
-	(#t #f)))
+        ((<=? #chr "a" c #chr "z") (+ (- c #chr "a") 10))
+        ((<=? #chr "A" c #chr "Z") (+ (- c #chr "A") 10))
+        (#t #f)))
 
 (mysub (_valid-in-base? base n)
   (<? n base))
@@ -25,20 +25,20 @@
 (mysub (_sign)
   (with c (chr-look)
     (cond ((=? c #chr "-") (chr-read) -1)
-	  ((=? c #chr "+") (chr-read) 1)
-	  (#t 1))))
+          ((=? c #chr "+") (chr-read) 1)
+          (#t 1))))
 
 (mysub (_read-in-base base)
   (chr-read) ; skip space
   (with sign (_sign)
     (with loop
-	(lambda (so-far)
-	  (with val (_chr->val (chr-look))
-	    (if (or (not val)
-		    (not (_valid-in-base? base val)))
-		so-far
-	      (do (chr-read) ; it was valid, so remove it from src
-		  (loop (+ (* base so-far) val))))))
+        (lambda (so-far)
+          (with val (_chr->val (chr-look))
+            (if (or (not val)
+                    (not (_valid-in-base? base val)))
+                so-far
+              (do (chr-read) ; it was valid, so remove it from src
+                  (loop (+ (* base so-far) val))))))
       (* sign (loop 0)))))
 
 (defreader bin

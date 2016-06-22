@@ -16,11 +16,11 @@
 (defsub (random-choice choices)
   "Randomly choose an item; `choices` being of the form `((1 1/9-chance) (8 8/9-chance))`."
   (let ((total (apply + (map car choices)))
-	(rnd (++ (sys.random total)))
-	(loop (lambda (xs left)
-		(with new-left (- left (caar xs))
-		  (if (not (>0? new-left))
-		      (cadar xs)
-		    (loop (cdr xs) new-left))))))
+        (rnd (++ (sys.random total)))
+        (loop (lambda (xs left)
+                (with new-left (- left (caar xs))
+                  (if (not (>0? new-left))
+                      (cadar xs)
+                    (loop (cdr xs) new-left))))))
     (loop choices rnd)))
 

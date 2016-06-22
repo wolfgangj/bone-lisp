@@ -20,16 +20,16 @@
 (defsub (max . xs)
   "Return the maximum numeric value in `xs` (which may not be empty)."
   (fold (lambda (x so-far)
-	  (if (>? x so-far) x so-far))
-	(car xs)
-	(cdr xs)))
+          (if (>? x so-far) x so-far))
+        (car xs)
+        (cdr xs)))
 
 (defsub (min . xs)
   "Return the minimum numeric value in `xs` (which may not be empty)."
   (fold (lambda (x so-far)
-	  (if (<? x so-far) x so-far))
-	(car xs)
-	(cdr xs)))
+          (if (<? x so-far) x so-far))
+        (car xs)
+        (cdr xs)))
 
 (defsub (sum xs)
   "The sum of all values in `xs`."
@@ -48,9 +48,9 @@
 
 The step size `step` may be negative, in which case `to` needs to be lower than `from`."
   (unfold (lambda (n) ((if (>0? step) >? <?) n to))
-	  id
-	  (lambda (n) (+ n step))
-	  from))
+          id
+          (lambda (n) (+ n step))
+          from))
 
 (defsub (mean . xs)
   "Calculate the arithmetic mean of `xs`."

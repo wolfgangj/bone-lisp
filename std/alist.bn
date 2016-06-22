@@ -16,9 +16,9 @@
 (defsub (simplify-alist alist)
   "Remove all redundant entries from `alist`."
   (fold (lambda (entry so-far)
-	  (if (assoc? (car entry) so-far)
-	      so-far
-	    (cons entry so-far)))
-	()
-	alist))
+          (if (assoc? (car entry) so-far)
+              so-far
+            (cons entry so-far)))
+        ()
+        alist))
 

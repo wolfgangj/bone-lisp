@@ -147,7 +147,7 @@ Quasiquoting works as usual, so you can define macros (with `defmac` or `mymac`)
 The primitive form that introduces a (single) new binding - which may be recusive as in Schemes `letrec` - is `with`:
 
     (with loop | xs (if (nil? xs)
-    	       	    	0
+                        0
                       (++ (loop (cdr xs))))
       (loop '(a b c d)))
     ;; => 4
