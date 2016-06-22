@@ -728,7 +728,6 @@ my bool is_sub(any x) { return is_tagged(x, t_sub); }
 my any sub2any(sub s) { return tag((any)s, t_sub); }
 my sub any2sub(any x) { return (sub)untag_check(x, t_sub); }
 
-my any copy(any x);
 my any copy_sub(any x) {
   sub s = any2sub(x);
   int envsize = s->code->size_of_env;
