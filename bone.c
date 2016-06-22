@@ -16,6 +16,7 @@
 
 #define _GNU_SOURCE 1 // for mmap()s MAP_ANONYMOUS
 #include <assert.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -36,22 +37,19 @@ my void fail(const char *msg) {
 
 my size_t bytes2words(size_t n) { return (n - 1) / sizeof(any) + 1; }
 
-#define x(tag, name)                                                           \
-  case tag:                                                                    \
-    return name
 my const char *type_name(type_tag tag) {
   switch (tag) {
-    x(t_cons, "cons");
-    x(t_sym, "sym");
-    x(t_str, "str");
-    x(t_reg, "reg");
-    x(t_sub, "sub");
-    x(t_num, "num");
-  default:
-    return "<?>";
+  case t_cons: return "cons";
+  case t_sym: return "sym";
+  case t_str: return "str";
+  case t_reg: return "reg";
+  case t_sub: return "sub";
+  case t_num: return "num";
+  case t_other:
+    return "<?>"; // FIXME: need to do something about t_other types.
+  default: abort();
   }
 }
-#undef x
 
 #define HASH_SLOT_UNUSED UNIQ(100)
 #define HASH_SLOT_DELETED UNIQ(101)
@@ -816,19 +814,54 @@ my any get_dyn_val(any name) {
   return dynamic_vals[any2int(get_existing_dyn(name))];
 }
 
+//////////////// srcs and dsts ////////////////
+
+my any fp2any(FILE *fp, type_other_tag t) {
+  any *p = reg_alloc(2);
+  p[0] = t;
+  p[1] = (any)fp;
+  return tag((any)p, t_other);
+}
+
+my any fp2src(FILE *fp) { return fp2any(fp, t_other_src); }
+my any fp2dst(FILE *fp) { return fp2any(fp, t_other_dst); }
+
+my FILE *any2fp(any x, type_other_tag t) {
+  any *p = (any *)untag_check(x, t_other);
+  if (p[0] != t)
+    generic_error("can't perform I/O on", x); // FIXME: better error
+  return (FILE *)p[1];
+}
+
+my FILE *src2fp(any x) { return any2fp(x, t_other_src); }
+my FILE *dst2fp(any x) { return any2fp(x, t_other_dst); }
+
+my int dyn_src, dyn_dst;
+
+my void bputc(int x) {
+  fputc(x, dst2fp(dynamic_vals[dyn_dst]));
+}
+
+my void bprintf(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(dst2fp(dynamic_vals[dyn_dst]), fmt, args);
+  va_end(args);
+}
+
 //////////////// printer ////////////////
 
 my void print_sub_args(any x) {
   if (!is_cons(x)) {
     if (!is_nil(x)) {
-      printf(". ");
+      bprintf(". ");
       print(x);
-      printf(" ");
+      bputc(' ');
     }
     return;
   }
   print(far(x));
-  printf(" ");
+  bputc(' ');
   print_sub_args(fdr(x));
 }
 
@@ -845,72 +878,74 @@ my void print(any x) {
   case t_cons: {
     any a = far(x);
     if (is_sym(a)) {
-      if (a == s_quote)            { printf("'");  print(fdr(x)); break; }
-      if (a == s_quasiquote)       { printf("`");  print(fdr(x)); break; }
-      if (a == s_unquote)          { printf(",");  print(fdr(x)); break; }
-      if (a == s_unquote_splicing) { printf(",@"); print(fdr(x)); break; }
+      if (a == s_quote)            { bputc('\'');  print(fdr(x)); break; }
+      if (a == s_quasiquote)       { bputc('`');  print(fdr(x)); break; }
+      if (a == s_unquote)          { bputc(',');  print(fdr(x)); break; }
+      if (a == s_unquote_splicing) { bprintf(",@"); print(fdr(x)); break; }
       if (a == s_lambda && is_cons(fdr(x)) && is_arglist(far(fdr(x))) &&
           is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
-        printf("| ");
+        bprintf("| ");
         print_sub_args(far(fdr(x)));
         print(far(fdr(fdr(x))));
         break;
       }
     }
     bool first = true;
-    printf("(");
+    bputc('(');
     do {
       if (first)
         first = false;
       else
-        printf(" ");
+        bputc(' ');
       print(far(x));
       x = fdr(x);
     } while (is_tagged(x, t_cons));
     if (x != NIL) {
-      printf(" . ");
+      bprintf(" . ");
       print(x);
     }
-    printf(")");
+    bputc(')');
     break;
   }
-  case t_sym: printf("%s", symtext(x)); break;
-  case t_num: printf("%d", any2int(x)); break;
+  case t_sym: bprintf("%s", symtext(x)); break;
+  case t_num: bprintf("%d", any2int(x)); break;
   case t_uniq:
     switch (x) {
-    case NIL: printf("()"); break;
-    case BTRUE: printf("#t"); break;
-    case BFALSE: printf("#f"); break;
-    case ENDOFFILE: printf("#{eof}"); break;
+    case NIL: bprintf("()"); break;
+    case BTRUE: bprintf("#t"); break;
+    case BFALSE: bprintf("#f"); break;
+    case ENDOFFILE: bprintf("#{eof}"); break;
     default:
-      printf("#{?}");
+      bprintf("#{?}");
     }
     break;
   case t_str:
-    printf("\"");
+    bputc('"');
     foreach (c, unstr(x))
       switch (any2int(c)) {
-      case '"': printf("\\\""); break;
-      case '\\': printf("\\\\"); break;
-      case '\n': printf("\\n"); break;
-      case '\t': printf("\\t"); break;
+      case '"': bprintf("\\\""); break;
+      case '\\': bprintf("\\\\"); break;
+      case '\n': bprintf("\\n"); break;
+      case '\t': bprintf("\\t"); break;
       default:
-        putchar(any2int(c));
+        bputc(any2int(c));
       }
-    printf("\"");
+    bputc('"');
     break;
   case t_reg:
-    printf("#reg(%p)", (void *)x);
+    bprintf("#reg(%p)", (void *)x);
     break;
   case t_sub:
-    printf("#sub(id=%p name=", (void *)x);
+    bprintf("#sub(id=%p name=", (void *)x);
     sub_code code = any2sub(x)->code;
     print(code->name);
-    printf(" argc=%d take-rest?=", code->argc);
+    bprintf(" argc=%d take-rest?=", code->argc);
     print(code->take_rest ? BTRUE : BFALSE);
-    printf(")");
+    bputc(')');
     break;
   case t_other:
+    bprintf("#{?}");
+    break;
   default:
     abort();
   }
@@ -918,7 +953,7 @@ my void print(any x) {
 
 my void say_str(any s) {
   foreach (chr, unstr(s))
-    putchar(any2int(chr));
+    bputc(any2int(chr));
 }
 
 my void say(any x) {
@@ -958,12 +993,13 @@ my bool is_symchar(int c) {
   return (c >= 0 && c < 256) ? allowed_chars[c] : c != EOF;
 }
 
-my FILE *src; // FIXME: should be thread-local
-#define nextc() getc(src)
+my int nextc() {
+  return fgetc(src2fp(dynamic_vals[dyn_src]));
+}
 
 my int look() {
   int c = nextc();
-  ungetc(c, src);
+  ungetc(c, src2fp(dynamic_vals[dyn_src]));
   return c;
 }
 
@@ -2179,9 +2215,11 @@ my any copy(any x) {
     return x;
   case t_sub:
     return copy_sub(x);
+  case t_other:
+    generic_error("cannot copy t_other yet", x); // FIXME
   default:
-    return x;
-  } // FIXME: should be an error
+    abort();
+  }
 }
 
 my void bone_init_thread() {
@@ -2220,7 +2258,15 @@ void bone_init(int argc, char **argv) {
     create_dyn(intern("_*lisp-info*"), lisp_info);
   }
   create_dyn(intern("_*allow-overwrites*"), BFALSE);
-  src = stdin;
+
+  any in = fp2src(stdin), out = fp2dst(stdout);
+  create_dyn(intern("*stdin*"), in);
+  create_dyn(intern("*stdout*"), out);
+  create_dyn(intern("*stderr*"), fp2dst(stderr));
+  create_dyn(intern("*src*"), in);
+  create_dyn(intern("*dst*"), out);
+  dyn_src = any2int(get_dyn(intern("*src*")));
+  dyn_dst = any2int(get_dyn(intern("*dst*")));
 
   any args = NIL;
   while (argc--)
@@ -2241,26 +2287,25 @@ my char *mod2file(const char *mod) {
 
 void bone_load(const char *mod) {
   char *fn = mod2file(mod);
-  FILE *old = src;
-  src = fopen(fn, "r");
+  FILE *src = fopen(fn, "r");
   free(fn);
-  if (!src) {
-    src = old;
+  if (!src)
     generic_error("could not open module", intern(mod));
-  }
+  any old = dynamic_vals[dyn_src];
+  dynamic_vals[dyn_src] = fp2src(src);
 
   bool fail = false;
-  any e;
   try {
     if (look() == '#')
       skip_until('\n');
+    any e;
     while ((e = bone_read()) != ENDOFFILE)
       eval_toplevel_expr(e);
   } catch {
     fail = true;
   }
   fclose(src);
-  src = old;
+  dynamic_vals[dyn_src] = old;
   if (fail)
     throw();
 }
