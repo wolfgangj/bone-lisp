@@ -196,7 +196,7 @@ Always feel free to ask for details on any of those.
   You could e.g. take a look at Schemes SRFI-1 and SRFI-13 for ideas.
 * `bone.c`/`compile_if()`: currently, everything after the third argument is ignored, i.e.
   `(if 1 2 3 4)` is identical to `(if 1 2 3)`.
-  We want either implicit `do` or raise an error (both would be fone to me).
+  We want either implicit `do` for the else branch (like ELisp) or raise an error - both would be fine to me.
 * `_*lisp-info*` should have an entry like `(posix-support 0)` when the POSIX module is compiled in.
   (The `0` is intended as a version number; this seems more useful than just using `#t`.)
 * POSIX binding for `strerror()` (and lots of other stuff, actually).
