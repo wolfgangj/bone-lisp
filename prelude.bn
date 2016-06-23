@@ -210,6 +210,18 @@ This will increment the three values until their sum is larger than
   "Evaluate `body` with dynamic variable `name` bound to `val`."
   `(_with-var ',name ,val (lambda () ,@body)))
 
+(defmac (with-file-src fname . body)
+  "Evaluate `body` while reading input from the file specified by `fname`."
+  `(_with-file-src ,fname (lambda () ,@body)))
+
+(defmac (with-file-dst fname . body)
+  "Evaluate `body` while printing output to the file specified by `fname`."
+  `(_with-file-dst ,fname (lambda () ,@body)))
+
+(defmac (with-stderr . body)
+  "Evaluate `body` while printing output to stderr."
+  `(with-var *dst* *stderr* ,@body))
+
 (defsub (fold kons knil xs)
   "Fold the list `xs` by means of `kons` into a result, starting with `knil`."
   (with loop (lambda (rest so-far)

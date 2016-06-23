@@ -2147,6 +2147,48 @@ DEFSUB(sym2str) { last_value = sym2str(args[0]); }
 DEFSUB(src_line) { last_value = int2any(input_line(args[0])); }
 DEFSUB(file_name) { last_value = get_filename(args[0]); }
 
+DEFSUB(with_file_src) {
+  char *fname = str2charp(args[0]);
+  FILE *fp = fopen(fname, "r");
+  free(fname);
+  if (!fp)
+    generic_error("could not open", args[0]);
+  any old = dynamic_vals[dyn_src];
+  dynamic_vals[dyn_src] = fp2src(fp, args[0]);
+
+  bool failed = false;
+  try {
+    call0(args[1]);
+  } catch {
+    failed = true;
+  }
+  dynamic_vals[dyn_src] = old;
+  fclose(fp);
+  if (failed)
+    throw();
+}
+
+DEFSUB(with_file_dst) {
+  char *fname = str2charp(args[0]);
+  FILE *fp = fopen(fname, "w");
+  free(fname);
+  if (!fp)
+    generic_error("could not open", args[0]);
+  any old = dynamic_vals[dyn_dst];
+  dynamic_vals[dyn_dst] = fp2dst(fp, args[0]);
+
+  bool failed = false;
+  try {
+    call0(args[1]);
+  } catch {
+    failed = true;
+  }
+  dynamic_vals[dyn_dst] = old;
+  fclose(fp);
+  if (failed)
+    throw();
+}
+
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
   code->ops[0] = OP_WRAP;
@@ -2259,6 +2301,8 @@ my void init_csubs() {
   bone_register_csub(CSUB_sym2str, "sym->str", 1, 0);
   bone_register_csub(CSUB_src_line, "src-line", 1, 0);
   bone_register_csub(CSUB_file_name, "file-name", 1, 0);
+  bone_register_csub(CSUB_with_file_src, "_with-file-src", 2, 0);
+  bone_register_csub(CSUB_with_file_dst, "_with-file-dst", 2, 0);
 }
 
 //////////////// misc ////////////////
