@@ -831,7 +831,7 @@ my any fp2any(FILE *fp, type_other_tag t, any name) {
   res->t = t;
   res->fp = fp;
   res->name = name;
-  res->line = 0;
+  res->line = 1;
   return tag((any)res, t_other);
 }
 
@@ -1041,7 +1041,8 @@ my void say(any x) {
 
 // FIXME
 my void parse_error(const char *text) {
-  printf("parse error: %s\n", text);
+  print(dynamic_vals[dyn_src]);
+  bprintf(": parse error: %s\n", text);
   throw();
 } 
 
