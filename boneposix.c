@@ -330,9 +330,9 @@ void bone_posix_init() {
   bone_register_csub(CSUB_w_continued, "sys.continued?", 1, 0);
   bone_register_csub(CSUB_random, "sys.random", 1, 0);
   bone_register_csub(CSUB_src_open, "sys.src-open?", 1, 0);
-  bone_register_csub(CSUB_src_open, "sys.src-close?", 1, 0);
+  bone_register_csub(CSUB_src_close, "sys.src-close?", 1, 0);
   bone_register_csub(CSUB_dst_open, "sys.dst-open?", 1, 0);
-  bone_register_csub(CSUB_dst_open, "sys.dst-close?", 1, 0);
+  bone_register_csub(CSUB_dst_close, "sys.dst-close?", 1, 0);
 
   srandom(time(NULL));
 }
