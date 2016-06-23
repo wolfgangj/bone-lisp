@@ -819,40 +819,60 @@ my any get_dyn_val(any name) {
 
 //////////////// srcs and dsts ////////////////
 
+typedef struct {
+  type_other_tag t;
+  FILE *fp;
+  any name;
+  int line;
+} *io;
+
 my any fp2any(FILE *fp, type_other_tag t, any name) {
-  any *p = reg_alloc(3);
-  p[0] = t;
-  p[1] = (any)fp;
-  p[2] = name;
-  return tag((any)p, t_other);
+  io res = (io)reg_alloc(bytes2words(sizeof(*res)));
+  res->t = t;
+  res->fp = fp;
+  res->name = name;
+  res->line = 0;
+  return tag((any)res, t_other);
 }
 
 any fp2src(FILE *fp, any name) { return fp2any(fp, t_other_src, name); }
 any fp2dst(FILE *fp, any name) { return fp2any(fp, t_other_dst, name); }
 
 my FILE *any2fp(any x, type_other_tag t) {
-  any *p = (any *)untag_check(x, t_other);
-  if (p[0] != t)
+  io obj = (io)untag_check(x, t_other);
+  if (obj->t != t)
     generic_error("can't perform I/O on", x); // FIXME: better error
-  return (FILE *)p[1];
+  return obj->fp;
 }
 
 FILE *src2fp(any x) { return any2fp(x, t_other_src); }
 FILE *dst2fp(any x) { return any2fp(x, t_other_dst); }
 
 my any get_filename(any x) {
-  any *p = (void *)untag_check(x, t_other);
-  if (p[0] != t_other_src && p[0] != t_other_dst)
+  io obj = (io)untag_check(x, t_other);
+  if (obj->t != t_other_src && obj->t != t_other_dst)
     generic_error("expected src or dst", x); // FIXME: better error
-  return p[2];
+  return obj->name;
+}
+
+my any input_line(any x) {
+  io obj = (io)untag_check(x, t_other);
+  if (obj->t != t_other_src)
+    generic_error("expected src", x); // FIXME: better error
+  return obj->line;
 }
 
 my any copy_src(any x) {
-  return fp2src(src2fp(x), get_filename(x));
+  io res = (io)reg_alloc(bytes2words(sizeof(*res)));
+  res->t = t_other_src;
+  res->fp = src2fp(x);
+  res->name = get_filename(x);
+  res->line = input_line(x);
+  return tag((any)res, t_other);
 }
 
 my any copy_dst(any x) {
-  return fp2dst(dst2fp(x), get_filename(x));
+  return fp2dst(dst2fp(x), copy(get_filename(x)));
 }
 
 my int dyn_src, dyn_dst;
@@ -866,6 +886,21 @@ my void bprintf(const char *fmt, ...) {
   va_start(args, fmt);
   vfprintf(dst2fp(dynamic_vals[dyn_dst]), fmt, args);
   va_end(args);
+}
+
+my int nextc() {
+  io obj = (io)untag(dynamic_vals[dyn_src]);
+  int res = fgetc(src2fp(dynamic_vals[dyn_src]));
+  if (res == '\n')
+    obj->line++;
+  return res;
+}
+
+my int look() {
+  FILE *fp = src2fp(dynamic_vals[dyn_src]);
+  int res = fgetc(fp);
+  ungetc(res, fp);
+  return res;
 }
 
 //////////////// printer ////////////////
@@ -967,7 +1002,7 @@ my void print(any x) {
     case t_other_src:
       bprintf("#{src ");
       print(get_filename(x));
-      bputc('}');
+      bprintf(":%d}", input_line(x));
       break;
     case t_other_dst:
       bprintf("#{dst ");
@@ -1023,16 +1058,6 @@ my bool allowed_chars[] = {
 
 my bool is_symchar(int c) {
   return (c >= 0 && c < 256) ? allowed_chars[c] : c != EOF;
-}
-
-my int nextc() {
-  return fgetc(src2fp(dynamic_vals[dyn_src]));
-}
-
-my int look() {
-  int c = nextc();
-  ungetc(c, src2fp(dynamic_vals[dyn_src]));
-  return c;
 }
 
 my void skip_until(char end) {
