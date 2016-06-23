@@ -2190,6 +2190,8 @@ DEFSUB(with_file_dst) {
 }
 
 DEFSUB(eofp) { last_value = to_bool(args[0] == ENDOFFILE); }
+DEFSUB(srcp) { last_value = to_bool(tag_of(args[0]) == t_other && *((type_other_tag *)untag(args[0])) == t_other_src); }
+DEFSUB(dstp) { last_value = to_bool(tag_of(args[0]) == t_other && *((type_other_tag *)untag(args[0])) == t_other_dst); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -2306,6 +2308,8 @@ my void init_csubs() {
   bone_register_csub(CSUB_with_file_src, "_with-file-src", 2, 0);
   bone_register_csub(CSUB_with_file_dst, "_with-file-dst", 2, 0);
   bone_register_csub(CSUB_eofp, "eof?", 1, 0);
+  bone_register_csub(CSUB_srcp, "src?", 1, 0);
+  bone_register_csub(CSUB_dstp, "dst?", 1, 0);
 }
 
 //////////////// misc ////////////////

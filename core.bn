@@ -359,6 +359,12 @@ The differences to the `print` sub are:
   (defsub (file-name src-or-dst)
     "The file name associated with `src-or-dst`.")
 
+  (defsub (src? x)
+    "Check whether `x` is a src.")
+
+  (defsub (dst? x)
+    "Check whether `x` is a dst.")
+
   (defsub (eof? x)
     "Check whether `x` is the end of file object.")
 
