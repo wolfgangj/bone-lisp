@@ -128,3 +128,15 @@ pass `0`.")
 
 (defsub (sys.random n)
   "Return a random number in the range from 0 to `n`-1.")
+
+(defsub (sys.src-open? fname)
+  "Attempt to open the file `fname` as a src.")
+
+(defsub (sys.src-close? src)
+  "Close the `src`.")
+
+(defsub (sys.dst-open? fname)
+  "Attempt to open the file `fname` as a dst.")
+
+(defsub (sys.dst-close? dst)
+  "Close the `src`.")
