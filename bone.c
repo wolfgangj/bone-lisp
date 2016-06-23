@@ -2144,6 +2144,8 @@ DEFSUB(reload) {
 DEFSUB(sort) { last_value = mergesort_x(args[0], copy(args[1])); }
 DEFSUB(num2str) { last_value = num2str(args[0]); }
 DEFSUB(sym2str) { last_value = sym2str(args[0]); }
+DEFSUB(src_line) { last_value = int2any(input_line(args[0])); }
+DEFSUB(file_name) { last_value = get_filename(args[0]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -2255,6 +2257,8 @@ my void init_csubs() {
   bone_register_csub(CSUB_sort, "sort", 2, 0);
   bone_register_csub(CSUB_num2str, "num->str", 1, 0);
   bone_register_csub(CSUB_sym2str, "sym->str", 1, 0);
+  bone_register_csub(CSUB_src_line, "src-line", 1, 0);
+  bone_register_csub(CSUB_file_name, "file-name", 1, 0);
 }
 
 //////////////// misc ////////////////

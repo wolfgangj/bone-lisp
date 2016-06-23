@@ -353,6 +353,12 @@ The differences to the `print` sub are:
   (defsub (chr-look)
     "Look ahead at the next character from the current src without reading it.")
 
+  (defsub (src-line src)
+    "The current line number of `src`.")
+
+  (defsub (file-name src-or-dst)
+    "The file name associated with `src-or-dst`.")
+
 );end of section
 (defsection "Symbols (`sym`s)"
   "A `sym` is similar to a `str`, but only a single `sym` object
