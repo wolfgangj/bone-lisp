@@ -53,6 +53,8 @@ bool is_nil(any x);
 bool is(any x);
 any to_bool(int x);
 
+type_other_tag get_other_type(any x);
+
 int32_t any2int(any x);
 any int2any(int32_t n);
 
@@ -85,8 +87,8 @@ char *str2charp(any x); // created w/ malloc()
 any intern(const char *name);
 char *symtext(any sym);
 
-any fp2src(FILE *fp);
-any fp2dst(FILE *fp);
+any fp2src(FILE *fp, any name);
+any fp2dst(FILE *fp, any name);
 FILE *src2fp(any x);
 FILE *dst2fp(any x);
 

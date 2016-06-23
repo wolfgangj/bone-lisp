@@ -96,6 +96,11 @@ my any untag_check(any x, type_tag t) {
   return untag(x);
 }
 
+type_other_tag get_other_type(any x) {
+  any *p = (any *)untag_check(x, t_other);
+  return p[0];
+}
+
 my bool is_num(any x) { return is_tagged(x, t_num); }
 // FIXME: these assume little-endian
 int32_t any2int(any x) {
@@ -702,12 +707,10 @@ typedef struct sub_code { // fields are in the order in which we access them.
 my sub_code make_sub_code(int argc, int take_rest, int extra_localc,
                           int size_of_env, int code_size) {
   sub_code code = (sub_code)reg_alloc(sub_code_header_size + code_size);
-#define x(f) code->f = f
-  x(argc);
-  x(take_rest);
-  x(extra_localc);
-  x(size_of_env);
-#undef x
+  code->argc = argc;
+  code->take_rest = take_rest;
+  code->extra_localc = extra_localc;
+  code->size_of_env = size_of_env;
   code->name = BFALSE;
   return code;
 }
@@ -816,15 +819,16 @@ my any get_dyn_val(any name) {
 
 //////////////// srcs and dsts ////////////////
 
-my any fp2any(FILE *fp, type_other_tag t) {
-  any *p = reg_alloc(2);
+my any fp2any(FILE *fp, type_other_tag t, any name) {
+  any *p = reg_alloc(3);
   p[0] = t;
   p[1] = (any)fp;
+  p[2] = name;
   return tag((any)p, t_other);
 }
 
-any fp2src(FILE *fp) { return fp2any(fp, t_other_src); }
-any fp2dst(FILE *fp) { return fp2any(fp, t_other_dst); }
+any fp2src(FILE *fp, any name) { return fp2any(fp, t_other_src, name); }
+any fp2dst(FILE *fp, any name) { return fp2any(fp, t_other_dst, name); }
 
 my FILE *any2fp(any x, type_other_tag t) {
   any *p = (any *)untag_check(x, t_other);
@@ -835,6 +839,13 @@ my FILE *any2fp(any x, type_other_tag t) {
 
 FILE *src2fp(any x) { return any2fp(x, t_other_src); }
 FILE *dst2fp(any x) { return any2fp(x, t_other_dst); }
+
+my any get_filename(any x) {
+  any *p = (void *)untag_check(x, t_other);
+  if (p[0] != t_other_src && p[0] != t_other_dst)
+    generic_error("expected src or dst", x); // FIXME: better error
+  return p[2];
+}
 
 my int dyn_src, dyn_dst;
 
@@ -944,7 +955,20 @@ my void print(any x) {
     bputc(')');
     break;
   case t_other:
-    bprintf("#{?}");
+    switch(get_other_type(x)) {
+    case t_other_src:
+      bprintf("#{src ");
+      print(get_filename(x));
+      bputc('}');
+      break;
+    case t_other_dst:
+      bprintf("#{dst ");
+      print(get_filename(x));
+      bputc('}');
+      break;
+    default:
+      abort();
+    }
     break;
   default:
     abort();
@@ -2259,10 +2283,11 @@ void bone_init(int argc, char **argv) {
   }
   create_dyn(intern("_*allow-overwrites*"), BFALSE);
 
-  any in = fp2src(stdin), out = fp2dst(stdout);
+  any in = fp2src(stdin, charp2str("/dev/stdin"));
+  any out = fp2dst(stdout, charp2str("/dev/stdout"));
   create_dyn(intern("*stdin*"), in);
   create_dyn(intern("*stdout*"), out);
-  create_dyn(intern("*stderr*"), fp2dst(stderr));
+  create_dyn(intern("*stderr*"), fp2dst(stderr, charp2str("/dev/stderr")));
   create_dyn(intern("*src*"), in);
   create_dyn(intern("*dst*"), out);
   dyn_src = any2int(get_dyn(intern("*src*")));
@@ -2288,11 +2313,13 @@ my char *mod2file(const char *mod) {
 void bone_load(const char *mod) {
   char *fn = mod2file(mod);
   FILE *src = fopen(fn, "r");
-  free(fn);
-  if (!src)
+  if (!src) {
+    free(fn);
     generic_error("could not open module", intern(mod));
+  }
   any old = dynamic_vals[dyn_src];
-  dynamic_vals[dyn_src] = fp2src(src);
+  dynamic_vals[dyn_src] = fp2src(src, charp2str(fn));
+  free(fn);
 
   bool fail = false;
   try {

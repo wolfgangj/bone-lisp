@@ -275,7 +275,7 @@ DEFSUB(src_open) {
   FILE *fp = fopen(fname, "r");
   ses();
   free(fname);
-  bone_result(fp ? fp2src(fp) : BFALSE);
+  bone_result(fp ? fp2src(fp, args[0]) : BFALSE);
 }
 
 DEFSUB(src_close) {
@@ -289,7 +289,7 @@ DEFSUB(dst_open) {
   FILE *fp = fopen(fname, "w");
   ses();
   free(fname);
-  bone_result(fp ? fp2dst(fp) : BFALSE);
+  bone_result(fp ? fp2dst(fp, args[0]) : BFALSE);
 }
 
 DEFSUB(dst_close) {
