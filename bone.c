@@ -2189,6 +2189,8 @@ DEFSUB(with_file_dst) {
     throw();
 }
 
+DEFSUB(eofp) { last_value = to_bool(args[0] == ENDOFFILE); }
+
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
   code->ops[0] = OP_WRAP;
@@ -2303,6 +2305,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_file_name, "file-name", 1, 0);
   bone_register_csub(CSUB_with_file_src, "_with-file-src", 2, 0);
   bone_register_csub(CSUB_with_file_dst, "_with-file-dst", 2, 0);
+  bone_register_csub(CSUB_eofp, "eof?", 1, 0);
 }
 
 //////////////// misc ////////////////

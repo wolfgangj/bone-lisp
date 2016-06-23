@@ -359,6 +359,9 @@ The differences to the `print` sub are:
   (defsub (file-name src-or-dst)
     "The file name associated with `src-or-dst`.")
 
+  (defsub (eof? x)
+    "Check whether `x` is the end of file object.")
+
 );end of section
 (defsection "Symbols (`sym`s)"
   "A `sym` is similar to a `str`, but only a single `sym` object
