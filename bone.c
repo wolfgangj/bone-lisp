@@ -847,6 +847,14 @@ my any get_filename(any x) {
   return p[2];
 }
 
+my any copy_src(any x) {
+  return fp2src(src2fp(x), get_filename(x));
+}
+
+my any copy_dst(any x) {
+  return fp2dst(dst2fp(x), get_filename(x));
+}
+
 my int dyn_src, dyn_dst;
 
 my void bputc(int x) {
@@ -2240,7 +2248,14 @@ my any copy(any x) {
   case t_sub:
     return copy_sub(x);
   case t_other:
-    generic_error("cannot copy t_other yet", x); // FIXME
+    switch(get_other_type(x)) {
+    case t_other_src:
+      return copy_src(x);
+    case t_other_dst:
+      return copy_dst(x);
+    default:
+      abort();
+    }
   default:
     abort();
   }
