@@ -199,7 +199,7 @@ This means that `(list* 1 2 3)` returns `(1 2 . 3)`.")
   (defsub (member? x xs)
     "Return whether `x` is in the list `xs`")
 
-  (defsub (each sub xs)
+  (defsub (each xs sub)
     "Apply `sub` to every element of the list `xs` in sequence.
 
 The result should be ignored, but will be the result of the last call to `sub`.")
