@@ -47,11 +47,11 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Lists, strings, fixnums, symbols
 * Classic Lisp Macros
 * Reader macros
+* I/O streams
 * POSIX bindings (but not many yet...)
 
 ### What it does not (yet)
 
-* I/O streams
 * Multithreading
 * Floating point numbers
 * Unicode
