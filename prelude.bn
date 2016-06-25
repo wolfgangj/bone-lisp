@@ -164,6 +164,10 @@ The `bindings` are of the form `(name value)`."
   "Anamorphic `if`: Bind `it` to the result of `expr`."
   `(with it ,expr (if it ,then ,else)))
 
+(defmac (awhen expr . body)
+  "Anamorphic `when`: Bind `it` to the result of `expr`."
+  `(with it ,expr (when it ,@body)))
+
 (defsub (equal? a b)
   "Compare `a` and `b` for structural equality."
   (cond ((str? a) (and (str? b)
@@ -420,8 +424,6 @@ This can be useful for passing to higher order functions."
 (alias macroexpand mac-expand)
 (alias append cat)
 (alias list+ cat)
-(alias list-tail nth-cons)
-(alias list-ref nth)
 (alias =0? 0?)
 (alias zero? 0?)
 (alias positive? >0?)
@@ -431,6 +433,12 @@ This can be useful for passing to higher order functions."
 (alias head car)
 (alias tail cdr)
 (alias str-nil? str-empty?)
+(alias foldl fold)
+(alias fold-left fold)
+(alias fold-right foldr)
+(alias unfoldl unfold)
+(alias unfold-left unfold)
+(alias unfold-right unfoldr)
 
 ;;;; Implementation information
 
