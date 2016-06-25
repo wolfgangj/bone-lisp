@@ -20,7 +20,7 @@
 #define BONE_MAJOR 0
 #define BONE_MINOR 3
 #define BONE_PATCH 0
-#define BONE_VERSION_EXTRA "-pre"
+#define BONE_VERSION_EXTRA ""
 
 #include <stdint.h>
 #include <stdbool.h>

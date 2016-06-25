@@ -1,5 +1,68 @@
 # Release information
 
+## 0.3.0
+
+* Support for I/O:
+  Read from `*src*`.
+  Print to `*dst*`.
+  Also define `*stdin*`, `*stdout*` and `*stderr*`.
+  Provide macros:
+  `with-file-dst`
+  `with-file-src`
+  `with-stderr`
+* You can specify a script file on the command line;
+  you can also use Unix `#!` notation to specify the interpreter in the file.
+  (If a file starts with `#`, the first line is ignored.)
+* Added the documentation generator `gendoc.bn`.
+* The reader macro `#eval` allows read-time evaluation.
+* New builtin subs and macs:
+  `awhen`
+  `drop`
+  `dropr`
+  `dst?`
+  `eof?`
+  `num->str`
+  `sort`
+  `src?`
+  `str-dropr`
+  `str-empty?`
+  `str-prefix?`
+  `str-take`
+  `str-taker`
+  `sym->str`
+  `take`
+  `taker`
+* New POSIX bindings:
+  `sys.dst-close?`
+  `sys.dst-open?`
+  `sys.random`
+  `sys.src-close?`
+  `sys.src-open?`
+* New standard library module `std/random` containing:
+  `random-choice`
+* New standard library module `std/bases` containing the reader macros:
+  `#bin`
+  `#oct`
+  `#hex`
+  `#in-base`
+* New standard library module `std/alist` containing:
+  `simplify-alist`
+* Moved these subs from prelude to new standard library module `std/math`:
+  `max`
+  `min`
+  `percent`
+* Module `std/math` additionally contains:
+  `abs`
+  `difference`
+  `even?`
+  `iota`
+  `mean`
+  `odd?`
+  `sum`
+* Read access to dynamically scoped variables is faster as it avoids the hash table lookup.
+  Write access is also faster as it only does a single lookup.
+* Show line numbers on parse errors.
+
 ## 0.2.0
 
 * Dynamic scoping is now possible via `defvar` and `with-var`.
