@@ -391,10 +391,7 @@ This can be useful for passing to higher order functions."
 
 (defsub (str-suffix? suffix string)
   "Check whether the str `string` ends in `suffix`."
-  (let ((suffix-len (str-len suffix))
-        (string-len (str-len string)))
-    (and (>=? string-len suffix-len)
-         (str=? suffix (str-drop (- string-len suffix-len) string)))))
+  (str=? suffix (str-taker (str-len suffix) string)))
 
 (defsub (str-prefix? prefix string)
   "Check whether `string` starts with `prefix`."
