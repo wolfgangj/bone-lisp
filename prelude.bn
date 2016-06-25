@@ -329,11 +329,25 @@ This can be useful for passing to higher order functions."
     (drop (-- n) (cdr xs))))
 
 (defsub (take n xs)
-  "Return the first `n` elements of `xs` (or all of `xs` if it has less than `n`)."
+  "Return the first `n` elements of `xs` (or all of `xs` if it has less than `n` elements)."
   (if (or (0? n) (nil? xs))
       ()
     (cons (car xs)
           (take (-- n) (cdr xs)))))
+
+(defsub (dropr n xs)
+  "Drop the `n` elements from the end of `xs`."
+  (with cnt (- (len xs) n)
+    (if (<0? cnt)
+	()
+      (take cnt xs))))
+
+(defsub (taker n xs)
+  "Take the `n` last elements from `xs` (or all of `xs` if it has less than `n` elements)."
+  (with cnt (- (len xs) n)
+    (if (<0? cnt)
+	xs
+      (drop cnt xs))))
 
 (defsub (car? x)
   "If `x` is a cons, return its car, otherwise return `#f`."
@@ -366,6 +380,14 @@ This can be useful for passing to higher order functions."
 (defsub (str-take n s)
   "Return a str containing the first `n` characters of `s` (or all of `s` if it's shorter)."
   (str (take n (unstr s))))
+
+(defsub (str-dropr n s)
+  "Return str `s` without the first `n` characters."
+  (str (dropr n (unstr s))))
+
+(defsub (str-taker n s)
+  "Return a str containing the first `n` characters of `s` (or all of `s` if it's shorter)."
+  (str (taker n (unstr s))))
 
 (defsub (str-suffix? suffix string)
   "Check whether the str `string` ends in `suffix`."
@@ -439,6 +461,10 @@ This can be useful for passing to higher order functions."
 (alias unfoldl unfold)
 (alias unfold-left unfold)
 (alias unfold-right unfoldr)
+(alias drop-right dropr)
+(alias take-right taker)
+(alias str-drop-right str-dropr)
+(alias str-take-right str-taker)
 
 ;;;; Implementation information
 
