@@ -1250,6 +1250,7 @@ typedef enum {
   OP_RET,
   OP_PREPARE_SUB,
   OP_ADD_ENV,
+  OP_MAKE_SUB_NAMED,
   OP_MAKE_SUB,
   OP_MAKE_RECURSIVE,
   OP_DYN
@@ -1419,6 +1420,18 @@ start:;
     case OP_ADD_ENV:
       *(lambda_envp++) = last_value;
       break;
+    case OP_MAKE_SUB_NAMED: {
+      any parent = call_sp->subr->code->name;
+      if(is(parent)) {
+	char *text = symtext(parent);
+	char *name = malloc(strlen(text) + 2);
+	name[0] = '@';
+	strcpy(name + 1, text);
+	lambda->code->name = intern(name);
+	free(name);
+      }
+      ip[-1] = OP_MAKE_SUB;
+    } // fall through
     case OP_MAKE_SUB:
       last_value = sub2any(lambda);
       break;
@@ -1677,7 +1690,7 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
     emit(pos, state);
     emit(OP_ADD_ENV, state);
   }
-  emit(OP_MAKE_SUB, state);
+  emit(OP_MAKE_SUB_NAMED, state);
 }
 
 my void compile_do(any body, any env, bool tail_context, compile_state *state) {
@@ -1829,7 +1842,6 @@ my sub_code compile2sub_code(any expr, any env, int argc, int take_rest,
 
 my sub_code compile_toplevel_expr(any e) {
   sub_code res = compile2sub_code(mac_expand(e), NIL, 0, 0, 0);
-  name_sub((sub)&res, intern("<top>"));
   return res;
 }
 
