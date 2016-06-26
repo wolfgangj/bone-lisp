@@ -746,11 +746,15 @@ my void name_sub(sub subr, any name) {
 //////////////// bindings ////////////////
 
 my any get_dyn_val(any name);
-my void add_name(hash namespace, any name, bool overwritable, any val) {
+my void check_overwrite(hash namespace, any name) {
   any prev = hash_get(namespace, name);
   if (is(prev) && far(prev) == BINDING_DEFINED &&
       !is(get_dyn_val(intern("_*allow-overwrites*"))))
     generic_error("already defined", name);
+}
+
+my void add_name(hash namespace, any name, bool overwritable, any val) {
+  check_overwrite(namespace, name);
   if (is_sub(val))
     name_sub(any2sub(val), name);
 
@@ -767,6 +771,13 @@ my void bind(any name, bool overwritable, any subr) {
   add_name(bindings, name, overwritable, subr);
 }
 my bool is_bound(any name) { return get_binding(name) != BFALSE; }
+
+my void declare_binding(any name) {
+  check_overwrite(bindings, name);
+  reg_permanent();
+  hash_set(bindings, name, cons(BINDING_DECLARED, BFALSE));
+  reg_pop();
+}
 
 my hash macros; // FIXME: needs mutex protection, see above
 my void mac_bind(any name, bool overwritable, any subr) {
@@ -1253,7 +1264,8 @@ typedef enum {
   OP_MAKE_SUB_NAMED,
   OP_MAKE_SUB,
   OP_MAKE_RECURSIVE,
-  OP_DYN
+  OP_DYN,
+  OP_INSERT_DECLARED
 } opcode;
 
 void bone_result(any x) { last_value = x; }
@@ -1441,6 +1453,15 @@ start:;
     case OP_DYN:
       last_value = dynamic_vals[any2int(*ip++)];
       break;
+    case OP_INSERT_DECLARED: {
+      any binding = get_binding(*ip);
+      if(far(binding) == BINDING_DECLARED)
+	generic_error("binding declared, but not defined before use", *ip);
+      ip[-1] = OP_CONST;
+      last_value = ip[0] = fdr(binding);
+      ip++;
+      break;
+    }
     default:
       printf("unknown vm instruction\n");
       abort(); // FIXME
@@ -1802,8 +1823,13 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     }
     any global = get_binding(e);
     if (is_cons(global)) {
-      emit(OP_CONST, state);
-      emit(fdr(global), state);
+      if(far(global) != BINDING_DECLARED) {
+	emit(OP_CONST, state);
+	emit(fdr(global), state);
+      } else {
+	emit(OP_INSERT_DECLARED, state);
+	emit(e, state);
+      }
       break;
     }
     any dyn = get_dyn(e);
@@ -2205,6 +2231,8 @@ DEFSUB(eofp) { last_value = to_bool(args[0] == ENDOFFILE); }
 DEFSUB(srcp) { last_value = to_bool(tag_of(args[0]) == t_other && *((type_other_tag *)untag(args[0])) == t_other_src); }
 DEFSUB(dstp) { last_value = to_bool(tag_of(args[0]) == t_other && *((type_other_tag *)untag(args[0])) == t_other_dst); }
 
+DEFSUB(declare) { declare_binding(args[0]); }
+
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
   code->ops[0] = OP_WRAP;
@@ -2322,6 +2350,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_eofp, "eof?", 1, 0);
   bone_register_csub(CSUB_srcp, "src?", 1, 0);
   bone_register_csub(CSUB_dstp, "dst?", 1, 0);
+  bone_register_csub(CSUB_declare, "_declare", 1, 0);
 }
 
 //////////////// misc ////////////////

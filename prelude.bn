@@ -77,6 +77,14 @@
   "Register the locally used reader macro `name` with code `body`."
   `(_reader-bind ',name #t (lambda () ,@body)))
 
+(defmac (declare name)
+  "Announce that `name` will be defined later.
+
+It will be possible for code to refer to the binding before its
+definition, but it has to be defined before that code is being run.
+This is intended for making mutual recursion of subs possible."
+  `(_declare ',name))
+
 (internmac (_optimize name binary n-ary)
   `(internmac (,name . args)
      (cons (if (_fast=? 2 (len args)) ',binary ',n-ary) args)))
