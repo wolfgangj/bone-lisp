@@ -433,6 +433,17 @@ This can be useful for passing to higher order functions."
   "Check whether str `s` is the empty str."
   (str=? "" s))
 
+(defsub (chr-skip ignore consume)
+  "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
+  (with loop (lambda ()
+	       (if (not (member? (chr-look)
+				 (unstr ignore)))
+		   (if consume (chr-read) (chr-look))
+		 (do (chr-read)
+		     (loop))))
+    (loop)))
+
+
 (defreader eval
   "Evaluate the next expression at read-time."
   (eval (read)))
@@ -515,7 +526,7 @@ This can be useful for passing to higher order functions."
 (internsub (_use-mod mod)
   (cond ((member? mod _*complete-mods*) #t)
         ((member? mod _*incomplete-mods*)
-         (say "ERR: recursive module inclusion\n") (sys.exit 1)) ; FIXME: should be a call to single error sub
+         (err "ERR: recursive module inclusion\n"))
         (#t (with-var _*incomplete-mods* (cons mod _*incomplete-mods*)
               (_load mod))
             (_var! '_*complete-mods* (cons mod _*complete-mods*)))))
