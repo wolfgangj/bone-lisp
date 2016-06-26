@@ -357,6 +357,30 @@ This can be useful for passing to higher order functions."
 	xs
       (drop cnt xs))))
 
+(defsub (find? is? xs)
+  "Return the first element in `xs` that satisfies predicate `is?`."
+  (with loop (lambda (xs)
+	       (cond ((nil? xs) #f)
+		     ((is? (car xs)) (car xs))
+		     (#t (loop (cdr xs)))))
+    (loop xs)))
+
+(defsub (any? is? xs)
+  "Return whether any element of `xs` satisfies predicate `is?`."
+  (with loop (lambda (xs)
+	       (cond ((nil? xs) #f)
+		     ((is? (car xs)) #t)
+		     (#t (loop (cdr xs)))))
+    (loop xs)))
+
+(defsub (all? is? xs)
+  "Return whether any element of `xs` satisfies predicate `is?`."
+  (with loop (lambda (xs)
+	       (cond ((nil? xs) #t)
+		     ((not (is? (car xs))) #f)
+		     (#t (loop (cdr xs)))))
+    (loop xs)))
+
 (defsub (car? x)
   "If `x` is a cons, return its car, otherwise return `#f`."
   (and (cons? x) (car x)))

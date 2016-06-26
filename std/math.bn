@@ -63,3 +63,12 @@ The step size `step` may be negative, in which case `to` needs to be lower than 
 (defsub (odd? n)
   "Return whether `n` is an odd number."
   (not (even? n)))
+
+(defsub (count is? xs)
+  "Count the number of elements in `xs` which satisfy predicate `is?`."
+  (fold (lambda (x so-far)
+	  (if (is? x)
+	      (++ so-far)
+	    so-far))
+	0
+	xs))
