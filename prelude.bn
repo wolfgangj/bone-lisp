@@ -192,9 +192,10 @@ The `bindings` are of the form `(name value)`."
 
 (defsub (partial sub . args)
   "Partially apply `args` to `sub`."
-  (if (single? args)       ; fast path
-      (lambda more-args
-	(apply sub (car args) more-args))
+  (if (single? args)
+      (with arg (car args)   ; fast path
+	(lambda more-args
+	  (apply sub arg more-args)))
     (lambda more-args
       (apply sub (cat args more-args)))))
 
