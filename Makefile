@@ -11,3 +11,6 @@ bone: $(MODULES)
 
 clean:
 	rm -f bone *.o
+
+test: bone
+	prove -e ./bone tests/*.bn

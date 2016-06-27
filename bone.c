@@ -2233,6 +2233,14 @@ DEFSUB(dstp) { last_value = to_bool(tag_of(args[0]) == t_other && *((type_other_
 
 DEFSUB(declare) { declare_binding(args[0]); }
 
+DEFSUB(protect) {
+  try {
+    call0(args[0]);
+  } catch {
+    last_value = BFALSE;
+  }
+}
+
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
   code->ops[0] = OP_WRAP;
@@ -2351,6 +2359,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_srcp, "src?", 1, 0);
   bone_register_csub(CSUB_dstp, "dst?", 1, 0);
   bone_register_csub(CSUB_declare, "_declare", 1, 0);
+  bone_register_csub(CSUB_protect, "_protect", 1, 0);
 }
 
 //////////////// misc ////////////////

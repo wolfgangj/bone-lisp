@@ -1,0 +1,41 @@
+;;;; std/tap.bn -- Test Anything Protocol library.   -*- bone -*-
+;;;; Copyright (C) 2016 Wolfgang Jaehrling
+;;;;
+;;;; Permission to use, copy, modify, and/or distribute this software for any
+;;;; purpose with or without fee is hereby granted, provided that the above
+;;;; copyright notice and this permission notice appear in all copies.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+;;;; WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+;;;; MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+;;;; ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+;;;; WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+(defvar *_test-number* 0)
+
+(mysub (_test-next)
+  (_var! '*_test-number* (++ *_test-number*))
+  *_test-number*)
+
+(internsub (_test desc expr)
+  (say (if (in-reg expr) "ok" "not ok")
+       " " (_test-next) " " desc "\n"))
+
+(defmac (test desc . exprs)
+  "Test whether all of `exprs` are true."
+  `(_test ,desc (and ,@(map (lambda (e)
+			      `(_protect (lambda () ,e)))
+			    exprs))))
+
+(defmac (test-error desc . exprs)
+  "Test whether all of `exprs` yield errors."
+  `(_test ,desc (and ,@(map (lambda (e)
+			      `(not (_protect (lambda () ,e))))
+			    exprs))))
+
+(defsub (test-plan-end)
+  "Display the test plan at the end."
+  (say "1.." *_test-number* "\n"))
+
