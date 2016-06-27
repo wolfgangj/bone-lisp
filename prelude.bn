@@ -381,13 +381,21 @@ This can be useful for passing to higher order functions."
 		     (#t (loop (cdr xs)))))
     (loop xs)))
 
+(defsub (flatten xs)
+  "Turn the tree `xs` into a list."
+  (cat-lists (map (lambda (x)
+		    (cond ((cons? x) (flatten x))
+			  ((nil? x)  ())
+			  (#t        (list x))))
+		  xs)))
+
 (defsub (car? x)
   "If `x` is a cons, return its car, otherwise return `#f`."
   (and (cons? x) (car x)))
 
 (defsub (cdr? x)
   "If `x` is a cons, return its cdr, otherwise return `#f`."
-  (and (cons? x) (car x)))
+  (and (cons? x) (cdr x)))
 
 (defsub (assocar? key alist)
   "Get the first value of the list associated with `key` in `alist` (or `#f` if `key` not in `alist`)."
@@ -432,6 +440,15 @@ This can be useful for passing to higher order functions."
 (defsub (str-empty? s)
   "Check whether str `s` is the empty str."
   (str=? "" s))
+
+;; FIXME: this would be simpler if (cdr ()) == ()
+(defsub (str-join separator . strs)
+  "Concatenate `strs` with `separator` between each str."
+  (apply str+ (or (cdr? (foldr (lambda (s so-far)
+				 (list* separator s so-far))
+			       ()
+			       strs))
+		  ())))
 
 (defsub (chr-skip ignore consume)
   "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
