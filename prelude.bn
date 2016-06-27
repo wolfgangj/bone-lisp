@@ -190,6 +190,14 @@ The `bindings` are of the form `(name value)`."
   (lambda args
     (sub1 (apply sub2 args))))
 
+(defsub (partial sub . args)
+  "Partially apply `args` to `sub`."
+  (if (single? args)       ; fast path
+      (lambda more-args
+	(apply sub (car args) more-args))
+    (lambda more-args
+      (apply sub (cat args more-args)))))
+
 (defmac (in-reg . body)
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_in-reg (lambda () ,@body)))

@@ -43,7 +43,14 @@
   "Return the (positive) difference between numbers `a` and `b`."
   (abs (- a b)))
 
-(defsub (iota from to step)
+(defsub (iota count start step)
+  "Generate a list of numbers starting with `start`, step size of `step` and length `count`."
+  (unfold (partial =? count)
+	  | n (+ start (* n step))
+	  ++
+	  0))
+
+(defsub (iota* from to step)
   "Generate a list of numbers starting with `from`, ending with `to` and step size of `step`.
 
 The step size `step` may be negative, in which case `to` needs to be lower than `from`."
