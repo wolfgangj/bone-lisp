@@ -397,11 +397,11 @@ This can be useful for passing to higher order functions."
   "If `x` is a cons, return its cdr, otherwise return `#f`."
   (and (cons? x) (cdr x)))
 
-(defsub (car-or-nil x)
+(defsub (car* x)
   "If `x` is a cons, return its car; otherwise, return nil."
   (if (cons? x) (car x) ()))
 
-(defsub (cdr-or-nil x)
+(defsub (cdr* x)
   "If `x` is a cons, return its cdr; otherwise, return nil."
   (if (cons? x) (cdr x) ()))
 
@@ -451,10 +451,10 @@ This can be useful for passing to higher order functions."
 
 (defsub (str-join separator . strs)
   "Concatenate `strs` with `separator` between each str."
-  (apply str+ (cdr-or-nil (foldr (lambda (s so-far)
-				   (list* separator s so-far))
-				 ()
-				 strs))))
+  (apply str+ (cdr* (foldr (lambda (s so-far)
+			     (list* separator s so-far))
+			   ()
+			   strs))))
 
 (defsub (chr-skip ignore consume)
   "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
