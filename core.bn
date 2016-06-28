@@ -327,11 +327,11 @@ followed by zero or more continuing code points."
 
 This will print the object so that it can be read by humans and also
 read back by the Lisp reader, except if it contains objects which
-cannot be read back, like regions or `sub`s.  Reading back is possible
-as long as it only contains lists, `sym`s, numbers and bools.  The
-abbreviations for `quote`, `quasiquote`, `unquote`, `unquote-splicing`
-and `lambda` will be printed to keep the output short and as
-human-readable as possible.")
+cannot be read back, like `sub`s.  Reading back is possible as long as
+it only contains lists, `sym`s, numbers and bools.  The abbreviations
+for `quote`, `quasiquote`, `unquote`, `unquote-splicing` and `lambda`
+will be printed to keep the output short and as human-readable as
+possible.")
 
   (defsub (say . xs)
     "Print all `xs`.
@@ -339,7 +339,9 @@ human-readable as possible.")
 The differences to the `print` sub are:
 * A `str` is printed without the quote signs and without escape sequences.
 * A list is printed by applying it to `say`.
-* All other objects are printed as with `print`.")
+* All other objects are printed as with `print`.
+
+Always returns `#t`.")
 
   (defsub (err . xs)
     "Print all of `xs` as with `say`, then raise an error.")

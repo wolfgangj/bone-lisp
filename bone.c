@@ -1963,7 +1963,7 @@ DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) {
   foreach (x, args[0])
     say(x);
-  last_value = args[0];
+  last_value = BTRUE;
 }
 DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
 DEFSUB(fullminus) {
