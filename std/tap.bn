@@ -38,7 +38,7 @@
 (defmac (test-error desc . exprs)
   "Test whether all of `exprs` yield errors."
   `(_test ,desc (and ,@(map (lambda (e)
-			      `(not (_protect (lambda () (eval ',e)))))
+			      `(not (_protect (lambda () (eval ',e) #t))))
 			    exprs))))
 
 (mysub (_count-tests)
