@@ -15,6 +15,8 @@
 
 (use std/tap)
 
+(test-plan "tests/base.bn")
+
 (test "`(do)` doesn't change last_value."   ; we expect that behaviour in `or`
   (eq? (do () (do)) ()))
 
@@ -25,4 +27,3 @@
 (test "quasiquote"
   (eq? 3 ``,,(+ 1 2)))
 
-(test-plan-end)

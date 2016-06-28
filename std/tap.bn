@@ -26,20 +26,33 @@
   *_test-number*)
 
 (internsub (_test desc expr)
-  (say (if (in-reg expr) "ok" "not ok")
+  (say (if expr "ok" "not ok")
        " " (_test-next) " " desc "\n"))
 
 (defmac (test desc . exprs)
   "Test whether all of `exprs` are true."
-  `(_test ,desc (and ,@(map (lambda (e)
-			      `(_protect (lambda () (eval ',e))))
-			    exprs))))
+  `(_test ,desc (in-reg (and ,@(map (lambda (e)
+				      `(_protect (lambda () (eval ',e))))
+				    exprs)))))
 
 (defmac (test-error desc . exprs)
   "Test whether all of `exprs` yield errors."
   `(_test ,desc (and ,@(map (lambda (e)
-			      `(not (_protect (lambda () ,e))))
+			      `(not (_protect (lambda () (eval ',e)))))
 			    exprs))))
+
+(mysub (_count-tests)
+  (with loop (lambda (so-far)
+	       (with expr (read)
+		 (cond ((eof? expr) so-far)
+		       ((member? (car? expr) '(test test-error)) (loop (++ so-far)))
+		       (#t (loop so-far)))))
+    (loop 0)))
+
+(defsub (test-plan file)
+  "Announce a test plan for `file`."
+  (in-reg (with-file-src file
+	    (say "1.." (_count-tests) "\n"))))
 
 (defsub (test-plan-end)
   "Display the test plan at the end."
