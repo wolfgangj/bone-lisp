@@ -28,10 +28,20 @@
 #include "bone.h"
 
 my any last_value; // FIXME: thread-local
+my bool silence_errors = false; // FIXME: thread-local?
+
+my void eprintf(const char *fmt, ...) {
+  if(!silence_errors) {
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+  }
+}
 
 // my any L(any x) { print(x); puts(""); return x; } // for debugging
 my void fail(const char *msg) {
-  fprintf(stderr, "%s\n", msg);
+  eprintf("%s\n", msg);
   exit(1);
 }
 
@@ -61,21 +71,21 @@ bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
-my void print(any x);
+my void eprint(any x);
 my void backtrace(); // FIXME: to header?
 
 my void generic_error(const char *msg, any x) {
-  printf("ERR: %s: ", msg);
-  print(x);
-  printf("\n");
+  eprintf("ERR: %s: ", msg);
+  eprint(x);
+  eprintf("\n");
   backtrace();
   throw();
 }
 
 my void type_error(any x, type_tag t) {
-  printf("ERR: typecheck failed: (%s? ", type_name(t));
-  print(x);
-  printf(")\n");
+  eprintf("ERR: typecheck failed: (%s? ", type_name(t));
+  eprint(x);
+  eprintf(")\n");
   backtrace();
   throw();
 }
@@ -916,6 +926,8 @@ my int look() {
 
 //////////////// printer ////////////////
 
+my void print(any x);
+
 my void print_sub_args(any x) {
   if (!is_cons(x)) {
     if (!is_nil(x)) {
@@ -1048,12 +1060,21 @@ my void say(any x) {
   }
 }
 
+my void eprint(any x) {
+  if(!silence_errors) {
+    any old = dynamic_vals[dyn_dst];
+    dynamic_vals[dyn_dst] = get_dyn_val(intern("*stderr*"));
+    print(x);
+    dynamic_vals[dyn_dst] = old;
+  }
+}
+
 //////////////// reader ////////////////
 
 // FIXME
 my void parse_error(const char *text) {
-  print(dynamic_vals[dyn_src]);
-  bprintf(": parse error: %s\n", text);
+  eprint(dynamic_vals[dyn_src]);
+  eprintf(": parse error: %s\n", text);
   throw();
 } 
 
@@ -1288,34 +1309,34 @@ struct call_stack_entry {
 
 my bool is_self_evaluating(any x) { return !(is_sym(x) || is_cons(x)); }
 
-my void print_arg(any x) {
+my void eprint_arg(any x) {
   if (!is_self_evaluating(x))
-    printf("'");
-  print(x);
+    eprintf("'");
+  eprint(x);
 }
 
 my void backtrace() {
-  printf("BACKTRACE:\n");
+  eprintf("BACKTRACE:\n");
   for (struct call_stack_entry *e = call_sp; e > call_stack; e--) {
-    printf("(");
+    eprintf("(");
     if (is(e->subr->code->name))
-      print(e->subr->code->name);
+      eprint(e->subr->code->name);
     else
-      printf("<unknown>");
+      eprintf("<unknown>");
 
     int i;
     for (i = 0; i != e->subr->code->argc; i++) {
-      printf(" ");
-      print_arg(e->args[i]);
+      eprintf(" ");
+      eprint_arg(e->args[i]);
     }
     if (e->subr->code->take_rest)
       foreach (x, e->args[i]) {
-        printf(" ");
-        print_arg(x);
+        eprintf(" ");
+        eprint_arg(x);
       }
-    printf(")\n");
+    eprintf(")\n");
     if (e->tail_calls)
-      printf(";; hidden tail calls: %d\n", e->tail_calls);
+      eprintf(";; hidden tail calls: %d\n", e->tail_calls);
   }
 }
 
@@ -1463,7 +1484,7 @@ start:;
       break;
     }
     default:
-      printf("unknown vm instruction\n");
+      eprintf("unknown vm instruction\n");
       abort(); // FIXME
     }
 cleanup:
@@ -2234,11 +2255,13 @@ DEFSUB(dstp) { last_value = to_bool(tag_of(args[0]) == t_other && *((type_other_
 DEFSUB(declare) { declare_binding(args[0]); }
 
 DEFSUB(protect) {
+  silence_errors = true;
   try {
     call0(args[0]);
   } catch {
     last_value = BFALSE;
   }
+  silence_errors = false;
 }
 
 my any make_csub(csub cptr, int argc, int take_rest) {

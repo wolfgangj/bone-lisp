@@ -48,6 +48,7 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Classic Lisp Macros
 * Reader macros
 * I/O streams
+* TAS conforming testing library
 * POSIX bindings (but not many yet...)
 
 ### What it does not (yet)
@@ -197,6 +198,7 @@ Always feel free to ask for details on any of those.
 * `bone.c`/`compile_if()`: currently, everything after the third argument is ignored, i.e.
   `(if 1 2 3 4)` is identical to `(if 1 2 3)`.
   We want either implicit `do` for the else branch (like ELisp) or raise an error - both would be fine to me.
+* The documentation generator (`gendoc.bn`) needs a lot of improvements.
 * `_*lisp-info*` should have an entry like `(posix-support 0)` when the POSIX module is compiled in.
   (The `0` is intended as a version number; this seems more useful than just using `#t`.)
 * POSIX binding for `strerror()` (and lots of other stuff, actually).
@@ -207,7 +209,6 @@ Always feel free to ask for details on any of those.
 * Dynamically resize call stack and various other things.
 * If you want to add a fancy feature, try doing a reader macro for string interpolation
   (and here documents with string interpolation.)
-* Building a testing framework would be very useful.
 
 ## License
 

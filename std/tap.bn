@@ -13,6 +13,12 @@
 ;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 ;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+;;;; This is a testing library that produces output which conforms to
+;;;; the Test Anything Protocol (TAP), see www.testanything.org for
+;;;; more information about TAP.  This library does not support all
+;;;; features of TAP yet, but the important thing is that its output
+;;;; can be used by a test harness.
+
 (defvar *_test-number* 0)
 
 (mysub (_test-next)
@@ -26,7 +32,7 @@
 (defmac (test desc . exprs)
   "Test whether all of `exprs` are true."
   `(_test ,desc (and ,@(map (lambda (e)
-			      `(_protect (lambda () ,e)))
+			      `(_protect (lambda () (eval ',e))))
 			    exprs))))
 
 (defmac (test-error desc . exprs)
