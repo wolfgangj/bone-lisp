@@ -25,12 +25,12 @@
 (mysub (_read-alist)
   (if (=? (chr-skip " \n\t" #f) #chr")")
       (do (chr-read)   ; skip past ")"
-	  ())
+          ())
     (with key (read)
       (if (<>? (chr-skip " \n\t" #t) #chr":")
-	  (err "invalid alist notation: expected `:`.")
-	(cons (list key (read))
-	      (_read-alist))))))
+          (err "invalid alist notation: expected `:`.")
+        (cons (list key (read))
+              (_read-alist))))))
 
 (defreader =>
   "Convenient notation for association lists.

@@ -194,8 +194,8 @@ The `bindings` are of the form `(name value)`."
   "Partially apply `args` to `sub`."
   (if (single? args)
       (with arg (car args)   ; fast path
-	(lambda more-args
-	  (apply sub arg more-args)))
+        (lambda more-args
+          (apply sub arg more-args)))
     (lambda more-args
       (apply sub (cat args more-args)))))
 
@@ -356,47 +356,47 @@ This can be useful for passing to higher order functions."
   "Drop the `n` elements from the end of `xs`."
   (with cnt (- (len xs) n)
     (if (<0? cnt)
-	()
+        ()
       (take cnt xs))))
 
 (defsub (taker n xs)
   "Take the `n` last elements from `xs` (or all of `xs` if it has less than `n` elements)."
   (with cnt (- (len xs) n)
     (if (<0? cnt)
-	xs
+        xs
       (drop cnt xs))))
 
 (defsub (find? is? xs)
   "Return the first element in `xs` that satisfies predicate `is?`."
   (with loop (lambda (xs)
-	       (cond ((nil? xs) #f)
-		     ((is? (car xs)) (car xs))
-		     (#t (loop (cdr xs)))))
+               (cond ((nil? xs) #f)
+                     ((is? (car xs)) (car xs))
+                     (#t (loop (cdr xs)))))
     (loop xs)))
 
 (defsub (any? is? xs)
   "Return whether any element of `xs` satisfies predicate `is?`."
   (with loop (lambda (xs)
-	       (cond ((nil? xs) #f)
-		     ((is? (car xs)) #t)
-		     (#t (loop (cdr xs)))))
+               (cond ((nil? xs) #f)
+                     ((is? (car xs)) #t)
+                     (#t (loop (cdr xs)))))
     (loop xs)))
 
 (defsub (all? is? xs)
   "Return whether any element of `xs` satisfies predicate `is?`."
   (with loop (lambda (xs)
-	       (cond ((nil? xs) #t)
-		     ((not (is? (car xs))) #f)
-		     (#t (loop (cdr xs)))))
+               (cond ((nil? xs) #t)
+                     ((not (is? (car xs))) #f)
+                     (#t (loop (cdr xs)))))
     (loop xs)))
 
 (defsub (flatten xs)
   "Turn the tree `xs` into a list."
   (cat-lists (map (lambda (x)
-		    (cond ((cons? x) (flatten x))
-			  ((nil? x)  ())
-			  (#t        (list x))))
-		  xs)))
+                    (cond ((cons? x) (flatten x))
+                          ((nil? x)  ())
+                          (#t        (list x))))
+                  xs)))
 
 (defsub (car? x)
   "If `x` is a cons, return its car, otherwise return `#f`."
@@ -461,18 +461,18 @@ This can be useful for passing to higher order functions."
 (defsub (str-join separator . strs)
   "Concatenate `strs` with `separator` between each str."
   (apply str+ (cdr* (foldr (lambda (s so-far)
-			     (list* separator s so-far))
-			   ()
-			   strs))))
+                             (list* separator s so-far))
+                           ()
+                           strs))))
 
 (defsub (chr-skip ignore consume)
   "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
   (with loop (lambda ()
-	       (if (not (member? (chr-look)
-				 (unstr ignore)))
-		   (if consume (chr-read) (chr-look))
-		 (do (chr-read)
-		     (loop))))
+               (if (not (member? (chr-look)
+                                 (unstr ignore)))
+                   (if consume (chr-read) (chr-look))
+                 (do (chr-read)
+                     (loop))))
     (loop)))
 
 
