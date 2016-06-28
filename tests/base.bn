@@ -27,3 +27,14 @@
 (test "quasiquote"
   (eq? 3 ``,,(+ 1 2)))
 
+(test "`/` with 2 operands"
+  (eq? 4 (/ 20 5))
+  (eq? 4 (/ 21 5)))
+
+(test "`/` with more than 2 operands"
+  (eq? 5 (/ 30 2 3))
+  (eq? 5 (/ 31 2 3)))
+
+(test-error "`/` by zero"
+  (/ 3 0)
+  (/ 10 2 0 5))

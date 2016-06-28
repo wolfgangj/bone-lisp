@@ -2002,9 +2002,15 @@ DEFSUB(fullmult) {
     ires *= any2int(n);
   last_value = int2any(ires);
 }
-DEFSUB(fastdiv) { last_value = int2any(any2int(args[0]) / any2int(args[1])); }
+DEFSUB(fastdiv) {
+  if (any2int(args[1]) == 0)
+    generic_error("division by zero", args[1]);
+  last_value = int2any(any2int(args[0]) / any2int(args[1]));
+}
 DEFSUB(fulldiv) {
   CSUB_fullmult(&args[1]);
+  if (any2int(last_value) == 0)
+    generic_error("division by zero", last_value);
   last_value = int2any(any2int(args[0]) / any2int(last_value));
 }
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
