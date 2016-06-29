@@ -22,6 +22,7 @@ int main(int argc, char **argv) {
   bone_init(argc, argv);
   bone_posix_init();
   bone_load("prelude");
+  bone_load("posixprelude");
   if (argc > 1) {
     bone_load(argv[1]);
     return 0;

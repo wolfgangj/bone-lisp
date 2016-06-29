@@ -59,6 +59,9 @@ return `#f`.")
 (defsub (sys.time?)
   "Return seconds since epoch.")
 
+(defsub (sys.gettimeofday?)
+  "Return a list `(seconds microseconds)` of the time since epoch.")
+
 (defsub (sys.mkdir? dir mode)
   "Create the directory `dir` with permissions as specified by `mode`.")
 

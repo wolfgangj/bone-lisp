@@ -1,0 +1,30 @@
+;;;; tests/posix.bn -- POSIX operations tests.   -*- bone -*-
+;;;; Copyright (C) 2016 Dov Murik
+;;;;
+;;;; Permission to use, copy, modify, and/or distribute this software for any
+;;;; purpose with or without fee is hereby granted, provided that the above
+;;;; copyright notice and this permission notice appear in all copies.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+;;;; WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+;;;; MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+;;;; ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+;;;; WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+(use std/tap)
+
+(test-plan "tests/posix.bn")
+
+(test "`gettimeofday`"
+  (let ((t (gettimeofday))
+        (sec (car t))
+        (usec (cadr t)))
+    (and (<=? 0 usec 999999)
+         (<? 946684800 sec))))  ; seconds are after 2000-01-01 00:00:00
+
+(test "`timeofday-diff`"
+  (eq? 1000000 (timeofday-diff '(31 0) '(30 0)))
+  (eq? -1000000 (timeofday-diff '(30 0) '(31 0)))
+  (eq? 300000 (timeofday-diff '(31 100000) '(30 800000))))
