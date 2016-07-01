@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -145,6 +146,15 @@ DEFSUB(time) {
   time_t t = time(NULL);
   ses();
   bone_result((t != -1) ? int2any(t) : BFALSE);
+}
+
+// FIXME: not Y2038-safe w/ 32bit-fixnums
+DEFSUB(gettimeofday) {
+  struct timeval tv;
+  int res = gettimeofday(&tv, NULL);
+  ses();
+  bone_result((res != -1) ? cons(int2any(tv.tv_sec), single(int2any(tv.tv_usec)))
+                          : BFALSE);
 }
 
 DEFSUB(mkdir) {
@@ -311,6 +321,7 @@ void bone_posix_init() {
   bone_register_csub(CSUB_chdir, "sys.chdir?", 1, 0);
   bone_register_csub(CSUB_getcwd, "sys.getcwd?", 0, 0);
   bone_register_csub(CSUB_time, "sys.time?", 0, 0);
+  bone_register_csub(CSUB_gettimeofday, "sys.gettimeofday?", 0, 0);
   bone_register_csub(CSUB_mkdir, "sys.mkdir?", 2, 0);
   bone_register_csub(CSUB_rmdir, "sys.rmdir?", 1, 0);
   bone_register_csub(CSUB_link, "sys.link?", 2, 0);

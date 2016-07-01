@@ -1,0 +1,32 @@
+;;;; std/bench.bn -- Benchmark library.   -*- bone -*-
+;;;; Copyright (C) 2016 Dov Murik
+;;;;
+;;;; Permission to use, copy, modify, and/or distribute this software for any
+;;;; purpose with or without fee is hereby granted, provided that the above
+;;;; copyright notice and this permission notice appear in all copies.
+;;;;
+;;;; THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+;;;; WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+;;;; MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+;;;; ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+;;;; WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+(defsub (measure-time f)
+  "Execute `f` (function with no arguments) and return the number of microseconds elapsed."
+  (with start-time (gettimeofday)
+    (f)
+    (timeofday-diff (gettimeofday) start-time)))
+
+(defmac (say-time f)
+  "Execute `f` (any Bone Lisp expression) and print the time it took.  Example:
+
+    (say-time (unfoldr =0? id -- 10000))
+    Running (unfoldr =0? id -- 10000) ... Elapsed: 15117 usecs"
+  `(do
+    (say "Running ")
+    (print ',f)
+    (say " ... ")
+    (with elapsed (measure-time | ,f)
+      (say "Elapsed: " elapsed " usecs\n"))))
