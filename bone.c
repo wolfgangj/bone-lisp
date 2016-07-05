@@ -260,7 +260,7 @@ my any copy_back(any x) {
   return y;
 }
 
-//////////////// excepions ////////////////
+//////////////// exceptions ////////////////
 
 // FIXME: thread-local, dynamic resize
 my struct {
@@ -741,11 +741,11 @@ my sub any2sub(any x) { return (sub)untag_check(x, t_sub); }
 my any copy_sub(any x) {
   sub s = any2sub(x);
   int envsize = s->code->size_of_env;
-  any *p = reg_alloc(1 + envsize);
+  any *res = reg_alloc(1 + envsize), *p = res;
   *p++ = (any)s->code;
   for (int i = 0; i != envsize; i++)
     *p++ = copy(s->env[i]);
-  return tag((any)p, t_sub);
+  return tag((any)res, t_sub);
 }
 
 my void name_sub(sub subr, any name) {
