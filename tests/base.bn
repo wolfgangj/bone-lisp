@@ -95,3 +95,22 @@
   (nil? (cat () () ()))
   (equal? '(1 2) (cat '(1) () '(2))))
 
+(test "len"
+  (0? (len ()))
+  (=? (len '(1 2)) 2))
+
+(test "map"
+  (equal? (map ++ '(0 1)) '(1 2))
+  (with x 10
+    (equal? (map | n (+ x n) '(1 2))
+            '(11 12))))
+
+(test "filter"
+  (nil? (filter >0? '(0 -2)))
+  (equal? (filter >0? '(1 -2 3 -5 6))
+          '(1 3 6))
+  (nil? (filter | x (err "oops") ())))
+
+(test "sort"
+  (equal? (sort <? '(4 2 5 3 0 1))
+          '(5 4 3 2 1 0)))
