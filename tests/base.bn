@@ -38,3 +38,60 @@
 (test-error "`/` by zero"
   (/ 3 0)
   (/ 10 2 0 5))
+
+(test "equal?"
+  (equal? '(1 a "foo") (list 1 'a "foo"))
+  (equal? '(((1 . 2) 3 4 . 5) 6 (7 . (8 9)))
+          '(((1 . 2) 3 4 . 5) 6 (7 8 9))))
+
+(test "if"
+  (if #t #t #f)
+  (if #f #f #t))
+
+(test-error "invalid `if`"
+  (if)
+  (if #t)
+  (if #t #f)
+  (if #f #f #f #f)) ; FIXME
+
+(test "closures"
+  ((lambda (a) (not a)) #f)
+  (| x (nil? x) ())
+  (str=? "test"
+         ((with x "test"
+            (in-reg (lambda () x))))))
+
+(test "eval"
+  (eval #t)
+  (eval '(eq? (+ 1 2) 3)))
+
+(test "copy"
+  (equal? '(1 x (3) 4) (copy '(1 x (3) 4)))
+  (str=? "test" (copy "test")))
+
+(test "apply"
+  (=? 10 (apply + (list 1 2 3 4)))
+  (0? (apply - 10 1 '(2 3 4)))
+  (0? (apply + ())))
+
+(test "list*"
+  (equal? (list* 1 2 3) '(1 2 . 3))
+  (eq? (list*) ()))
+
+(test "reverse"
+  (equal? (reverse '(1 2 (3))) '((3) 2 1))
+  (eq? (reverse ()) ()))
+
+(test "member"
+  (member? 'x '(a b c x y))
+  (not (member? 'x ())))
+
+(test "`cat` with 2 args"
+  (nil? (cat () ()))
+  (equal? (cat '(1) ()) '(1))
+  (equal? (cat () '(2)) '(2)))
+
+(test "`cat` with 3 args"
+  (nil? (cat () () ()))
+  (equal? '(1 2) (cat '(1) () '(2))))
+
