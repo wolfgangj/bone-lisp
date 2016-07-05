@@ -422,6 +422,10 @@ This can be useful for passing to higher order functions."
   "The number of characters in the str `s`."
   (len (unstr s)))
 
+(defsub (str-nth n s)
+  "Return the `n`th character in string `s`."
+  (nth n (unstr s)))
+
 (defsub (str+ . strs)
   "Concatenate all the `strs`."
   (str (cat-lists (map unstr strs))))
