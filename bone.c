@@ -1395,8 +1395,8 @@ my void verify_argc(struct upcoming_call *the_call) {
 }
 
 my void call(sub subr, size_t args_pos, int locals_cnt) {
-  sub lambda;
-  any *lambda_envp;
+  sub lambda = NULL;
+  any *lambda_envp = NULL;
   call_stack_pos++;
   if (call_stack_pos == call_stack_allocated) {
     call_stack_allocated *= 2;
