@@ -217,7 +217,7 @@ to a new region and freeing the previous region.  Example:
 
     (reg-loop (list 1 2 3)
       | a b c (cons (<? (+ a b c) 100)
-                    (mapx (list a b c) ++)))
+                    (map ++ (list a b c))))
 
 This will increment the three values until their sum is larger than
 100, return a list of the values eventually."
@@ -320,10 +320,6 @@ See `++` for background information."
 
 This can be useful for passing to higher order functions."
   (cons a d))
-
-(defsub (mapx xs sub)
-  "Like `map`, but with reversed argument order."
-  (map sub xs))
 
 (defsub (cat-lists xs)
   "Concatenate all the lists in `xs` together."
@@ -537,6 +533,8 @@ This can be useful for passing to higher order functions."
 (alias take-right taker)
 (alias str-drop-right str-dropr)
 (alias str-take-right str-taker)
+(alias every? all?)
+(alias for-each each)
 
 ;;;; Implementation information
 
@@ -565,7 +563,7 @@ This can be useful for passing to higher order functions."
 
 (defmac (use . mods)
   "Use the modules listed in `mods`.  Don't call this inside of the dynamic extent of `in-reg`." ; FIXME. :-/
-  `(each ',mods _use-mod))
+  `(each _use-mod ',mods))
 
 (defmac (reload mod)
   "Load the module `mod`; existing bindings can be overwritten by it."

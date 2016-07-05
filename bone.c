@@ -2013,9 +2013,9 @@ DEFSUB(fast_num_leqp) {
   last_value = to_bool(any2int(args[0]) <= any2int(args[1]));
 }
 DEFSUB(each) {
-  check(args[1], t_sub);
-  foreach (x, args[0])
-    call1(args[1], x);
+  check(args[0], t_sub);
+  foreach (x, args[1])
+    call1(args[0], x);
 }
 DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) {

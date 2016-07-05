@@ -197,9 +197,9 @@ This means that `(list* 1 2 3)` returns `(1 2 . 3)`.")
     "Return a list with the elements of `xs`, but in opposite order.")
 
   (defsub (member? x xs)
-    "Return whether `x` is in the list `xs`")
+    "Return whether `x` is in the list `xs`.")
 
-  (defsub (each xs sub)
+  (defsub (each sub xs)
     "Apply `sub` to every element of the list `xs` in sequence.
 
 The result should be ignored, but will be the result of the last call to `sub`.")
