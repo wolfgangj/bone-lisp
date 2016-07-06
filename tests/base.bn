@@ -114,3 +114,7 @@
 (test "sort"
   (equal? (sort <? '(4 2 5 3 0 1))
           '(5 4 3 2 1 0)))
+
+(test "destructure"
+  (equal? (destructure (a b c) (list 1 2 3) (list c b a))
+          '(3 2 1)))

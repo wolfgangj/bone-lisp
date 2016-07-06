@@ -176,6 +176,15 @@ The `bindings` are of the form `(name value)`."
   "Anamorphic `when`: Bind `it` to the result of `expr`."
   `(with it ,expr (when it ,@body)))
 
+(defmac (destructure bindings val . body)
+  "Bind a list of `bindings` to the list `val`, thereby destructuring it."
+  (with lst (gensym)
+    `(with ,lst ,val
+       (with ,(car bindings) (car ,lst)
+         ,(if (nil? (cdr bindings))
+              (cons 'do body)
+            `(destructure ,(cdr bindings) (cdr ,lst) ,@body))))))
+
 (defsub (equal? a b)
   "Compare `a` and `b` for structural equality."
   (cond ((str? a) (and (str? b)
