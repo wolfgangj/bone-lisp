@@ -69,6 +69,8 @@ void set_fdr(any cell, any x);
 bool is_cons(any x);
 bool is_single(any x);
 any single(any x);
+any list2(any a, any b);
+any list3(any a, any b, any c);
 #define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))
 #define foreach_cons(var, lst) for(any var = (lst); !is_nil(var); var = fdr(var))
 

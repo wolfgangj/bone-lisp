@@ -153,8 +153,7 @@ DEFSUB(gettimeofday) {
   struct timeval tv;
   int res = gettimeofday(&tv, NULL);
   ses();
-  bone_result((res != -1) ? cons(int2any(tv.tv_sec), single(int2any(tv.tv_usec)))
-                          : BFALSE);
+  bone_result((res != -1) ? list2(int2any(tv.tv_sec), int2any(tv.tv_usec)) : BFALSE);
 }
 
 DEFSUB(mkdir) {
@@ -259,8 +258,7 @@ DEFSUB(fork) {
 DEFSUB(waitpid) { // FIXME: flags as syms
   int status, res = waitpid(any2int(args[0]), &status, any2int(args[1]));
   ses();
-  bone_result((res != -1) ? cons(int2any(res), single(int2any(status)))
-                          : BFALSE);
+  bone_result((res != -1) ? list2(int2any(res), int2any(status)) : BFALSE);
 }
 
 // With these you can analyze the status returned by waitpid:

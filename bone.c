@@ -322,6 +322,14 @@ bool is_cons(any x) { return is_tagged(x, t_cons); }
 bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 any single(any x) { return cons(x, NIL); }
 
+any list2(any a, any b) {
+  return cons(a, single(b));
+}
+
+any list3(any a, any b, any c) {
+  return cons(a, cons(b, single(c)));
+}
+
 listgen listgen_new() {
   listgen res = {NIL, NIL};
   return res;
@@ -1218,7 +1226,7 @@ my any short_lambda_parser(any *body) {
 
 my any read_lambda_short_form() {
   any body, args = short_lambda_parser(&body);
-  return cons(s_lambda, cons(args, single(body)));
+  return list3(s_lambda, args, body);
 }
 
 my any read_unquote() {
@@ -1552,7 +1560,7 @@ void call0(any subr) { apply(subr, NIL); }
 
 void call1(any subr, any x) { apply(subr, single(x)); }
 
-void call2(any subr, any x, any y) { apply(subr, cons(x, single(y))); }
+void call2(any subr, any x, any y) { apply(subr, list2(x, y)); }
 
 //////////////// compiler ////////////////
 
@@ -1925,15 +1933,14 @@ my any quasiquote(any x);
 
 my any qq_list(any x) {
   if (!is_cons(x))
-    return cons(s_quote, single(x));
+    return list2(s_quote, x);
   if (far(x) == s_unquote)
-    return cons(s_list, single(fdr(x)));
+    return list2(s_list, fdr(x));
   if (far(x) == s_unquote_splicing)
     return fdr(x);
   if (far(x) == s_quasiquote)
     return qq_list(quasiquote(fdr(x)));
-  return cons(s_list, single(cons(s_cat, cons(qq_list(far(x)),
-                                              single(quasiquote(fdr(x)))))));
+  return list2(s_list, list3(s_cat, qq_list(far(x)), quasiquote(fdr(x))));
 }
 
 my any qq_id(any x) { return !is_sym(x) ? x : cons(s_quote, x); }
@@ -1947,7 +1954,7 @@ my any quasiquote(any x) {
     generic_error("invalid quasiquote form", x);
   if (far(x) == s_quasiquote)
     return quasiquote(quasiquote(fdr(x)));
-  return cons(s_cat, cons(qq_list(far(x)), single(quasiquote(fdr(x)))));
+  return list3(s_cat, qq_list(far(x)), quasiquote(fdr(x)));
 }
 
 //////////////// library ////////////////
@@ -2456,7 +2463,7 @@ my void bone_init_thread() {
 }
 
 my any add_info_entry(const char *name, int n, any prev) {
-  return cons(cons(intern(name), single(int2any(n))), prev);
+  return cons(list2(intern(name), int2any(n)), prev);
 }
 
 void bone_init(int argc, char **argv) {
