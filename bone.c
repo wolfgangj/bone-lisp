@@ -16,6 +16,7 @@
 
 #define _GNU_SOURCE 1 // for mmap()s MAP_ANONYMOUS
 #include <assert.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -112,15 +113,26 @@ type_other_tag get_other_type(any x) {
 }
 
 my bool is_num(any x) { return is_tagged(x, t_num); }
-// FIXME: these assume little-endian
-int32_t any2int(any x) {
+
+my type_num_tag get_num_type(any x) {
   check(x, t_num);
-  return ((int32_t *)&x)[1];
+  return (x >> 3) & 1;
 }
-any int2any(int32_t n) {
-  any r = t_num;
-  ((int32_t *)&r)[1] = n;
-  return r;
+
+int64_t any2int(any x) {
+  if (get_num_type(x) != t_num_int)
+    generic_error("ERR: expected integer type", x);
+#if (-1 >> 1) == -1 /* Does bit shifting preserve the sign? */
+  return (int64_t)x >> 4;
+#else
+  return ((int64_t)x < 0)
+      ? (~((~((int64_t)x)) >> 4)) /* Negate before and after */
+      : ((int64_t)x >> 4);
+#endif
+}
+
+any int2any(int64_t n) {
+  return tag((n << 4) | (t_num_int << 3), t_num);
 }
 
 //////////////// regions ////////////////
@@ -517,7 +529,7 @@ my bool str_eql(any s1, any s2) {
 
 my any num2str(any n) {
   char buf[32];
-  snprintf(buf, 32, "%d", any2int(n));
+  snprintf(buf, sizeof(buf), "%" PRId64, any2int(n));
   return charp2str(buf);
 }
 
@@ -993,7 +1005,7 @@ my void print(any x) {
     break;
   }
   case t_sym: bprintf("%s", symtext(x)); break;
-  case t_num: bprintf("%d", any2int(x)); break;
+  case t_num: bprintf("%" PRId64, any2int(x)); break;
   case t_uniq:
     switch (x) {
     case NIL: bprintf("()"); break;
@@ -1130,7 +1142,8 @@ my int digit2int(any chr) {
 }
 
 my any chars2num(any chrs) {
-  int ires = 0, pos = 0;
+  int64_t ires = 0;
+  int pos = 0;
   bool is_positive = true,
        is_num = false; // need `is_num` to catch "", "+" and "-"
   foreach (chr, chrs) {
@@ -2061,7 +2074,7 @@ DEFSUB(full_num_eqp) {
   last_value = BTRUE;
   if (is_nil(args[0]))
     return;
-  int32_t n = any2int(far(args[0]));
+  int64_t n = any2int(far(args[0]));
   foreach (x, fdr(args[0]))
     if (n != any2int(x)) {
       last_value = BFALSE;
@@ -2072,9 +2085,9 @@ DEFSUB(full_num_gtp) {
   last_value = BTRUE;
   if (is_nil(args[0]))
     return;
-  int32_t n = any2int(far(args[0]));
+  int64_t n = any2int(far(args[0]));
   foreach (x, fdr(args[0])) {
-    int32_t m = any2int(x);
+    int64_t m = any2int(x);
     if (n <= m) {
       last_value = BFALSE;
       return;
@@ -2086,9 +2099,9 @@ DEFSUB(full_num_ltp) {
   last_value = BTRUE;
   if (is_nil(args[0]))
     return;
-  int32_t n = any2int(far(args[0]));
+  int64_t n = any2int(far(args[0]));
   foreach (x, fdr(args[0])) {
-    int32_t m = any2int(x);
+    int64_t m = any2int(x);
     if (n >= m) {
       last_value = BFALSE;
       return;
@@ -2100,9 +2113,9 @@ DEFSUB(full_num_geqp) {
   last_value = BTRUE;
   if (is_nil(args[0]))
     return;
-  int32_t n = any2int(far(args[0]));
+  int64_t n = any2int(far(args[0]));
   foreach (x, fdr(args[0])) {
-    int32_t m = any2int(x);
+    int64_t m = any2int(x);
     if (n < m) {
       last_value = BFALSE;
       return;
@@ -2114,9 +2127,9 @@ DEFSUB(full_num_leqp) {
   last_value = BTRUE;
   if (is_nil(args[0]))
     return;
-  int32_t n = any2int(far(args[0]));
+  int64_t n = any2int(far(args[0]));
   foreach (x, fdr(args[0])) {
-    int32_t m = any2int(x);
+    int64_t m = any2int(x);
     if (n > m) {
       last_value = BFALSE;
       return;

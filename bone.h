@@ -35,6 +35,7 @@ typedef uint64_t any; // we only support 64 bit currently
 typedef void (*csub)(any *);
 typedef enum { t_cons = 0, t_sym = 1, t_uniq = 2, t_str = 3, t_reg = 4, t_sub = 5, t_num = 6, t_other = 7 } type_tag;
 typedef enum { t_other_src, t_other_dst } type_other_tag;
+typedef enum { t_num_int, t_num_float } type_num_tag;
 #define UNIQ(n) (t_uniq | (010*(n)))
 #define NIL       UNIQ(0)
 #define BTRUE     UNIQ(1)
@@ -55,8 +56,8 @@ any to_bool(int x);
 
 type_other_tag get_other_type(any x);
 
-int32_t any2int(any x);
-any int2any(int32_t n);
+int64_t any2int(any x);
+any int2any(int64_t n);
 
 any cons(any a, any d);
 my any precons(any a);
