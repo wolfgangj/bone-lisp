@@ -655,7 +655,7 @@ my any add_sym(const char *name, size_t len, any id) {
   reg_permanent();
   char *new = (char *)reg_alloc(bytes2words(len + 1));
   reg_pop();
-  memcpy(new, name, len);
+  memcpy(new, name, len + 1);
   hash_set(sym_ht, id, (any) new);
   return as_sym(new);
 }
@@ -1079,7 +1079,6 @@ my void eprint(any x) {
 
 //////////////// reader ////////////////
 
-// FIXME
 my void parse_error(const char *text) {
   eprint(dynamic_vals[dyn_src]);
   eprintf(": parse error: %s\n", text);
