@@ -132,6 +132,8 @@ int64_t any2int(any x) {
 }
 
 any int2any(int64_t n) {
+  if (n < BONE_INT_MIN || n > BONE_INT_MAX)
+    generic_error("ERR: integer out of allowed range", NIL);
   return tag((n << 4) | (t_num_int << 3), t_num);
 }
 
