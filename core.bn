@@ -22,10 +22,12 @@
 (defsection "Special forms"
   "Special forms are built-in forms with special evaluation rules."
 
-  (defspecial (if test then else)
-    "If `test` yields true, evaluate `then`, otherwise `else`.
+  (defspecial (if test then . else)
+    "If `test` yields true, evaluate `then`, otherwise all expressions in `else`.
 
-The only value that does not count as true is `\f`, the booolean false
+If `else` is empty and `test` is false, returns false.
+
+The only value that does not count as true is `#f`, the booolean false
 value.  This means that the empty list as well as the number zero are
 considered to be true values.  See `nil?` and `zero?` if you want to
 check for those values.")

@@ -1636,7 +1636,7 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   set_far(to_else_jmp.dst, int2any(state->pos + 1 - to_else_jmp.pos));
   compile_state after_then_jmp = *state;
 
-  compile_expr(car(e), env, tail_context, state);
+  compile_expr(cons(s_do, e), env, tail_context, state);
   set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
 }
 
