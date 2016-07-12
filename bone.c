@@ -72,7 +72,7 @@ bool is(any x) { return x != BFALSE; }
 any to_bool(int x) { return x ? BTRUE : BFALSE; }
 
 my void eprint(any x);
-my void backtrace(); // FIXME: to header?
+my void backtrace();
 
 my void generic_error(const char *msg, any x) {
   eprintf("ERR: %s: ", msg);
@@ -523,22 +523,21 @@ my any num2str(any n) {
 
 //////////////// hash tables ////////////////
 
-#define MAXLOAD                                                                \
-  175 // Value between 0 and 255; 128 will cause an average of two probes.
+#define MAXLOAD 175 // value between 0 and 255
 typedef struct {
-  unsigned size, taken_slots;
+  size_t size, taken_slots;
   any *keys, *vals;
   any default_value;
 } * hash;
 
-my hash hash_new(unsigned initsize, any default_val) {
+my hash hash_new(size_t initsize, any default_val) {
   hash h = malloc(sizeof(*h));
   h->size = initsize;
   h->taken_slots = 0;
   h->default_value = default_val;
   h->keys = malloc(initsize * sizeof(any));
   h->vals = malloc(initsize * sizeof(any));
-  for (unsigned i = 0; i != initsize; i++)
+  for (size_t i = 0; i != initsize; i++)
     h->keys[i] = HASH_SLOT_UNUSED;
   return h;
 }
@@ -553,20 +552,23 @@ my void hash_free(hash h) {
    Return true if there is an entry with this key already.  If there
    is none, *POS will contain the position of the slot we can use to
    add it. */
-my bool find_slot(hash h, any key, unsigned *pos) {
-  int first_deleted = -1;
+my bool find_slot(hash h, any key, size_t *pos) {
+  bool found_deleted = false;
+  size_t first_deleted = 0;
   *pos = key % h->size;
   while (1) {
     if (h->keys[*pos] == key)
       return true;
     if (h->keys[*pos] == HASH_SLOT_UNUSED) {
-      if (first_deleted != -1)
+      if (found_deleted)
         *pos = first_deleted;
       return false;
     }
     if (h->keys[*pos] == HASH_SLOT_DELETED) {
-      if (first_deleted == -1)
+      if (!found_deleted) {
+        found_deleted = true;
         first_deleted = *pos;
+      }
     }
     if (++(*pos) == h->size)
       *pos = 0;
@@ -581,7 +583,7 @@ my bool slot_used(any x) {
 
 my void enlarge_table(hash h) {
   hash new = hash_new(h->size * 2 + 1, NIL);
-  for (unsigned i = 0; i != h->size; i++)
+  for (size_t i = 0; i != h->size; i++)
     if (slot_used(h->keys[i]))
       hash_set(new, h->keys[i], h->vals[i]);
   free(h->keys);
@@ -593,7 +595,7 @@ my void enlarge_table(hash h) {
 }
 
 my void hash_set(hash h, any key, any val) {
-  unsigned pos;
+  size_t pos;
   if (!find_slot(h, key, &pos)) { // adding a new entry
     h->taken_slots++;
     if (((h->taken_slots << 8) / h->size) > MAXLOAD) {
@@ -606,12 +608,12 @@ my void hash_set(hash h, any key, any val) {
 }
 
 my any hash_get(hash h, any key) {
-  unsigned pos;
+  size_t pos;
   return find_slot(h, key, &pos) ? h->vals[pos] : h->default_value;
 }
 
 my void hash_rm(hash h, any key) {
-  unsigned pos;
+  size_t pos;
   if (find_slot(h, key, &pos)) {
     h->keys[pos] = HASH_SLOT_DELETED;
     h->taken_slots--;
@@ -620,11 +622,11 @@ my void hash_rm(hash h, any key) {
 
 #if 0 // FIXME: hash_iter
 my void hash_each(hash h, hash_iter fn, void *hook) {
-  for(unsigned i = 0; i != h->size; i++)
+  for(size_t i = 0; i != h->size; i++)
     if(slot_used(h->keys[i])) fn(hook, h->keys[i], h->vals[i]);
 }
 my void hash_print(hash h) { // useful for debugging
-  for(unsigned i = 0; i != h->size; i++)
+  for(size_t i = 0; i != h->size; i++)
     if(slot_used(h->keys[i])) {
       print(h->keys[i]); putchar('='); print(h->vals[i]); putchar('\n');
     }
@@ -681,7 +683,7 @@ my any intern_from_chars(any chrs) {
 }
 
 my any gensym() {
-  static int gensyms = 0;
+  static int gensyms = 0; // FIXME: multiple threads?
   reg_permanent();
   char *new = (char *)reg_alloc(1);
   reg_pop();
@@ -782,8 +784,7 @@ my void add_name(hash namespace, any name, bool overwritable, any val) {
   reg_pop();
 }
 
-my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it
-                  // only at compile-time anyway
+my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
 my any get_binding(any name) { return hash_get(bindings, name); }
 my void bind(any name, bool overwritable, any subr) {
   add_name(bindings, name, overwritable, subr);
