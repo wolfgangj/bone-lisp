@@ -56,9 +56,7 @@ my const char *type_name(type_tag tag) {
   case t_reg: return "reg";
   case t_sub: return "sub";
   case t_num: return "num";
-  case t_other:
-    return "<?>"; // FIXME: need to do something about t_other types.
-  default: abort();
+  case t_other: default: abort(); // never called with t_other
   }
 }
 
@@ -95,7 +93,7 @@ my type_tag tag_of(any x) { return x & 7; }
 my bool is_tagged(any x, type_tag t) { return tag_of(x) == t; }
 
 my void check(any x, type_tag t) {
-  if (!is_tagged(x, t))
+  if(!is_tagged(x, t))
     type_error(x, t);
 }
 
@@ -120,7 +118,7 @@ my type_num_tag get_num_type(any x) {
 }
 
 int64_t any2int(any x) {
-  if (get_num_type(x) != t_num_int)
+  if(get_num_type(x) != t_num_int)
     generic_error("ERR: expected integer type", x);
 #if (-1 >> 1) == -1 /* Does bit shifting preserve the sign? */
   return (int64_t)x >> 4;
@@ -132,7 +130,7 @@ int64_t any2int(any x) {
 }
 
 any int2any(int64_t n) {
-  if (n < BONE_INT_MIN || n > BONE_INT_MAX)
+  if(n < BONE_INT_MIN || n > BONE_INT_MAX)
     generic_error("ERR: integer out of allowed range", NIL);
   return tag((n << 4) | (t_num_int << 3), t_num);
 }
@@ -148,114 +146,40 @@ my any **free_block;
 // The metadata of a region (i.e. this struct) is stored in its first block.
 typedef struct { any **current_block, **allocp; } * reg;
 
-// get ptr to start of block that x belongs to.
-my any **block(any *x) {
-  return (any **)(blockmask & (any)x);
-}
-
-my any **blocks_alloc(int n) {
-  return mmap(NULL, blocksize * n, PROT_READ | PROT_WRITE,
-              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-}
-
-my void block_point_to_next(any **p, int i) {
-  p[i * blockwords] = (any *)&p[(i + 1) * blockwords];
-}
-
-my void blocks_init(any **p, int n) {
-  n--;
-  for (int i = 0; i < n; i++)
-    block_point_to_next(p, i);
-  p[n * blockwords] = NULL;
-}
-
-my any **fresh_blocks() {
-  any **p = blocks_alloc(ALLOC_BLOCKS_AT_ONCE);
-  blocks_init(p, ALLOC_BLOCKS_AT_ONCE);
-  return p;
-}
-
-my void ensure_free_block() {
-  if (!free_block)
-    free_block = fresh_blocks();
-}
-
-my any **block_new(any **next) {
-  ensure_free_block();
-  any **r = free_block;
-  free_block = (any **)r[0];
-  r[0] = (any *)next;
-  return r;
-}
-
-my void reg_init(reg r, any **b) {
-  r->current_block = b;
-  r->allocp = (any **)&r[1];
-}
-
-my reg reg_new() {
-  any **b = block_new(NULL);
-  reg r = (reg)&b[1];
-  reg_init(r, b);
-  return r;
-}
-
-my void reg_free(reg r) {
-  block((any *)r)[0] = (any *)free_block;
-  free_block = r->current_block;
-}
-
-my void blocks_sysfree(any **b) {
-  if (!b)
-    return;
-  any **next = (any **)b[0];
-  munmap(b, blocksize);
-  blocks_sysfree(next);
-}
-
+// This code is in FORTH-style.
+my any **block(any *x) { return (any **)(blockmask & (any)x); } // get ptr to start of block that x belongs to.
+my any **blocks_alloc(int n) { return mmap(NULL, blocksize * n, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); }
+my void block_point_to_next(any **p, int i) { p[i * blockwords] = (any *)&p[(i + 1) * blockwords]; }
+my void blocks_init(any **p, int n) { n--; for(int i = 0; i < n; i++) block_point_to_next(p, i); p[n * blockwords] = NULL; }
+my any **fresh_blocks() { any **p = blocks_alloc(ALLOC_BLOCKS_AT_ONCE); blocks_init(p, ALLOC_BLOCKS_AT_ONCE); return p; }
+my void ensure_free_block() { if(!free_block) free_block = fresh_blocks(); }
+my any **block_new(any **next) { ensure_free_block(); any **r = free_block; free_block = (any **)r[0]; r[0] = (any *)next; return r; }
+my void reg_init(reg r, any **b) { r->current_block = b; r->allocp = (any **)&r[1]; }
+my reg reg_new() { any **b = block_new(NULL); reg r = (reg)&b[1]; reg_init(r, b); return r; }
+my void reg_free(reg r) { block((any *)r)[0] = (any *)free_block; free_block = r->current_block; }
+my void blocks_sysfree(any **b) { if(!b) return; any **next = (any **)b[0]; munmap(b, blocksize); blocks_sysfree(next); }
 my void reg_sysfree(reg r) { blocks_sysfree(r->current_block); }
 
 my reg permanent_reg;
 my reg reg_stack[64];
 my reg *reg_sp = reg_stack;       // points to tos!
 my any **allocp, **current_block; // from currently used reg.
-
-my void load_reg(reg r) {
-  allocp = r->allocp;
-  current_block = r->current_block;
-}
-
-my void store_reg(reg r) {
-  r->allocp = allocp;
-  r->current_block = current_block;
-}
-
-my void reg_push(reg r) {
-  store_reg(*reg_sp);
-  reg_sp++;
-  *reg_sp = r;
-  load_reg(*reg_sp);
-}
-
-my reg reg_pop() {
-  store_reg(*reg_sp);
-  reg r = *reg_sp;
-  reg_sp--;
-  load_reg(*reg_sp);
-  return r;
-}
+my void load_reg(reg r)  { allocp = r->allocp; current_block = r->current_block; }
+my void store_reg(reg r) { r->allocp = allocp; r->current_block = current_block; }
+my void reg_push(reg r) { store_reg(*reg_sp);                  reg_sp++; *reg_sp = r; load_reg(*reg_sp); }
+my reg reg_pop()        { store_reg(*reg_sp); reg r = *reg_sp; reg_sp--;              load_reg(*reg_sp); return r; }
 
 my void reg_permanent() { reg_push(permanent_reg); }
 
 my void rollback_reg_sp(reg *p) {
-  while (reg_sp != p)
+  while(reg_sp != p)
     reg_free(reg_pop());
 }
 
 my any *reg_alloc(int n) {
   any *res = (any *)allocp;
   allocp += n;
-  if (block((any *)allocp) == current_block)
+  if(block((any *)allocp) == current_block)
     return res; // normal case
   current_block = block_new(current_block);
   allocp = (any **)&current_block[1];
@@ -290,7 +214,7 @@ jmp_buf *begin_try_() {
 }
 
 my void exc_buf_nonempty() {
-  if (!exc_num)
+  if(!exc_num)
     fail("internal error: throw/catch mismatch");
 }
 
@@ -335,22 +259,13 @@ void set_fdr(any cell, any x) { ((any *)cell)[1] = x; }
 bool is_cons(any x) { return is_tagged(x, t_cons); }
 bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 any single(any x) { return cons(x, NIL); }
+any list2(any a, any b) { return cons(a, single(b)); }
+any list3(any a, any b, any c) { return cons(a, cons(b, single(c))); }
 
-any list2(any a, any b) {
-  return cons(a, single(b));
-}
-
-any list3(any a, any b, any c) {
-  return cons(a, cons(b, single(c)));
-}
-
-listgen listgen_new() {
-  listgen res = {NIL, NIL};
-  return res;
-}
+listgen listgen_new() { listgen res = {NIL, NIL}; return res; }
 
 void listgen_add(listgen *lg, any x) {
-  if (is_nil(lg->xs))
+  if(is_nil(lg->xs))
     lg->xs = lg->last = single(x);
   else {
     any new = single(x);
@@ -360,12 +275,12 @@ void listgen_add(listgen *lg, any x) {
 }
 
 my void listgen_add_list(listgen *lg, any xs) {
-  foreach (x, xs)
+  foreach(x, xs)
     listgen_add(lg, x);
 }
 
 my void listgen_set_tail(listgen *lg, any x) {
-  if (is_nil(lg->xs))
+  if(is_nil(lg->xs))
     lg->xs = lg->last = x;
   else
     set_fdr(lg->last, x);
@@ -379,53 +294,53 @@ my any duplist(any xs) {
 
 my int len(any x) {
   int n = 0;
-  foreach_cons (e, x) n++;
+  foreach_cons(e, x) n++;
   return n;
 }
 
 my any reverse(any xs) {
   any res = NIL;
-  foreach (x, xs)
+  foreach(x, xs)
     res = cons(x, res);
   return res;
 }
 
 my bool is_member(any a, any xs) {
-  foreach (x, xs)
-    if (x == a)
+  foreach(x, xs)
+    if(x == a)
       return true;
   return false;
 }
 
 my any assoc(any obj, any xs) {
-  foreach (x, xs)
-    if (car(x) == obj)
+  foreach(x, xs)
+    if(car(x) == obj)
       return fdr(x);
   return BFALSE;
 }
 
 my any assoc_entry(any obj, any xs) {
-  foreach (x, xs)
-    if (car(x) == obj)
+  foreach(x, xs)
+    if(car(x) == obj)
       return x;
   return BFALSE;
 }
 
 my any cat2(any a, any b) {
-  if (is_nil(a))
+  if(is_nil(a))
     return b;
   listgen lg = listgen_new();
-  foreach (x, a)
+  foreach(x, a)
     listgen_add(&lg, x);
   set_fdr(lg.last, b);
   return lg.xs;
 }
 
 my any move_last_to_rest_x(any xs) {
-  if (is_single(xs))
+  if(is_single(xs))
     return far(xs);
   foreach_cons(pair, xs)
-    if (is_single(fdr(pair))) {
+    if(is_single(fdr(pair))) {
       set_fdr(pair, far(fdr(pair)));
       break;
     }
@@ -433,39 +348,39 @@ my any move_last_to_rest_x(any xs) {
 }
 
 my any mergesort(any bigger_p, any hd) {
-  if (is_nil(hd))
+  if(is_nil(hd))
     return NIL;
   hd = duplist(hd);
   int area = 1; // size of a part we currently process
-  while (1) {
+  while(1) {
     any p = hd;
     hd = NIL;
     any tl = NIL;
     int merge_cnt = 0;
-    while (!is_nil(p)) {
+    while(!is_nil(p)) {
       merge_cnt++;
       any q = p;
       int len_of_p = 0;
-      for (int i = 0; i < area; i++) {
+      for(int i = 0; i < area; i++) {
         len_of_p++;
         q = fdr(q);
-        if (is_nil(q))
+        if(is_nil(q))
           break;
       }
       int len_of_q = area;
-      while (len_of_p > 0 || (len_of_q > 0 && !is_nil(q))) {
+      while(len_of_p > 0 || (len_of_q > 0 && !is_nil(q))) {
         // determine source of next element:
         bool from_p;
-        if (len_of_p == 0)
+        if(len_of_p == 0)
           from_p = false;
-        else if (len_of_q == 0 || is_nil(q))
+        else if(len_of_q == 0 || is_nil(q))
           from_p = true;
         else {
           call2(bigger_p, far(p), far(q));
           from_p = !is(last_value);
         }
         any e;
-        if (from_p) {
+        if(from_p) {
           len_of_p--;
           e = p;
           p = fdr(p);
@@ -474,7 +389,7 @@ my any mergesort(any bigger_p, any hd) {
           e = q;
           q = fdr(q);
         }
-        if (!is_nil(tl))
+        if(!is_nil(tl))
           set_fdr(tl, e);
         else
           hd = e;
@@ -483,7 +398,7 @@ my any mergesort(any bigger_p, any hd) {
       p = q;
     }
     set_fdr(tl, NIL);
-    if (merge_cnt <= 1)
+    if(merge_cnt <= 1)
       return hd;
     area *= 2;
   }
@@ -512,7 +427,7 @@ my char *list2charp(any x) {
   char *res = malloc(len(x)*4 + 1); // maximum length for UTF-8
   char *p = res;
   try {
-    foreach (c, x) {
+    foreach(c, x) {
       *p = any2int(c);
       p++;
     }
@@ -529,8 +444,8 @@ char *str2charp(any x) { return list2charp(unstr(x)); }
 my bool str_eql(any s1, any s2) {
   s1 = unstr(s1);
   s2 = unstr(s2);
-  foreach (chr, s1) {
-    if (is_nil(s2) || chr != far(s2))
+  foreach(chr, s1) {
+    if(is_nil(s2) || chr != far(s2))
       return false;
     s2 = fdr(s2);
   }
@@ -559,7 +474,7 @@ my hash hash_new(size_t initsize, any default_val) {
   h->default_value = default_val;
   h->keys = malloc(initsize * sizeof(any));
   h->vals = malloc(initsize * sizeof(any));
-  for (size_t i = 0; i != initsize; i++)
+  for(size_t i = 0; i != initsize; i++)
     h->keys[i] = HASH_SLOT_UNUSED;
   return h;
 }
@@ -578,21 +493,21 @@ my bool find_slot(hash h, any key, size_t *pos) {
   bool found_deleted = false;
   size_t first_deleted = 0;
   *pos = key % h->size;
-  while (1) {
-    if (h->keys[*pos] == key)
+  while(1) {
+    if(h->keys[*pos] == key)
       return true;
-    if (h->keys[*pos] == HASH_SLOT_UNUSED) {
-      if (found_deleted)
+    if(h->keys[*pos] == HASH_SLOT_UNUSED) {
+      if(found_deleted)
         *pos = first_deleted;
       return false;
     }
-    if (h->keys[*pos] == HASH_SLOT_DELETED) {
-      if (!found_deleted) {
+    if(h->keys[*pos] == HASH_SLOT_DELETED) {
+      if(!found_deleted) {
         found_deleted = true;
         first_deleted = *pos;
       }
     }
-    if (++(*pos) == h->size)
+    if(++(*pos) == h->size)
       *pos = 0;
   }
 }
@@ -605,8 +520,8 @@ my bool slot_used(any x) {
 
 my void enlarge_table(hash h) {
   hash new = hash_new(h->size * 2 + 1, NIL);
-  for (size_t i = 0; i != h->size; i++)
-    if (slot_used(h->keys[i]))
+  for(size_t i = 0; i != h->size; i++)
+    if(slot_used(h->keys[i]))
       hash_set(new, h->keys[i], h->vals[i]);
   free(h->keys);
   free(h->vals);
@@ -618,9 +533,9 @@ my void enlarge_table(hash h) {
 
 my void hash_set(hash h, any key, any val) {
   size_t pos;
-  if (!find_slot(h, key, &pos)) { // adding a new entry
+  if(!find_slot(h, key, &pos)) { // adding a new entry
     h->taken_slots++;
-    if (((h->taken_slots << 8) / h->size) > MAXLOAD) {
+    if(((h->taken_slots << 8) / h->size) > MAXLOAD) {
       enlarge_table(h);
       find_slot(h, key, &pos);
     }
@@ -636,7 +551,7 @@ my any hash_get(hash h, any key) {
 
 my void hash_rm(hash h, any key) {
   size_t pos;
-  if (find_slot(h, key, &pos)) {
+  if(find_slot(h, key, &pos)) {
     h->keys[pos] = HASH_SLOT_DELETED;
     h->taken_slots--;
   }
@@ -662,7 +577,7 @@ my hash sym_ht;
 my any string_hash(const char *s, size_t *len) { // This is the djb2 algorithm.
   int32_t hash = 5381;
   *len = 0;
-  while (*s) {
+  while(*s) {
     (*len)++;
     hash = ((hash << 5) + hash) + *(s++);
   }
@@ -687,11 +602,11 @@ my any add_sym(const char *name, size_t len, any id) {
 any intern(const char *name) {
   size_t len;
   any id = string_hash(name, &len);
-  while (1) {
+  while(1) {
     char *candidate = (char *)hash_get(sym_ht, id);
-    if (candidate == NULL)
+    if(candidate == NULL)
       return add_sym(name, len, id);
-    if (!strcmp(candidate, name))
+    if(!strcmp(candidate, name))
       return as_sym(candidate);
     id++;
   }
@@ -719,19 +634,9 @@ my any s_quote, s_quasiquote, s_unquote, s_unquote_splicing, s_lambda, s_with,
     s_if, s_list, s_cat, s_dot, s_do, s_arg, s_env;
 #define x(name) s_##name = intern(#name)
 my void init_syms() {
-  x(quote);
-  x(quasiquote);
-  x(unquote);
-  s_unquote_splicing = intern("unquote-splicing");
-  x(lambda);
-  x(with);
-  x(if);
-  x(list);
-  x(cat);
-  s_dot = intern(".");
-  x(do);
-  x(arg);
-  x(env);
+  x(quote); x(quasiquote); x(unquote); s_unquote_splicing = intern("unquote-splicing");
+  x(lambda); x(with); x(if); x(do); x(list); x(cat); s_dot = intern(".");
+  x(arg); x(env);
 }
 #undef x
 
@@ -746,8 +651,7 @@ typedef struct sub_code { // fields are in the order in which we access them.
   any ops[1];             // can be longer
 } * sub_code;
 #define sub_code_header_size (bytes2words(sizeof(struct sub_code)) - 1)
-my sub_code make_sub_code(int argc, int take_rest, int extra_localc,
-                          int size_of_env, int code_size) {
+my sub_code make_sub_code(int argc, int take_rest, int extra_localc, int size_of_env, int code_size) {
   sub_code code = (sub_code)reg_alloc(sub_code_header_size + code_size);
   code->argc = argc;
   code->take_rest = take_rest;
@@ -775,13 +679,13 @@ my any copy_sub(any x) {
   int envsize = s->code->size_of_env;
   any *res = reg_alloc(1 + envsize), *p = res;
   *p++ = (any)s->code;
-  for (int i = 0; i != envsize; i++)
+  for(int i = 0; i != envsize; i++)
     *p++ = copy(s->env[i]);
   return tag((any)res, t_sub);
 }
 
 my void name_sub(sub subr, any name) {
-  if (!is(subr->code->name))
+  if(!is(subr->code->name))
     subr->code->name = name;
 }
 
@@ -790,19 +694,17 @@ my void name_sub(sub subr, any name) {
 my any get_dyn_val(any name);
 my void check_overwrite(hash namespace, any name) {
   any prev = hash_get(namespace, name);
-  if (is(prev) && far(prev) == BINDING_DEFINED &&
-      !is(get_dyn_val(intern("_*allow-overwrites*"))))
+  if(is(prev) && far(prev) == BINDING_DEFINED && !is(get_dyn_val(intern("_*allow-overwrites*"))))
     generic_error("already defined", name);
 }
 
 my void add_name(hash namespace, any name, bool overwritable, any val) {
   check_overwrite(namespace, name);
-  if (is_sub(val))
+  if(is_sub(val))
     name_sub(any2sub(val), name);
 
   reg_permanent();
-  hash_set(namespace, name,
-           cons(overwritable ? BINDING_EXISTS : BINDING_DEFINED, val));
+  hash_set(namespace, name, cons(overwritable ? BINDING_EXISTS : BINDING_DEFINED, val));
   reg_pop();
 }
 
@@ -842,15 +744,14 @@ my bool is_dyn_bound(any name) { return is(get_dyn(name)); }
 
 my void set_dyn_val(any name, any x) {
   any n = get_dyn(name);
-  if (!is(n))
+  if(!is(n))
     generic_error("dynamic var unbound", name);
 
   dynamic_vals[any2int(n)] = x;  
 }
 
 my void create_dyn(any name, any x) {
-  if (is_dyn_bound(name) &&
-      !is(get_dyn_val(intern("_*allow-overwrites*"))))
+  if(is_dyn_bound(name) && !is(get_dyn_val(intern("_*allow-overwrites*"))))
     generic_error("dynamic var bound twice", name);
 
   hash_set(dynamics, name, int2any(dyn_cnt));
@@ -860,7 +761,7 @@ my void create_dyn(any name, any x) {
 
 my any get_existing_dyn(any name) {
   any x = get_dyn(name);
-  if (!is(x))
+  if(!is(x))
     generic_error("dynamic var unbound", name);
   return x;
 }
@@ -882,40 +783,40 @@ my void invalid_utf8(const char *msg) {
 // read UTF-8 according to RFC 3629.
 my int utf8_read(utf8_reader reader, void *hook) {
   int val = reader (hook);
-  if (val == EOF) return val;
-  if (BITEST(val, 0, 0x80)) return val; // ASCII range
+  if(val == EOF) return val;
+  if(BITEST(val, 0, 0x80)) return val; // ASCII range
 
   int how_many_more = 0;
-  if (BITEST(val, 0xC0, 0x20)) {
+  if(BITEST(val, 0xC0, 0x20)) {
     val &= 0x1F; // keep only code point relevant bits
     how_many_more = 1;
   }
-  else if (BITEST(val, 0xE0, 0x10)) {
+  else if(BITEST(val, 0xE0, 0x10)) {
     val &= 0x0F; // see above
     how_many_more = 2;
   }
-  else if (BITEST(val, 0xF0, 0x08)) {
+  else if(BITEST(val, 0xF0, 0x08)) {
     val &= 0x07; // see above
     how_many_more = 3;
   }
   else invalid_utf8("unexpected UTF8 continuation byte");
 
-  for (int i = 0; i < how_many_more; i++) {
+  for(int i = 0; i < how_many_more; i++) {
     int next = reader(hook);
-    if (next == EOF) invalid_utf8("EOF where UTF-8 continuation byte was expected");
-    if (!BITEST(next, 0x80, 0x40)) invalid_utf8("missing UTF-8 continuation byte");
+    if(next == EOF) invalid_utf8("EOF where UTF-8 continuation byte was expected");
+    if(!BITEST(next, 0x80, 0x40)) invalid_utf8("missing UTF-8 continuation byte");
     val <<= 6;
     val |= (next & 0x3F);
   }
 
   // overlong & out-of-range encodings.
-#define not_overlong(min) if (!(val >= (min))) invalid_utf8("overlong UTF-8 encoding is forbidden")
+#define not_overlong(min) if(!(val >= (min))) invalid_utf8("overlong UTF-8 encoding is forbidden")
   switch (how_many_more) {
     case 1: not_overlong(0x80); break;
     case 2: not_overlong(0x800); break;
     case 3:
       not_overlong(0x10000);
-      if (val >= 0x10FFFF) invalid_utf8("character out of UTF-8 range as specified in RFC 3629");
+      if(val >= 0x10FFFF) invalid_utf8("character out of UTF-8 range as specified in RFC 3629");
       break;
 #undef not_overlong
     }
@@ -941,23 +842,23 @@ typedef void (*utf8_writer)(int c, void *hook);
 my void utf8_write(utf8_writer writer, int c, void *hook)
 {
 #define emit(x) writer(x, hook)
-  if (c < 0x80) { // ASCII range
+  if(c < 0x80) { // ASCII range
     emit(c);
     return;
   }
 
   // extract and mask.
 #define CONT_BYTE(x) (((x) & 0x3F) | 0x80)
-  if (c < 0x800) {
+  if(c < 0x800) {
     emit((c >> 6) | 0xC0);
     emit(CONT_BYTE(c));
   }
-  else if (c < 0x10000) {
+  else if(c < 0x10000) {
     emit((c >> 12) | 0xE0);
     emit(CONT_BYTE(c >> 6));
     emit(CONT_BYTE(c));
   }
-  else if (c < 0x110000) {
+  else if(c < 0x110000) {
     emit((c >> 18) | 0xF0);
     emit(CONT_BYTE(c >> 12));
     emit(CONT_BYTE(c >> 6));
@@ -1004,7 +905,7 @@ any fp2dst(FILE *fp, any name) { return fp2any(fp, t_other_dst, name); }
 
 my FILE *any2fp(any x, type_other_tag t) {
   io obj = (io)untag_check(x, t_other);
-  if (obj->t != t)
+  if(obj->t != t)
     generic_error("can't perform I/O on", x); // FIXME: better error
   return obj->fp;
 }
@@ -1014,14 +915,14 @@ FILE *dst2fp(any x) { return any2fp(x, t_other_dst); }
 
 my any get_filename(any x) {
   io obj = (io)untag_check(x, t_other);
-  if (obj->t != t_other_src && obj->t != t_other_dst)
+  if(obj->t != t_other_src && obj->t != t_other_dst)
     generic_error("expected src or dst", x); // FIXME: better error
   return obj->name;
 }
 
 my any input_line(any x) {
   io obj = (io)untag_check(x, t_other);
-  if (obj->t != t_other_src)
+  if(obj->t != t_other_src)
     generic_error("expected src", x); // FIXME: better error
   return obj->line;
 }
@@ -1055,7 +956,7 @@ my void bprintf(const char *fmt, ...) {
 my int nextc() {
   io obj = (io)untag(dynamic_vals[dyn_src]);
   int res = utf8getc(src2fp(dynamic_vals[dyn_src]));
-  if (res == '\n')
+  if(res == '\n')
     obj->line++;
   return res;
 }
@@ -1072,8 +973,8 @@ my int look() {
 my void print(any x);
 
 my void print_sub_args(any x) {
-  if (!is_cons(x)) {
-    if (!is_nil(x)) {
+  if(!is_cons(x)) {
+    if(!is_nil(x)) {
       bprintf(". ");
       print(x);
       bputc(' ');
@@ -1086,9 +987,9 @@ my void print_sub_args(any x) {
 }
 
 my bool is_arglist(any x) {
-  if (is_nil(x) || is_sym(x))
+  if(is_nil(x) || is_sym(x))
     return true;
-  if (is_cons(x) && is_sym(far(x)) && is_arglist(fdr(x)))
+  if(is_cons(x) && is_sym(far(x)) && is_arglist(fdr(x)))
     return true;
   return false;
 }
@@ -1097,12 +998,12 @@ my void print(any x) {
   switch (tag_of(x)) {
   case t_cons: {
     any a = far(x);
-    if (is_sym(a)) {
-      if (a == s_quote)            { bputc('\'');  print(fdr(x)); break; }
-      if (a == s_quasiquote)       { bputc('`');  print(fdr(x)); break; }
-      if (a == s_unquote)          { bputc(',');  print(fdr(x)); break; }
-      if (a == s_unquote_splicing) { bprintf(",@"); print(fdr(x)); break; }
-      if (a == s_lambda && is_cons(fdr(x)) && is_arglist(far(fdr(x))) &&
+    if(is_sym(a)) {
+      if(a == s_quote)            { bputc('\'');  print(fdr(x)); break; }
+      if(a == s_quasiquote)       { bputc('`');  print(fdr(x)); break; }
+      if(a == s_unquote)          { bputc(',');  print(fdr(x)); break; }
+      if(a == s_unquote_splicing) { bprintf(",@"); print(fdr(x)); break; }
+      if(a == s_lambda && is_cons(fdr(x)) && is_arglist(far(fdr(x))) &&
           is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
         bprintf("| ");
         print_sub_args(far(fdr(x)));
@@ -1113,14 +1014,14 @@ my void print(any x) {
     bool first = true;
     bputc('(');
     do {
-      if (first)
+      if(first)
         first = false;
       else
         bputc(' ');
       print(far(x));
       x = fdr(x);
-    } while (is_tagged(x, t_cons));
-    if (x != NIL) {
+    } while(is_tagged(x, t_cons));
+    if(x != NIL) {
       bprintf(" . ");
       print(x);
     }
@@ -1141,7 +1042,7 @@ my void print(any x) {
     break;
   case t_str:
     bputc('"');
-    foreach (c, unstr(x))
+    foreach(c, unstr(x))
       switch (any2int(c)) {
       case '"': bprintf("\\\""); break;
       case '\\': bprintf("\\\\"); break;
@@ -1185,7 +1086,7 @@ my void print(any x) {
 }
 
 my void say_str(any s) {
-  foreach (chr, unstr(s))
+  foreach(chr, unstr(s))
     bputc(any2int(chr));
 }
 
@@ -1195,7 +1096,7 @@ my void say(any x) {
     say_str(x);
     break;
   case t_cons:
-    foreach (e, x)
+    foreach(e, x)
       say(e);
     break;
   default:
@@ -1237,11 +1138,11 @@ my void skip_until(char end) {
   int c;
   do {
     c = nextc();
-  } while (c != end && c != EOF);
+  } while(c != end && c != EOF);
 }
 
 my int find_token() {
-  while (1) {
+  while(1) {
     int c = nextc();
     switch (c) {
     case ';':
@@ -1267,19 +1168,18 @@ my int digit2int(any chr) {
 my any chars2num(any chrs) {
   int64_t ires = 0;
   int pos = 0;
-  bool is_positive = true,
-       is_num = false; // need `is_num` to catch "", "+" and "-"
-  foreach (chr, chrs) {
+  bool is_positive = true, is_num = false; // need `is_num` to catch "", "+" and "-"
+  foreach(chr, chrs) {
     int dig = digit2int(chr);
     pos++;
-    if (dig == -1) {
-      if (pos != 1)
+    if(dig == -1) {
+      if(pos != 1)
         return BFALSE;
-      if (any2int(chr) == '-') {
+      if(any2int(chr) == '-') {
         is_positive = false;
         continue;
       }
-      if (any2int(chr) == '+')
+      if(any2int(chr) == '+')
         continue;
       return BFALSE;
     }
@@ -1299,20 +1199,20 @@ my any read_sym_chars(int start_char) {
   listgen lg = listgen_new();
   listgen_add(&lg, int2any(start_char));
   int c;
-  while (is_symchar(c = look()))
+  while(is_symchar(c = look()))
     listgen_add(&lg, int2any(nextc()));
   return lg.xs;
 }
 
 my any read_str() {
   listgen lg = listgen_new();
-  while (1) {
+  while(1) {
     int c = nextc();
-    if (c == '"')
+    if(c == '"')
       return str(lg.xs);
-    if (c == EOF)
+    if(c == EOF)
       parse_error("end of file inside of a str");
-    if (c == '\\')
+    if(c == '\\')
       switch (c = nextc()) {
       case '\\': case '"': break;
       case 'n': c = '\n'; break;
@@ -1330,13 +1230,13 @@ my any reader(); // for mutual recursion
 
 my any read_list() {
   any x = reader();
-  if (x == READER_LIST_END)
+  if(x == READER_LIST_END)
     return NIL;
-  if (x == ENDOFFILE)
+  if(x == ENDOFFILE)
     parse_error("end of file in list (use `M-x check-parens`)");
-  if (x == s_dot) {
+  if(x == s_dot) {
     x = reader();
-    if (reader() != READER_LIST_END)
+    if(reader() != READER_LIST_END)
       parse_error("invalid improper list");
     return x;
   }
@@ -1345,13 +1245,13 @@ my any read_list() {
 
 my any short_lambda_parser(any *body) {
   any x = reader();
-  if (is_cons(x)) {
+  if(is_cons(x)) {
     *body = x;
     return NIL;
   }
-  if (!is_sym(x))
+  if(!is_sym(x))
     parse_error("invalid lambda short form (expected argument or body)");
-  if (x == s_dot) {
+  if(x == s_dot) {
     any rest = reader();
     *body = reader();
     return rest;
@@ -1367,7 +1267,7 @@ my any read_lambda_short_form() {
 my any read_unquote() {
   any q = s_unquote;
   int c = look();
-  if (c == '@') {
+  if(c == '@') {
     nextc();
     q = s_unquote_splicing;
   }
@@ -1386,10 +1286,10 @@ my any reader() {
   case '"': return read_str();
   case '#': {
     any which = reader();
-    if (!is_sym(which))
+    if(!is_sym(which))
       parse_error("not a sym after #");
     any query = get_reader(which);
-    if (!is(query))
+    if(!is(query))
       parse_error("unknown reader requested");
     call0(fdr(query));
     return last_value;
@@ -1403,7 +1303,7 @@ my any reader() {
 
 my any bone_read() {
   any x = reader();
-  if (x == READER_LIST_END)
+  if(x == READER_LIST_END)
     parse_error("unexpected closing parenthesis (use `M-x check-parens`)");
   return x;
 }
@@ -1460,32 +1360,32 @@ my size_t call_stack_pos;
 my bool is_self_evaluating(any x) { return !(is_sym(x) || is_cons(x)); }
 
 my void eprint_arg(any x) {
-  if (!is_self_evaluating(x))
+  if(!is_self_evaluating(x))
     eprintf("'");
   eprint(x);
 }
 
 my void backtrace() {
   eprintf("BACKTRACE:\n");
-  for (size_t pos = call_stack_pos; pos != 0; pos--) {
+  for(size_t pos = call_stack_pos; pos != 0; pos--) {
     eprintf("(");
-    if (is(call_stack[pos].subr->code->name))
+    if(is(call_stack[pos].subr->code->name))
       eprint(call_stack[pos].subr->code->name);
     else
       eprintf("<unknown>");
 
     int i;
-    for (i = 0; i != call_stack[pos].subr->code->argc; i++) {
+    for(i = 0; i != call_stack[pos].subr->code->argc; i++) {
       eprintf(" ");
       eprint_arg(locals_stack[call_stack[pos].args_pos + i]);
     }
-    if (call_stack[pos].subr->code->take_rest)
-      foreach (x, locals_stack[call_stack[pos].args_pos + i]) {
+    if(call_stack[pos].subr->code->take_rest)
+      foreach(x, locals_stack[call_stack[pos].args_pos + i]) {
         eprintf(" ");
         eprint_arg(x);
       }
     eprintf(")\n");
-    if (call_stack[pos].tail_calls)
+    if(call_stack[pos].tail_calls)
       eprintf("  ;; hidden tail calls: %d\n", call_stack[pos].tail_calls);
   }
 }
@@ -1521,9 +1421,9 @@ my void add_nonrest_arg() { locals_stack[next_call()->next_arg_pos++] = last_val
 
 my void add_rest_arg() {
   sub_code sc = next_call()->to_be_called->code;
-  if (!sc->take_rest)
+  if(!sc->take_rest)
     args_error_unspecific(sc);
-  if (next_call()->rest_constructor == NIL) // first rest arg
+  if(next_call()->rest_constructor == NIL) // first rest arg
     next_call()->rest_constructor = locals_stack[next_call()->args_pos + sc->argc] = single(last_value);
   else { // adding another rest arg
     any next = single(last_value);
@@ -1533,7 +1433,7 @@ my void add_rest_arg() {
 }
 
 my void verify_argc(struct upcoming_call *the_call) {
-  if (the_call->nonrest_args_left)
+  if(the_call->nonrest_args_left)
     args_error_unspecific(the_call->to_be_called->code);
 }
 
@@ -1541,7 +1441,7 @@ my void call(sub subr, size_t args_pos, int locals_cnt) {
   sub lambda = NULL;
   any *lambda_envp = NULL;
   call_stack_pos++;
-  if (call_stack_pos == call_stack_allocated) {
+  if(call_stack_pos == call_stack_allocated) {
     call_stack_allocated *= 2;
     call_stack = realloc(call_stack, call_stack_allocated * sizeof(*call_stack));
   }
@@ -1551,7 +1451,7 @@ my void call(sub subr, size_t args_pos, int locals_cnt) {
 start:;
   any *env = subr->env;
   any *ip = subr->code->ops;
-  while (1)
+  while(1)
     switch (*ip++) {
     case OP_CONST: last_value = *ip++; break;
     case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
@@ -1566,7 +1466,7 @@ start:;
       next_call()->nonrest_args_left = sc->argc;
       next_call()->locals_cnt = count_locals(sc);
       next_call()->next_arg_pos = next_call()->args_pos = alloc_locals(next_call()->locals_cnt);
-      if (sc->take_rest) {
+      if(sc->take_rest) {
         next_call()->rest_constructor = locals_stack[next_call()->args_pos + sc->argc] = NIL;
       }
       break;
@@ -1580,7 +1480,7 @@ start:;
     case OP_TAILCALL: {
       struct upcoming_call *the_call = &upcoming_calls[next_call_pos--];
       verify_argc(the_call);
-      for (int i = 0; i < the_call->locals_cnt; i++)
+      for(int i = 0; i < the_call->locals_cnt; i++)
         locals_stack[args_pos + i] = locals_stack[the_call->args_pos + i];
       drop_locals(locals_cnt);
       locals_cnt = the_call->locals_cnt;
@@ -1591,14 +1491,14 @@ start:;
       goto start;
     }
     case OP_ADD_ARG:
-      if (next_call()->nonrest_args_left) {
+      if(next_call()->nonrest_args_left) {
         next_call()->nonrest_args_left--;
         add_nonrest_arg();
       } else
         add_rest_arg();
       break;
     case OP_JMP_IFN:
-      if (is(last_value)) {
+      if(is(last_value)) {
         ip++;
         break;
       } // else fall through
@@ -1664,15 +1564,15 @@ my void apply(any s, any xs) {
   size_t args_pos = alloc_locals(locals_cnt);
   any *args = &locals_stack[args_pos];
   listgen lg;
-  foreach (x, xs) {
-    if (pos < argc) {
+  foreach(x, xs) {
+    if(pos < argc) {
       args[pos] = x;
       pos++;
       continue;
     } // non-rest arg
-    if (pos == argc) {
+    if(pos == argc) {
       // starting rest args
-      if (!sc->take_rest)
+      if(!sc->take_rest)
         args_error(sc, xs);
       lg = listgen_new();
       listgen_add(&lg, x);
@@ -1684,9 +1584,9 @@ my void apply(any s, any xs) {
     listgen_add(&lg, x);
     pos++;
   }
-  if (pos < argc)
+  if(pos < argc)
     args_error(sc, xs);
-  if (pos == argc)
+  if(pos == argc)
     args[argc] = NIL;
   call(subr, args_pos, locals_cnt);
 }
@@ -1700,11 +1600,11 @@ void call2(any subr, any x, any y) { apply(subr, list2(x, y)); }
 //////////////// compiler ////////////////
 
 my any mac_expand_1(any x) {
-  if (!is_cons(x) || far(x) == s_quote)
+  if(!is_cons(x) || far(x) == s_quote)
     return x;
-  if (is_sym(far(x))) {
+  if(is_sym(far(x))) {
     any mac = get_mac(far(x));
-    if (is(mac)) {
+    if(is(mac)) {
       apply(fdr(mac), fdr(x));
       return last_value;
     }
@@ -1712,14 +1612,14 @@ my any mac_expand_1(any x) {
   bool changed = false;
   listgen lg = listgen_new();
   any lst = x;
-  if (far(x) == s_lambda) {
+  if(far(x) == s_lambda) {
     listgen_add(&lg, s_lambda);
     listgen_add(&lg, car(fdr(x)));
     lst = fdr(fdr(x));
   }
-  foreach (e, lst) {
+  foreach(e, lst) {
     any new = mac_expand_1(e);
-    if (new != e)
+    if(new != e)
       changed = true;
     listgen_add(&lg, new);
   }
@@ -1727,9 +1627,9 @@ my any mac_expand_1(any x) {
 }
 my any mac_expand(any x) {
   any res;
-  while (1) {
+  while(1) {
     res = mac_expand_1(x);
-    if (res == x)
+    if(res == x)
       return res;
     x = res;
   }
@@ -1777,23 +1677,23 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
 
 my any lambda_ignore_list(any old, any args) {
   listgen lg = listgen_new();
-  if (is_sym(args))
+  if(is_sym(args))
     listgen_add(&lg, args); // only rest arg
   else
     foreach_cons(x, args) {
       listgen_add(&lg, far(x));
-      if (!is_cons(fdr(x)) && !is_nil(fdr(x)))
+      if(!is_cons(fdr(x)) && !is_nil(fdr(x)))
         listgen_add(&lg, fdr(x));
     }
 
-  if (is_nil(lg.last))
+  if(is_nil(lg.last))
     return old;
   set_fdr(lg.last, old);
   return lg.xs;
 }
 
 my void found_local(any local, listgen *lg, int *cnt) {
-  if (!is_member(local, lg->xs)) {
+  if(!is_member(local, lg->xs)) {
     (*cnt)++;
     listgen_add(lg, local);
   }
@@ -1801,26 +1701,24 @@ my void found_local(any local, listgen *lg, int *cnt) {
 
 // `locals` is of the form ((foo arg . 0) (bar arg . 1) (baz env . 0))
 my void collect_locals_rec(any code, any locals, any ignore, int *cnt, listgen *lg) {
-  foreach (x, code)
+  foreach(x, code)
     switch (tag_of(x)) {
     case t_sym: {
       any local = assoc_entry(x, locals);
-      if (is(local) && !is_member(x, ignore)) {
+      if(is(local) && !is_member(x, ignore)) {
         found_local(far(local), lg, cnt);
       }
       break;
     }
     case t_cons:
-      if (far(x) == s_quote)
+      if(far(x) == s_quote)
         continue;
-      if (far(x) == s_with) {
-        collect_locals_rec(cdr(fdr(x)), locals, cons(car(fdr(x)), ignore), cnt,
-                           lg);
+      if(far(x) == s_with) {
+        collect_locals_rec(cdr(fdr(x)), locals, cons(car(fdr(x)), ignore), cnt, lg);
         continue;
       }
-      if (far(x) == s_lambda) {
-        collect_locals_rec(cdr(fdr(x)), locals,
-                           lambda_ignore_list(ignore, car(fdr(x))), cnt, lg);
+      if(far(x) == s_lambda) {
+        collect_locals_rec(cdr(fdr(x)), locals, lambda_ignore_list(ignore, car(fdr(x))), cnt, lg);
         continue;
       }
       collect_locals_rec(x, locals, ignore, cnt, lg);
@@ -1834,8 +1732,8 @@ my any collect_locals(any code, any locals, any ignore, int *cnt) {
   collect_locals_rec(code, locals, ignore, cnt, &collected);
   listgen res = listgen_new();
   // keep the original order:
-  foreach (candidate, locals)
-    if (is_member(far(candidate), collected.xs))
+  foreach(candidate, locals)
+    if(is_member(far(candidate), collected.xs))
       listgen_add(&res, candidate);
   return res.xs;
 }
@@ -1847,23 +1745,23 @@ my any add_local(any env, any name, any kind, int num) {
 my any locals_for_lambda(any env, any args) {
   any res = NIL;
   int cnt = 0;
-  foreach (x, env)
+  foreach(x, env)
     res = add_local(res, far(x), s_env, cnt++);
   cnt = 0;
-  foreach (x, args)
+  foreach(x, args)
     res = add_local(res, x, s_arg, cnt++);
   return res;
 }
 
 my any flatten_rest_x(any xs, int *len, int *take_rest) { // stores len w/o rest in `*len`.
-  if (is_sym(xs)) {
+  if(is_sym(xs)) { // only rest args
     *take_rest = 1;
     return single(xs);
-  } // only rest args
+  }
   foreach_cons(x, xs) {
     (*len)++;
     any tail = fdr(x);
-    if (is_sym(tail)) {
+    if(is_sym(tail)) {
       set_fdr(x, single(tail));
       *take_rest = 1;
       return xs;
@@ -1879,17 +1777,15 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
   int argc = 0, take_rest;
   args = flatten_rest_x(args, &argc, &take_rest);
   int collected_env_len = 0;
-  any collected_env =
-      collect_locals(cons(s_do, body), env, args, &collected_env_len);
+  any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
   any env_of_sub = locals_for_lambda(collected_env, args);
-  if (is_nil(body))
+  if(is_nil(body))
     generic_error("body of lambda expression is empty", body);
-  sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, take_rest,
-                                 collected_env_len);
+  sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, take_rest, collected_env_len);
   emit(OP_PREPARE_SUB, state);
   emit((any)sc, state);
 
-  foreach (x, collected_env) {
+  foreach(x, collected_env) {
     any env_or_arg = far(fdr(x));
     any pos = fdr(fdr(x));
 
@@ -1902,46 +1798,46 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
 
 my void compile_do(any body, any env, bool tail_context, compile_state *state) {
   foreach_cons(x, body)
-      compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state);
+    compile_expr(far(x), env, is_nil(fdr(x)) && tail_context, state);
 }
 
 my bool arglist_contains(any args, any name) {
-  if (is_nil(args))
+  if(is_nil(args))
     return false;
-  if (is_sym(args))
+  if(is_sym(args))
     return args == name;
-  if (car(args) == name)
+  if(car(args) == name)
     return true;
   return arglist_contains(fdr(args), name);
 }
 
 my bool refers_to(any expr, any name) {
-  if (is_sym(expr))
+  if(is_sym(expr))
     return expr == name;
-  if (!is_cons(expr))
+  if(!is_cons(expr))
     return false;
-  if (far(expr) == s_quote)
+  if(far(expr) == s_quote)
     return false;
-  if (far(expr) == s_with) {
-    if (car(fdr(expr)) == name)
+  if(far(expr) == s_with) {
+    if(car(fdr(expr)) == name)
       return false;
     return refers_to(fdr(fdr(expr)), name);
   }
-  if (far(expr) == s_lambda) {
-    if (arglist_contains(car(fdr(expr)), name))
+  if(far(expr) == s_lambda) {
+    if(arglist_contains(car(fdr(expr)), name))
       return false;
     return refers_to(fdr(fdr(expr)), name);
   }
 
-  foreach (x, expr)
-    if (refers_to(x, name))
+  foreach(x, expr)
+    if(refers_to(x, name))
       return true;
   return false;
 }
 
 my void compile_with(any name, any expr, any body, any env, bool tail_context, compile_state *state) {
   state->curr_locals++;
-  if (state->curr_locals > state->max_locals)
+  if(state->curr_locals > state->max_locals)
     state->max_locals = state->curr_locals;
 
   env = add_local(env, name, s_arg, extra_pos(state));
@@ -1949,7 +1845,7 @@ my void compile_with(any name, any expr, any body, any env, bool tail_context, c
   emit(OP_SET_LOCAL, state);
   emit(int2any(extra_pos(state)), state);
 
-  if (refers_to(expr, name))
+  if(refers_to(expr, name))
     emit(OP_MAKE_RECURSIVE, state);
   compile_do(body, env, tail_context, state);
   state->curr_locals--;
@@ -1969,31 +1865,30 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   case t_cons: {
     any first = far(e);
     any rest = fdr(e);
-    if (first == s_quote) {
+    if(first == s_quote) {
       emit(OP_CONST, state);
       emit(rest, state);
       break;
     } // FIXME: copy() to permanent?
-    if (first == s_do) {
+    if(first == s_do) {
       compile_do(rest, env, tail_context, state);
       break;
     }
-    if (first == s_if) {
+    if(first == s_if) {
       compile_if(rest, env, tail_context, state);
       break;
     }
-    if (first == s_lambda) {
+    if(first == s_lambda) {
       compile_lambda(car(rest), cdr(rest), env, state);
       break;
     }
-    if (first == s_with) {
-      compile_with(car(rest), car(cdr(rest)), cdr(cdr(rest)), env, tail_context,
-                   state);
+    if(first == s_with) {
+      compile_with(car(rest), car(cdr(rest)), cdr(cdr(rest)), env, tail_context, state);
       break;
     }
     compile_expr(first, env, false, state);
     emit(OP_PREPARE_CALL, state);
-    foreach (arg, rest) {
+    foreach(arg, rest) {
       compile_expr(arg, env, false, state);
       emit(OP_ADD_ARG, state);
     }
@@ -2002,13 +1897,13 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   }
   case t_sym: {
     any local = assoc(e, env);
-    if (is(local)) {
+    if(is(local)) {
       emit(far(local) == s_arg ? OP_GET_ARG : OP_GET_ENV, state);
       emit(fdr(local), state);
       break;
     }
     any global = get_binding(e);
-    if (is_cons(global)) {
+    if(is_cons(global)) {
       if(far(global) != BINDING_DECLARED) {
 	emit(OP_CONST, state);
 	emit(fdr(global), state);
@@ -2019,7 +1914,7 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
       break;
     }
     any dyn = get_dyn(e);
-    if (is(dyn)) {
+    if(is(dyn)) {
       emit(OP_DYN, state);
       emit(dyn, state);
       break;
@@ -2039,15 +1934,15 @@ my any compile2list(any expr, any env, int extra_offset, int *extra_locals) {
   return fdr(res);
 }
 
-my sub_code compile2sub_code(any expr, any env, int argc, int take_rest,
-                             int env_size) { // result is in permanent region.
+// result is in permanent region.
+my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) {
   int extra;
   any raw = compile2list(expr, env, argc + take_rest, &extra);
   reg_permanent();
   sub_code code = make_sub_code(argc, take_rest, extra, env_size, len(raw));
   reg_pop();
   any *p = code->ops;
-  foreach (x, raw)
+  foreach(x, raw)
     *p++ = x;
   return code;
 }
@@ -2067,13 +1962,13 @@ my void eval_toplevel_expr(any e) {
 my any quasiquote(any x);
 
 my any qq_list(any x) {
-  if (!is_cons(x))
+  if(!is_cons(x))
     return list2(s_quote, x);
-  if (far(x) == s_unquote)
+  if(far(x) == s_unquote)
     return list2(s_list, fdr(x));
-  if (far(x) == s_unquote_splicing)
+  if(far(x) == s_unquote_splicing)
     return fdr(x);
-  if (far(x) == s_quasiquote)
+  if(far(x) == s_quasiquote)
     return qq_list(quasiquote(fdr(x)));
   return list2(s_list, list3(s_cat, qq_list(far(x)), quasiquote(fdr(x))));
 }
@@ -2081,13 +1976,13 @@ my any qq_list(any x) {
 my any qq_id(any x) { return !is_sym(x) ? x : cons(s_quote, x); }
 
 my any quasiquote(any x) {
-  if (!is_cons(x))
+  if(!is_cons(x))
     return qq_id(x);
-  if (far(x) == s_unquote)
+  if(far(x) == s_unquote)
     return fdr(x);
-  if (far(x) == s_unquote_splicing)
+  if(far(x) == s_unquote_splicing)
     generic_error("invalid quasiquote form", x);
-  if (far(x) == s_quasiquote)
+  if(far(x) == s_quasiquote)
     return quasiquote(quasiquote(fdr(x)));
   return list3(s_cat, qq_list(far(x)), quasiquote(fdr(x)));
 }
@@ -2097,7 +1992,7 @@ my any quasiquote(any x) {
 DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
 DEFSUB(fullplus) {
   int ires = 0;
-  foreach (n, args[0])
+  foreach(n, args[0])
     ires += any2int(n);
   last_value = int2any(ires);
 }
@@ -2125,14 +2020,14 @@ DEFSUB(assoc) { last_value = assoc(args[0], args[1]); }
 DEFSUB(intern) { last_value = intern_from_chars(unstr(args[0])); }
 DEFSUB(copy) { last_value = copy(args[0]); }
 DEFSUB(say) {
-  foreach (x, args[0])
+  foreach(x, args[0])
     say(x);
   last_value = BTRUE;
 }
 DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
 DEFSUB(fullminus) {
   int res = any2int(args[0]);
-  foreach (x, args[1])
+  foreach(x, args[1])
     res -= any2int(x);
   last_value = int2any(res);
 }
@@ -2156,24 +2051,24 @@ DEFSUB(fast_num_leqp) {
 }
 DEFSUB(each) {
   check(args[0], t_sub);
-  foreach (x, args[1])
+  foreach(x, args[1])
     call1(args[0], x);
 }
 DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) {
   int ires = 1;
-  foreach (n, args[0])
+  foreach(n, args[0])
     ires *= any2int(n);
   last_value = int2any(ires);
 }
 DEFSUB(fastdiv) {
-  if (any2int(args[1]) == 0)
+  if(any2int(args[1]) == 0)
     generic_error("division by zero", args[1]);
   last_value = int2any(any2int(args[0]) / any2int(args[1]));
 }
 DEFSUB(fulldiv) {
   CSUB_fullmult(&args[1]);
-  if (any2int(last_value) == 0)
+  if(any2int(last_value) == 0)
     generic_error("division by zero", last_value);
   last_value = int2any(any2int(args[0]) / any2int(last_value));
 }
@@ -2195,23 +2090,23 @@ DEFSUB(reverse) { last_value = reverse(args[0]); }
 DEFSUB(mod) { last_value = int2any(any2int(args[0]) % any2int(args[1])); }
 DEFSUB(full_num_eqp) {
   last_value = BTRUE;
-  if (is_nil(args[0]))
+  if(is_nil(args[0]))
     return;
   int64_t n = any2int(far(args[0]));
-  foreach (x, fdr(args[0]))
-    if (n != any2int(x)) {
+  foreach(x, fdr(args[0]))
+    if(n != any2int(x)) {
       last_value = BFALSE;
       return;
     }
 }
 DEFSUB(full_num_gtp) {
   last_value = BTRUE;
-  if (is_nil(args[0]))
+  if(is_nil(args[0]))
     return;
   int64_t n = any2int(far(args[0]));
-  foreach (x, fdr(args[0])) {
+  foreach(x, fdr(args[0])) {
     int64_t m = any2int(x);
-    if (n <= m) {
+    if(n <= m) {
       last_value = BFALSE;
       return;
     }
@@ -2220,12 +2115,12 @@ DEFSUB(full_num_gtp) {
 }
 DEFSUB(full_num_ltp) {
   last_value = BTRUE;
-  if (is_nil(args[0]))
+  if(is_nil(args[0]))
     return;
   int64_t n = any2int(far(args[0]));
-  foreach (x, fdr(args[0])) {
+  foreach(x, fdr(args[0])) {
     int64_t m = any2int(x);
-    if (n >= m) {
+    if(n >= m) {
       last_value = BFALSE;
       return;
     }
@@ -2234,12 +2129,12 @@ DEFSUB(full_num_ltp) {
 }
 DEFSUB(full_num_geqp) {
   last_value = BTRUE;
-  if (is_nil(args[0]))
+  if(is_nil(args[0]))
     return;
   int64_t n = any2int(far(args[0]));
-  foreach (x, fdr(args[0])) {
+  foreach(x, fdr(args[0])) {
     int64_t m = any2int(x);
-    if (n < m) {
+    if(n < m) {
       last_value = BFALSE;
       return;
     }
@@ -2248,12 +2143,12 @@ DEFSUB(full_num_geqp) {
 }
 DEFSUB(full_num_leqp) {
   last_value = BTRUE;
-  if (is_nil(args[0]))
+  if(is_nil(args[0]))
     return;
   int64_t n = any2int(far(args[0]));
-  foreach (x, fdr(args[0])) {
+  foreach(x, fdr(args[0])) {
     int64_t m = any2int(x);
-    if (n > m) {
+    if(n > m) {
       last_value = BFALSE;
       return;
     }
@@ -2276,7 +2171,7 @@ DEFSUB(map) {
   any s = args[0];
   check(s, t_sub);
   listgen lg = listgen_new();
-  foreach (x, args[1]) {
+  foreach(x, args[1]) {
     call1(s, x);
     listgen_add(&lg, last_value);
   }
@@ -2285,16 +2180,16 @@ DEFSUB(map) {
 DEFSUB(filter) {
   any s = args[0];
   listgen lg = listgen_new();
-  foreach (x, args[1]) {
+  foreach(x, args[1]) {
     call1(s, x);
-    if (is(last_value))
+    if(is(last_value))
       listgen_add(&lg, x);
   }
   last_value = lg.xs;
 }
 DEFSUB(full_cat) {
   listgen lg = listgen_new();
-  foreach_cons(c, args[0]) if (is_cons(c) && is_nil(fdr(c))) {
+  foreach_cons(c, args[0]) if(is_cons(c) && is_nil(fdr(c))) {
     listgen_set_tail(&lg, far(c));
     break;
   }
@@ -2316,7 +2211,7 @@ DEFSUB(with_var) {
     failed = true;
   }
   dynamic_vals[dyn_pos] = old;
-  if (failed)
+  if(failed)
     throw();
 }
 DEFSUB(var_bound_p) { last_value = to_bool(is_dyn_bound(args[0])); }
@@ -2325,13 +2220,13 @@ DEFSUB(reg_loop) {
   reg_push(reg_new());
   call0(args[0]);
 
-  while (1) {
+  while(1) {
     reg old = reg_pop();
     reg_push(reg_new());
     any sub_args = copy(last_value);
     reg_free(old);
     apply(args[1], sub_args);
-    if (!is(car(last_value)))
+    if(!is(car(last_value)))
       break;
     last_value = fdr(last_value);
   }
@@ -2367,7 +2262,7 @@ DEFSUB(reload) {
     failed = true;
   }
   set_dyn_val(intern("_*allow-overwrites*"), old);
-  if (failed)
+  if(failed)
     throw();
 }
 DEFSUB(sort) { last_value = mergesort(args[0], args[1]); }
@@ -2380,7 +2275,7 @@ DEFSUB(with_file_src) {
   char *fname = str2charp(args[0]);
   FILE *fp = fopen(fname, "r");
   free(fname);
-  if (!fp)
+  if(!fp)
     generic_error("could not open", args[0]);
   any old = dynamic_vals[dyn_src];
   dynamic_vals[dyn_src] = fp2src(fp, args[0]);
@@ -2393,7 +2288,7 @@ DEFSUB(with_file_src) {
   }
   dynamic_vals[dyn_src] = old;
   fclose(fp);
-  if (failed)
+  if(failed)
     throw();
 }
 
@@ -2401,7 +2296,7 @@ DEFSUB(with_file_dst) {
   char *fname = str2charp(args[0]);
   FILE *fp = fopen(fname, "w");
   free(fname);
-  if (!fp)
+  if(!fp)
     generic_error("could not open", args[0]);
   any old = dynamic_vals[dyn_dst];
   dynamic_vals[dyn_dst] = fp2dst(fp, args[0]);
@@ -2414,7 +2309,7 @@ DEFSUB(with_file_dst) {
   }
   dynamic_vals[dyn_dst] = old;
   fclose(fp);
-  if (failed)
+  if(failed)
     throw();
 }
 
@@ -2640,7 +2535,7 @@ void bone_init(int argc, char **argv) {
   dyn_dst = any2int(get_dyn(intern("*dst*")));
 
   any args = NIL;
-  while (argc--)
+  while(argc--)
     args = cons(charp2str(argv[argc]), args);
   create_dyn(intern("*program-args*"), args);
 
@@ -2649,7 +2544,7 @@ void bone_init(int argc, char **argv) {
 
 my char *mod2file(const char *mod) {
   size_t len = strlen(mod);
-  if (len > 3 && strcmp(".bn", mod + (len - 3)) == 0)
+  if(len > 3 && strcmp(".bn", mod + (len - 3)) == 0)
     return strdup(mod);
   char *res = malloc(len + 4);
   strcat(strcpy(res, mod), ".bn");
@@ -2659,7 +2554,7 @@ my char *mod2file(const char *mod) {
 void bone_load(const char *mod) {
   char *fn = mod2file(mod);
   FILE *src = fopen(fn, "r");
-  if (!src) {
+  if(!src) {
     free(fn);
     generic_error("could not open module", intern(mod));
   }
@@ -2669,17 +2564,17 @@ void bone_load(const char *mod) {
 
   bool fail = false;
   try {
-    if (look() == '#')
+    if(look() == '#')
       skip_until('\n');
     any e;
-    while ((e = bone_read()) != ENDOFFILE)
+    while((e = bone_read()) != ENDOFFILE)
       eval_toplevel_expr(e);
   } catch {
     fail = true;
   }
   fclose(src);
   dynamic_vals[dyn_src] = old;
-  if (fail)
+  if(fail)
     throw();
 }
 
@@ -2688,11 +2583,11 @@ void bone_repl() {
   create_dyn(intern("$$"), BFALSE);
 
   int line = 0;
-  while (1) {
+  while(1) {
     printf("\n@%d: ", line++);
     try {
       any e = bone_read();
-      if (e == ENDOFFILE)
+      if(e == ENDOFFILE)
         break;
       eval_toplevel_expr(e);
       print(last_value);
