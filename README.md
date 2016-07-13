@@ -50,12 +50,12 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * I/O streams
 * TAS conforming testing library
 * POSIX bindings (but not many yet...)
+* Basic Unicode (UTF-8 I/O)
 
 ### What it does not (yet)
 
 * Multithreading
 * Floating point numbers
-* Unicode
 
 ### What it does not (unsure whether it ever will)
 
