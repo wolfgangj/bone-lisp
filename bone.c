@@ -1991,7 +1991,7 @@ my any quasiquote(any x) {
 
 DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
 DEFSUB(fullplus) {
-  int ires = 0;
+  int64_t ires = 0;
   foreach(n, args[0])
     ires += any2int(n);
   last_value = int2any(ires);
@@ -2026,7 +2026,7 @@ DEFSUB(say) {
 }
 DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
 DEFSUB(fullminus) {
-  int res = any2int(args[0]);
+  int64_t res = any2int(args[0]);
   foreach(x, args[1])
     res -= any2int(x);
   last_value = int2any(res);
@@ -2056,7 +2056,7 @@ DEFSUB(each) {
 }
 DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
 DEFSUB(fullmult) {
-  int ires = 1;
+  int64_t ires = 1;
   foreach(n, args[0])
     ires *= any2int(n);
   last_value = int2any(ires);
