@@ -1460,10 +1460,10 @@ start:;
     case OP_TAILCALL: {
       struct upcoming_call *the_call = &upcoming_calls[next_call_pos--];
       verify_argc(the_call);
-      locals_cnt = the_call->locals_cnt;
-      for (int i = 0; i < locals_cnt; i++)
+      for (int i = 0; i < the_call->locals_cnt; i++)
         locals_stack[args_pos + i] = locals_stack[the_call->args_pos + i];
-      //locals_pos += locals_cnt; // FIXME: i don't think we need this
+      drop_locals(locals_cnt);
+      locals_cnt = the_call->locals_cnt;
       subr = the_call->to_be_called;
       call_stack[call_stack_pos].subr = subr;
       call_stack[call_stack_pos].args_pos = args_pos; // FIXME: stays unchanged?
