@@ -14,7 +14,7 @@
 
 *Note: If you were looking for the great [Bones Scheme Compiler](http://www.call-with-current-continuation.org/bones/), that's a different project.*
 
-*Note: This software is currently in alpha status.*
+*Note: This software is currently in alpha status (but getting closer to beta).*
 
 Bone is an interpreter for a lexically scoped Lisp-1.
 It is based on immutable values and does tail-call elimination.
@@ -24,12 +24,12 @@ It uses explicit regions instead of garbage collection.
 It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp, Erlang and Ruby.
 
 It is currently written for 64 bit systems.
-It also requires little-endian, though this can be easiely fixed if desired.
 It runs on GNU/Linux and should also work on other Unices.
 
 ## Why?
 
-Garbage collection becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
+Garbage collection is not a solved problem.
+It becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
 But doing manual memory management is time-consuming and usually also error-prone.
 Explicit regions are both very simple and very fast, but how far can one get with them?
 I want to find out, so I am developing this interpreter.
@@ -177,7 +177,7 @@ Finally, the new region will be freed.
 
 A source file should declare which version of Bone Lisp it was written for:
 
-    (version 0 2)  ; for v0.2.x
+    (version 0 4)  ; for v0.4.x
 
 There is no real module system, but you can load files with:
 
@@ -188,6 +188,8 @@ Each file will be loaded only once.
 Recursive loading will be detected and reported as an error.
 
 ## Contributing
+
+*Note: If you do not want to use GitHub because it's not an entirely free platform, just contact me and I'll also setup a repository elsewhere.*
 
 Here are some ideas on how you can start contributing.
 Always feel free to ask for details on any of those.

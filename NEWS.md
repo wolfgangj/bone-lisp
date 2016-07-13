@@ -1,5 +1,48 @@
 # Release information
 
+## 0.4.0
+
+* New standard library module `std/tap` which implements incomplete, but TAP-conformant testing.
+  It contains the subs/macros:
+  `test`
+  `test-error`
+  `test-plan`
+  `test-plan-end`
+* Show origin of anonymous subs in backtrace.
+* `if` allows an else-branch of arbitrary size;
+  when the `else` branch is empty but would be taken, `#f` is returned.
+* Extended fixnum range from 32 to 60 bits.
+* Allow mutual recursion: You can `declare` a binding before you define it.
+* The stack size is now increased dynamically, so there is no arbitrary limit anymore.
+* New reader macro in `std/alist`:
+  `#=>` allows convenient notation for association lists.
+* Introduced a (limited) destructuring binding construct: `destructure`;
+  it can only destructure proper lists currently (without nesting).
+* New builtin subs:
+  `all?`
+  `any?`
+  `car*`
+  `cdr*`
+  `chr-skip`
+  `dup`
+  `find?`
+  `flatten`
+  `partial`
+  `str-join`
+* New POSIX bindings:
+  `gettimeofday`
+  `sys.gettimeofday?`
+  `timeofday-diff`
+* New module `std/bench` with subs:
+  `measure-time`
+  `say-time`
+* New subs in `std/math`:
+  `count`
+  `iota`
+  `iota*`
+* `mapx` was removed - it was more confusing than helpful.
+* `each` got the order of args reversed to be consistent with everything else.
+
 ## 0.3.0
 
 * Support for I/O:
