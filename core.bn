@@ -192,6 +192,9 @@ This means that `(list* 1 2 3)` returns `(1 2 . 3)`.")
   (defsub (len xs)
     "Return the number of elements in `xs`.")
 
+  (defsub (dup xs)
+    "Duplicate the list `xs`; the elements will not be duplicated.")
+
   (defsub (cat . lists)
     "Concatenate the `lists` into a single list.")
 

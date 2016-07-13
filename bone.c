@@ -371,9 +371,15 @@ my void listgen_set_tail(listgen *lg, any x) {
     set_fdr(lg->last, x);
 }
 
+my any duplist(any xs) {
+  listgen lg = listgen_new();
+  listgen_add_list(&lg, xs);
+  return lg.xs;
+}
+
 my int len(any x) {
   int n = 0;
-  foreach_cons(e, x) n++;
+  foreach_cons (e, x) n++;
   return n;
 }
 
@@ -2250,7 +2256,7 @@ DEFSUB(reload) {
   if (failed)
     throw();
 }
-DEFSUB(sort) { last_value = mergesort_x(args[0], copy(args[1])); }
+DEFSUB(sort) { last_value = mergesort_x(args[0], duplist(args[1])); }
 DEFSUB(num2str) { last_value = num2str(args[0]); }
 DEFSUB(sym2str) { last_value = sym2str(args[0]); }
 DEFSUB(src_line) { last_value = int2any(input_line(args[0])); }
@@ -2313,6 +2319,8 @@ DEFSUB(protect) {
   }
   silence_errors = false;
 }
+
+DEFSUB(dup) { last_value = duplist(args[0]); }
 
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
@@ -2433,6 +2441,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_dstp, "dst?", 1, 0);
   bone_register_csub(CSUB_declare, "_declare", 1, 0);
   bone_register_csub(CSUB_protect, "_protect", 1, 0);
+  bone_register_csub(CSUB_dup, "dup", 1, 0);
 }
 
 //////////////// misc ////////////////
