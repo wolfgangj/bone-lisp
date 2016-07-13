@@ -424,10 +424,11 @@ my any cat2(any a, any b) {
 my any move_last_to_rest_x(any xs) {
   if (is_single(xs))
     return far(xs);
-  foreach_cons(pair, xs) if (is_single(fdr(pair))) {
-    set_fdr(pair, far(fdr(pair)));
-    break;
-  }
+  foreach_cons(pair, xs)
+    if (is_single(fdr(pair))) {
+      set_fdr(pair, far(fdr(pair)));
+      break;
+    }
   return xs;
 }
 
@@ -508,7 +509,7 @@ my any charp2list(const char *p) {
 any charp2str(const char *p) { return str(charp2list(p)); }
 
 my char *list2charp(any x) {
-  char *res = malloc(len(x) + 1); // FIXME: longer for UTF-8
+  char *res = malloc(len(x)*4 + 1); // maximum length for UTF-8
   char *p = res;
   try {
     foreach (c, x) {
@@ -649,7 +650,7 @@ my void hash_each(hash h, hash_iter fn, void *hook) {
 my void hash_print(hash h) { // useful for debugging
   for(size_t i = 0; i != h->size; i++)
     if(slot_used(h->keys[i])) {
-      print(h->keys[i]); putchar('='); print(h->vals[i]); putchar('\n');
+      print(h->keys[i]); bputc(':'); print(h->vals[i]); bputc('\n');
     }
 }
 #endif
@@ -868,6 +869,118 @@ my any get_dyn_val(any name) {
   return dynamic_vals[any2int(get_existing_dyn(name))];
 }
 
+//////////////// UTF-8 ////////////////
+
+#define BITEST(val, one, zero) ((((val) & one) == one) && ((((val) ^ zero) & zero) == zero))
+
+typedef int (*utf8_reader)(void *hook);
+
+my void invalid_utf8(const char *msg) {
+  generic_error(msg, BFALSE);
+}
+
+// read UTF-8 according to RFC 3629.
+my int utf8_read(utf8_reader reader, void *hook) {
+  int val = reader (hook);
+  if (val == EOF) return val;
+  if (BITEST(val, 0, 0x80)) return val; // ASCII range
+
+  int how_many_more = 0;
+  if (BITEST(val, 0xC0, 0x20)) {
+    val &= 0x1F; // keep only code point relevant bits
+    how_many_more = 1;
+  }
+  else if (BITEST(val, 0xE0, 0x10)) {
+    val &= 0x0F; // see above
+    how_many_more = 2;
+  }
+  else if (BITEST(val, 0xF0, 0x08)) {
+    val &= 0x07; // see above
+    how_many_more = 3;
+  }
+  else invalid_utf8("unexpected UTF8 continuation byte");
+
+  for (int i = 0; i < how_many_more; i++) {
+    int next = reader(hook);
+    if (next == EOF) invalid_utf8("EOF where UTF-8 continuation byte was expected");
+    if (!BITEST(next, 0x80, 0x40)) invalid_utf8("missing UTF-8 continuation byte");
+    val <<= 6;
+    val |= (next & 0x3F);
+  }
+
+  // overlong & out-of-range encodings.
+#define not_overlong(min) if (!(val >= (min))) invalid_utf8("overlong UTF-8 encoding is forbidden")
+  switch (how_many_more) {
+    case 1: not_overlong(0x80); break;
+    case 2: not_overlong(0x800); break;
+    case 3:
+      not_overlong(0x10000);
+      if (val >= 0x10FFFF) invalid_utf8("character out of UTF-8 range as specified in RFC 3629");
+      break;
+#undef not_overlong
+    }
+  return val;
+}
+
+my int from_strp(const char **sp) {
+  char c = **sp;
+  (*sp)++;
+  return c;
+}
+
+my int utf8from_strp(const char **sp) {
+  return utf8_read ((utf8_reader) &from_strp, sp);
+}
+
+my int utf8getc(FILE *fp) {
+  return utf8_read((utf8_reader) &getc, fp);
+}
+
+typedef void (*utf8_writer)(int c, void *hook);
+
+my void utf8_write(utf8_writer writer, int c, void *hook)
+{
+#define emit(x) writer(x, hook)
+  if (c < 0x80) { // ASCII range
+    emit(c);
+    return;
+  }
+
+  // extract and mask.
+#define CONT_BYTE(x) (((x) & 0x3F) | 0x80)
+  if (c < 0x800) {
+    emit((c >> 6) | 0xC0);
+    emit(CONT_BYTE(c));
+  }
+  else if (c < 0x10000) {
+    emit((c >> 12) | 0xE0);
+    emit(CONT_BYTE(c >> 6));
+    emit(CONT_BYTE(c));
+  }
+  else if (c < 0x110000) {
+    emit((c >> 18) | 0xF0);
+    emit(CONT_BYTE(c >> 12));
+    emit(CONT_BYTE(c >> 6));
+    emit(CONT_BYTE(c));
+  }
+  else invalid_utf8("character out of UTF-8 range specified in RFC 3629");
+#undef CONT_BYTE
+#undef emit
+}
+
+my void to_strp(int c, char **sp) {
+  **sp = c;
+  (*sp)++;
+}
+
+my void utf8to_strp(int c, char **sp) {
+  utf8_write((utf8_writer)to_strp, c, sp);
+}
+
+my void utf8putc(int c, FILE *fp) {
+  utf8_write((utf8_writer)putc, c, fp);
+}
+
 //////////////// srcs and dsts ////////////////
 
 typedef struct {
@@ -929,7 +1042,7 @@ my any copy_dst(any x) {
 my int dyn_src, dyn_dst;
 
 my void bputc(int x) {
-  fputc(x, dst2fp(dynamic_vals[dyn_dst]));
+  utf8putc(x, dst2fp(dynamic_vals[dyn_dst]));
 }
 
 my void bprintf(const char *fmt, ...) {
@@ -941,7 +1054,7 @@ my void bprintf(const char *fmt, ...) {
 
 my int nextc() {
   io obj = (io)untag(dynamic_vals[dyn_src]);
-  int res = fgetc(src2fp(dynamic_vals[dyn_src]));
+  int res = utf8getc(src2fp(dynamic_vals[dyn_src]));
   if (res == '\n')
     obj->line++;
   return res;
@@ -950,7 +1063,7 @@ my int nextc() {
 my int look() {
   FILE *fp = src2fp(dynamic_vals[dyn_src]);
   int res = fgetc(fp);
-  ungetc(res, fp);
+  ungetc(res, fp); // FIXME: only works for ASCIIs
   return res;
 }
 
