@@ -176,9 +176,16 @@ The `bindings` are of the form `(name value)`."
   "Anamorphic `when`: Bind `it` to the result of `expr`."
   `(with it ,expr (when it ,@body)))
 
+(defmac (with-gensyms names . body)
+  "Bind all of `names` to `gensym`s and evaluate `body`."
+  `(let ,(map (lambda (name)
+                `(,name (gensym)))
+              names)
+     ,@body))
+
 (defmac (destructure bindings val . body)
   "Bind a list of `bindings` to the list `val`, thereby destructuring it."
-  (with lst (gensym)
+  (with-gensyms (lst)
     `(with ,lst ,val
        (with ,(car bindings) (car ,lst)
          ,(if (nil? (cdr bindings))
@@ -193,6 +200,23 @@ The `bindings` are of the form `(name value)`."
                         (equal? (car a) (car b))
                         (equal? (cdr a) (cdr b))))
         (#t (eq? a b))))
+
+(defmac (case val . clauses)
+  "Choose one of the `clauses` depending on the `val`ue.
+
+A clause is a list with the first element being a list of values
+matched against `val`.  It may also have `#t` as first element instead
+of the value list, in which case the branch is always taken."
+  (with-gensyms (x)
+    `(with ,x ,val
+       (cond ,@(map (lambda (clause)
+                      (cons (if (eq? #t (car clause))
+                                #t
+                              `(or ,@(map (lambda (candidate)
+                                            `(equal? ,x ',candidate))
+                                          (car clause))))
+                            (cdr clause)))
+                    clauses)))))
 
 (defsub (compose sub1 sub2)
   "Return a sub that calls `sub2` with its arguments, then `sub1` on the result."

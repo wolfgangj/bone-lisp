@@ -138,3 +138,8 @@
 (test "UTF-8 I/O"
   (str=? "胨" (str '(33000)))
   (eq? #chr"ß" 223))
+
+(test "case"
+  (eq? #f (case 'y ((a b c) 'abc)))
+  (eq? 'xyz (case 'y ((a b c) 'abc) ((x y z) 'xyz)))
+  (eq? 'other (case 'e ((a b c) 'abc) ((x y z) 'xyz) (#t 'other))))
