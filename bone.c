@@ -150,6 +150,26 @@ any int2any(int64_t n) {
   return tag((n << 4) | (t_num_int << 3), t_num);
 }
 
+typedef union {
+  float f;
+  uint32_t ui32;
+} float_or_uint32;
+
+float any2float(any x) {
+  if (get_num_type(x) != t_num_float)
+    generic_error("ERR: expected float type", x);
+  float_or_uint32 u;
+  u.ui32 = ((uint64_t)x) >> 32;
+  return u.f;
+}
+
+any float2any(float f) {
+  float_or_uint32 u;
+  u.f = f;
+  any r = t_num | (t_num_float << 3) | (((uint64_t)u.ui32) << 32);
+  return r;
+}
+
 //////////////// regions ////////////////
 
 #define ALLOC_BLOCKS_AT_ONCE 16
@@ -496,7 +516,11 @@ my bool str_eql(any s1, any s2) {
 
 my any num2str(any n) {
   char buf[32];
-  snprintf(buf, sizeof(buf), "%" PRId64, any2int(n));
+  switch (get_num_type(n)) {
+  case t_num_int: snprintf(buf, sizeof(buf), "%" PRId64, any2int(n)); break;
+  case t_num_float: snprintf(buf, sizeof(buf), "%g", (double)any2float(n)); break;
+  default: abort();
+  }
   return charp2str(buf);
 }
 
@@ -1089,7 +1113,13 @@ my void print(any x) {
     break;
   }
   case t_sym: bprintf("%s", symtext(x)); break;
-  case t_num: bprintf("%" PRId64, any2int(x)); break;
+  case t_num:
+    switch (get_num_type(x)) {
+    case t_num_int: bprintf("%" PRId64, any2int(x)); break;
+    case t_num_float: bprintf("%g", (double)any2float(x)); break;
+    default: abort();
+    }
+    break;
   case t_uniq:
     switch (x) {
     case NIL: bprintf("()"); break;
@@ -1224,27 +1254,40 @@ my int digit2int(any chr) {
 
 my any chars2num(any chrs) {
   int64_t ires = 0;
-  int pos = 0;
-  bool is_positive = true, is_num = false; // need `is_num` to catch "", "+" and "-"
-  foreach(chr, chrs) {
+  int pos = 0, decimal_point_pos = -1;
+  bool is_positive = true, is_num = false; // need `is_num` to catch "", ".", "+" and "-"
+  foreach (chr, chrs) {
     int dig = digit2int(chr);
     pos++;
     if(dig == -1) {
-      if(pos != 1)
-        return BFALSE;
-      if(any2int(chr) == '-') {
+      if(pos == 1 && any2int(chr) == '-') {
         is_positive = false;
         continue;
       }
-      if(any2int(chr) == '+')
+      if(pos == 1 && any2int(chr) == '+')
         continue;
+      if(decimal_point_pos == -1 && any2int(chr) == '.') {
+        decimal_point_pos = pos;
+        continue;
+      }
       return BFALSE;
     }
     is_num = true;
     ires *= 10;
     ires += dig;
   }
-  return !is_num ? BFALSE : int2any(is_positive ? ires : -ires);
+  if (is_num) {
+    if (decimal_point_pos < 0) {
+      return int2any(is_positive ? ires : -ires);
+    } else {
+      float f = is_positive ? ires : -ires;
+      for(; decimal_point_pos < pos; decimal_point_pos++)
+        f /= 10.0;
+      return float2any(f);
+    }
+  } else {
+    return BFALSE;
+  }
 }
 
 my any chars_to_num_or_sym(any cs) {
@@ -2065,6 +2108,8 @@ DEFSUB(consp) { last_value = to_bool(is_tagged(args[0], t_cons)); }
 DEFSUB(symp) { last_value = to_bool(is_tagged(args[0], t_sym)); }
 DEFSUB(subp) { last_value = to_bool(is_tagged(args[0], t_sub)); }
 DEFSUB(nump) { last_value = to_bool(is_tagged(args[0], t_num)); }
+DEFSUB(intp) { last_value = to_bool(is_tagged(args[0], t_num) && get_num_type(args[0]) == t_num_int); }
+DEFSUB(floatp) { last_value = to_bool(is_tagged(args[0], t_num) && get_num_type(args[0]) == t_num_float); }
 DEFSUB(strp) { last_value = to_bool(is_tagged(args[0], t_str)); }
 DEFSUB(str) { last_value = str(args[0]); }
 DEFSUB(unstr) { last_value = unstr(args[0]); }
@@ -2431,6 +2476,8 @@ my void init_csubs() {
   bone_register_csub(CSUB_symp, "sym?", 1, 0);
   bone_register_csub(CSUB_subp, "sub?", 1, 0);
   bone_register_csub(CSUB_nump, "num?", 1, 0);
+  bone_register_csub(CSUB_intp, "int?", 1, 0);
+  bone_register_csub(CSUB_floatp, "float?", 1, 0);
   bone_register_csub(CSUB_strp, "str?", 1, 0);
   bone_register_csub(CSUB_str, "str", 1, 0);
   bone_register_csub(CSUB_unstr, "unstr", 1, 0);

@@ -146,7 +146,27 @@
 (test "num->str"
   (str=? "0" (num->str 0))
   (str=? "576460752303423487" (num->str 576460752303423487))
-  (str=? "-576460752303423488" (num->str -576460752303423488)))
+  (str=? "-576460752303423488" (num->str -576460752303423488))
+  (str=? "0.1" (num->str 0.1))
+  (str=? "-999.99" (num->str -999.99)))
+
+(test "num?"
+  (eq? #t (num? 123))
+  (eq? #t (num? 0.1))
+  (eq? #f (num? "str"))
+  (eq? #f (num? ())))
+
+(test "int?"
+  (eq? #t (int? 123))
+  (eq? #f (int? 0.1))
+  (eq? #f (int? "str"))
+  (eq? #f (int? ())))
+
+(test "float?"
+  (eq? #f (float? 123))
+  (eq? #t (float? 0.1))
+  (eq? #f (float? "str"))
+  (eq? #f (float? ())))
 
 (test "UTF-8 I/O"
   (str=? "胨" (str '(33000)))

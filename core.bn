@@ -235,10 +235,16 @@ This sub will return the `cdr` where the `car` is `x`.")
 
 );end of section
 (defsection "Numbers"
-  "Currently, only Fixnums (integers of limited range) are supported."
+  "Currently, only Fixnums (integers in range -2^59..2^59-1) are supported."
 
   (defsub (num? x)
     "Return whether `x` is a number.")
+
+  (defsub (integer? x)
+    "Return whether `x` is an integer number.")
+
+  (defsub (float? x)
+    "Return whether `x` is a floating-point number.")
 
   (defsub (+ . nums)
     "Return the sum of the numbers in `nums` (which may not contain anything but numbers).")
