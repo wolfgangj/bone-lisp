@@ -4,10 +4,10 @@
 
     (defsub (len xs)
       "Calculate the length of the list `xs`."
-      (with loop | remain n
-                 (if (nil? remain)
-                     n
-                   (loop (cdr remain) (++ n)))
+      (with loop (lambda (remain n)
+                   (if (nil? remain)
+                       n
+                     (loop (cdr remain) (++ n))))
         (loop xs 0)))
 
 ## What?
