@@ -156,3 +156,35 @@
   (eq? #f (case 'y ((a b c) 'abc)))
   (eq? 'xyz (case 'y ((a b c) 'abc) ((x y z) 'xyz)))
   (eq? 'other (case 'e ((a b c) 'abc) ((x y z) 'xyz) (#t 'other))))
+
+(test "assoc?"
+  (eq? (car (assoc? 'e '((a b) (c d) (e f)))) 'f)
+  (not (assoc? 'e '((a b) (c d)))))
+
+(test "assoc-entry?"
+  (eq? (car (assoc-entry? 'e '((a b) (c d) (e f)))) 'e)
+  (not (assoc-entry? 'e '((a b) (c d)))))
+
+(test "mod"
+  (=? (mod 11 2) 1))
+
+(test ">? <? >=? <=?"
+  (>? -2 -3)
+  (>? 1 0 -1)
+  (<? -3 -2)
+  (<? -1 0 1)
+  (>=? -2 -2)
+  (>=? -2 -3)
+  (>=? 1 0 -1)
+  (>=? 1 1 -1)
+  (<=? -2 -2)
+  (<=? -3 -2)
+  (<=? -1 0 1)
+  (<=? -1 1 1))
+
+(test "bit operations"
+  (=? (bit-and 6 3) 2)
+  (=? (bit-and (bit-not 3) 7) 4)
+  (=? (bit-or 3 4) 7)
+  (=? (bit-xor 7 4) 3))
+
