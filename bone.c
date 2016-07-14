@@ -73,6 +73,19 @@ any to_bool(int x) { return x ? BTRUE : BFALSE; }
 my void eprint(any x);
 my void backtrace();
 
+my void basic_error(const char *fmt, ...) {
+  if(!silence_errors) {
+    eprintf("ERR: ");
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    eprintf("\n");
+    backtrace();
+  }
+  throw();
+}
+
 my void generic_error(const char *msg, any x) {
   eprintf("ERR: %s: ", msg);
   eprint(x);
@@ -131,7 +144,7 @@ int64_t any2int(any x) {
 
 any int2any(int64_t n) {
   if(n < BONE_INT_MIN || n > BONE_INT_MAX)
-    generic_error("ERR: integer out of allowed range", NIL);
+    basic_error("ERR: integer out of allowed range: %" PRId64, n);
   return tag((n << 4) | (t_num_int << 3), t_num);
 }
 
@@ -741,11 +754,11 @@ my any dynamic_vals[256]; // FIXME: thread-local
 my int dyn_cnt = 0;
 my any get_dyn(any name) { return hash_get(dynamics, name); }
 my bool is_dyn_bound(any name) { return is(get_dyn(name)); }
+my void check_dyn_bound(any x, any name) { if(!is(x)) generic_error("dynamic var unbound", name); }
 
 my void set_dyn_val(any name, any x) {
   any n = get_dyn(name);
-  if(!is(n))
-    generic_error("dynamic var unbound", name);
+  check_dyn_bound(n, name);
 
   dynamic_vals[any2int(n)] = x;  
 }
@@ -761,8 +774,7 @@ my void create_dyn(any name, any x) {
 
 my any get_existing_dyn(any name) {
   any x = get_dyn(name);
-  if(!is(x))
-    generic_error("dynamic var unbound", name);
+  check_dyn_bound(x, name); // if this fails, it's an internal error
   return x;
 }
 
@@ -774,11 +786,9 @@ my any get_dyn_val(any name) {
 
 #define BITEST(val, one, zero) ((((val) & one) == one) && ((((val) ^ zero) & zero) == zero))
 
-typedef int (*utf8_reader)(void *hook);
+my void invalid_utf8(const char *msg) { basic_error("utf-8 I/O: %s", msg); }
 
-my void invalid_utf8(const char *msg) {
-  generic_error(msg, BFALSE);
-}
+typedef int (*utf8_reader)(void *hook);
 
 // read UTF-8 according to RFC 3629.
 my int utf8_read(utf8_reader reader, void *hook) {
@@ -799,24 +809,24 @@ my int utf8_read(utf8_reader reader, void *hook) {
     val &= 0x07; // see above
     how_many_more = 3;
   }
-  else invalid_utf8("unexpected UTF8 continuation byte");
+  else invalid_utf8("unexpected continuation byte");
 
   for(int i = 0; i < how_many_more; i++) {
     int next = reader(hook);
-    if(next == EOF) invalid_utf8("EOF where UTF-8 continuation byte was expected");
-    if(!BITEST(next, 0x80, 0x40)) invalid_utf8("missing UTF-8 continuation byte");
+    if(next == EOF) invalid_utf8("EOF where continuation byte was expected");
+    if(!BITEST(next, 0x80, 0x40)) invalid_utf8("missing continuation byte");
     val <<= 6;
     val |= (next & 0x3F);
   }
 
   // overlong & out-of-range encodings.
-#define not_overlong(min) if(!(val >= (min))) invalid_utf8("overlong UTF-8 encoding is forbidden")
+#define not_overlong(min) if(!(val >= (min))) invalid_utf8("overlong encoding is forbidden")
   switch (how_many_more) {
     case 1: not_overlong(0x80); break;
     case 2: not_overlong(0x800); break;
     case 3:
       not_overlong(0x10000);
-      if(val >= 0x10FFFF) invalid_utf8("character out of UTF-8 range as specified in RFC 3629");
+      if(val >= 0x10FFFF) invalid_utf8("character out of range specified in RFC 3629");
       break;
 #undef not_overlong
     }
@@ -864,7 +874,7 @@ my void utf8_write(utf8_writer writer, int c, void *hook)
     emit(CONT_BYTE(c >> 6));
     emit(CONT_BYTE(c));
   }
-  else invalid_utf8("character out of UTF-8 range specified in RFC 3629");
+  else invalid_utf8("character out of range specified in RFC 3629");
 #undef CONT_BYTE
 #undef emit
 }
@@ -1780,7 +1790,7 @@ my void compile_lambda(any args, any body, any env, compile_state *state) {
   any collected_env = collect_locals(cons(s_do, body), env, args, &collected_env_len);
   any env_of_sub = locals_for_lambda(collected_env, args);
   if(is_nil(body))
-    generic_error("body of lambda expression is empty", body);
+    basic_error("body of lambda expression is empty");
   sub_code sc = compile2sub_code(cons(s_do, body), env_of_sub, argc, take_rest, collected_env_len);
   emit(OP_PREPARE_SUB, state);
   emit((any)sc, state);
@@ -2063,13 +2073,13 @@ DEFSUB(fullmult) {
 }
 DEFSUB(fastdiv) {
   if(any2int(args[1]) == 0)
-    generic_error("division by zero", args[1]);
+    basic_error("division by zero");
   last_value = int2any(any2int(args[0]) / any2int(args[1]));
 }
 DEFSUB(fulldiv) {
   CSUB_fullmult(&args[1]);
   if(any2int(last_value) == 0)
-    generic_error("division by zero", last_value);
+    basic_error("division by zero");
   last_value = int2any(any2int(args[0]) / any2int(last_value));
 }
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
