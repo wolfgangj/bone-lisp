@@ -18,19 +18,19 @@
 
 Bone is an interpreter for a lexically scoped Lisp-1.
 It is based on immutable values and does tail-call elimination.
-The special feature that distinguishes it from other Lisps is the semi-automatic memory management: 
+The special feature that distinguishes it from other Lisps is the *semi-automatic memory management*: 
 It uses explicit regions instead of garbage collection.
 
 It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp, Erlang and Ruby.
 
 It is currently written for 64 bit systems.
-It runs on GNU/Linux and should also work on other Unices.
+It runs on GNU/Linux and should also work on other Unices (with minimal porting).
 
 ## Why?
 
 Garbage collection is not a solved problem.
 It becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
-But doing manual memory management is time-consuming and usually also error-prone.
+But doing manual memory management is time-consuming for the programmer - and usually also error-prone.
 Explicit regions are both very simple and very fast, but how far can one get with them?
 I want to find out, so I am developing this interpreter.
 
@@ -55,19 +55,26 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 ### What it does not (yet)
 
 * Multithreading
-* Floating point numbers
+* Floating point numbers (coming soon)
+* Networking
 
 ### What it does not (unsure whether it ever will)
 
 These are open for discussion.
 
 * Arrays
+  (don't fit too well into Bone)
 * Hash tables
+  (we have an implementation anyway, but same as for arrays applies)
 * Exceptions
 * Module system
+  (our current hyper-static environment might be good enough)
 * Bignums
 * Records / structures
 * Keywords
+  (they are nice, but make things more complex)
+* Cross-cutting concerns
+  (probably very useful for the memory region stuff)
 
 ### What it does not (and won't)
 
@@ -84,7 +91,7 @@ I have no interest at all in adding these features to Bone Lisp.
 ## Getting started
 
 To make embedding as easy as possible, the whole interpreter is in a single C file.
-Optional modules have their own C files.
+Optional modules have their own C files (currently only `boneposix.c` for the POSIX bindings).
 The `main` function is in `main.c`;
 it just initializes everything and calls the REPL.
 You can compile it all with `make`.
@@ -103,6 +110,8 @@ Usually, we abbreviate "subroutine" as "sub", like it is done in modern BASIC di
 To the usual syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs with a single expression in the body:
 
     | a b c (foo)   ; => (lambda (a b c) (foo))
+
+We use this only for one-liners, though.
 
 Rest arguments work like they do in Scheme:
 
@@ -125,7 +134,8 @@ Most names in the library are taken from Scheme and Common Lisp.
 Often, we provide several names for the same thing (like Ruby does).
 For example, `len`, `length` and `size` are the same.
 See `core.bn` for docstrings describing the builtins.
-(In the future we'll have a program that extracts the docstrings and generates a markdown file from them.)
+(We also have `gendoc.bn`, which extracts the docstrings from a source file and generates a markdown file from them.
+But this needs improvement.)
 
 A subroutine can be defined with `defsub`; note that the docstring is required!
 
@@ -143,7 +153,7 @@ Quasiquoting works as usual, so you can define macros (with `defmac` or `mymac`)
 
     (defmac (when expr . body)
       "Evaluate all of `body` if `expr` is true."
-      `(if ,expr (do ,@body) #f))
+      `(if ,expr (do ,@body)))
 
 The primitive form that introduces a (single) new binding - which may be recusive as in Schemes `letrec` - is `with`:
 
@@ -187,6 +197,9 @@ This will load `foo.bn`.
 Each file will be loaded only once.
 Recursive loading will be detected and reported as an error.
 
+There's much more, but currently you'll have to look into the source code.
+If you don't understand something, feel free to ask.
+
 ## Contributing
 
 *Note: If you do not want to use GitHub because it's not an entirely free platform, just contact me and I'll also setup a repository elsewhere.*
@@ -197,18 +210,13 @@ Always feel free to ask for details on any of those.
 * You can add lots of library stuff.
   This is always a good thing.
   You could e.g. take a look at Schemes SRFI-1 and SRFI-13 for ideas.
-* `bone.c`/`compile_if()`: currently, everything after the third argument is ignored, i.e.
-  `(if 1 2 3 4)` is identical to `(if 1 2 3)`.
-  We want either implicit `do` for the else branch (like ELisp) or raise an error - both would be fine to me.
 * The documentation generator (`gendoc.bn`) needs a lot of improvements.
-* `_*lisp-info*` should have an entry like `(posix-support 0)` when the POSIX module is compiled in.
-  (The `0` is intended as a version number; this seems more useful than just using `#t`.)
-* POSIX binding for `strerror()` (and lots of other stuff, actually).
+* POSIX binding for `strerror_l()` (and lots of other stuff, actually).
 * If you know Emacs Lisp, it would be great to have a major mode;
   I currently use a quick&dirty hacked version of Scheme mode.
 * Handle symbols with special characters;
   could use the notation `#"symbol with spaces"`.
-* Dynamically resize call stack and various other things.
+* Dynamically resize exception stack and region stack.
 * If you want to add a fancy feature, try doing a reader macro for string interpolation
   (and here documents with string interpolation.)
 
