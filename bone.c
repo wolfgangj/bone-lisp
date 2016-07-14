@@ -2505,8 +2505,8 @@ my void bone_init_thread() {
   next_call_pos = 0;
 }
 
-my any add_info_entry(const char *name, int n, any prev) {
-  return cons(list2(intern(name), int2any(n)), prev);
+void bone_info_entry(const char *name, int n) {
+  set_dyn_val(intern("_*lisp-info*"), cons(list2(intern(name), int2any(n)), get_dyn_val(intern("_*lisp-info*"))));
 }
 
 void bone_init(int argc, char **argv) {
@@ -2526,12 +2526,6 @@ void bone_init(int argc, char **argv) {
   readers = hash_new(97, BFALSE);
   init_csubs();
   dynamics = hash_new(97, BFALSE);
-  {
-    any lisp_info = add_info_entry("major-version", BONE_MAJOR, NIL);
-    lisp_info = add_info_entry("minor-version", BONE_MINOR, lisp_info);
-    lisp_info = add_info_entry("patch-version", BONE_PATCH, lisp_info);
-    create_dyn(intern("_*lisp-info*"), lisp_info);
-  }
   create_dyn(intern("_*allow-overwrites*"), BFALSE);
 
   any in = fp2src(stdin, charp2str("/dev/stdin"));
@@ -2543,6 +2537,11 @@ void bone_init(int argc, char **argv) {
   create_dyn(intern("*dst*"), out);
   dyn_src = any2int(get_dyn(intern("*src*")));
   dyn_dst = any2int(get_dyn(intern("*dst*")));
+
+  create_dyn(intern("_*lisp-info*"), NIL);
+  bone_info_entry("major-version", BONE_MAJOR);
+  bone_info_entry("minor-version", BONE_MINOR);
+  bone_info_entry("patch-version", BONE_PATCH);
 
   any args = NIL;
   while(argc--)

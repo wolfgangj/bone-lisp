@@ -105,4 +105,6 @@ void end_try_();
 #define throw() longjmp(*throw_(), 1)
 #define catch end_try_(); } else
 
+void bone_info_entry(const char *name, int n);
+
 #endif /* BONE_H */

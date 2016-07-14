@@ -344,4 +344,5 @@ void bone_posix_init() {
   bone_register_csub(CSUB_dst_close, "sys.dst-close?", 1, 0);
 
   srandom(time(NULL));
+  bone_info_entry("posix", 0);
 }
