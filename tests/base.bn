@@ -215,3 +215,6 @@
   (str=? "abcxyz" (acond ((not #t) 0) ("abc" (str+ it "xyz"))))
   (not (acond (#f #t) (#f #t)))
   (not (acond)))
+
+(test "str-select"
+  (str=? "de" (str-select 3 5 "abcdefghi")))

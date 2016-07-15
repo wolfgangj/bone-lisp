@@ -501,6 +501,11 @@ This can be useful for passing to higher order functions."
   "Check whether str `s` is the empty str."
   (str=? "" s))
 
+(defsub (str-select from to s)
+  "Extract the middle part of the str `s`, bounds being `from` and `to`."
+  (str-take (- to from)
+            (str-drop from s)))
+
 (defsub (str-join separator . strs)
   "Concatenate `strs` with `separator` between each str."
   (apply str+ (cdr* (foldr (lambda (s so-far)
