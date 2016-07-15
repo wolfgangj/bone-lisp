@@ -522,6 +522,24 @@ This can be useful for passing to higher order functions."
                      (#t (loop (++ pos) (str (cdr (unstr s)))))))
     (loop 0 haystack)))
 
+(defsub (str* n s)
+  "Concatenate the str `s` `n` times."
+  (apply str+ (unfold 0? (lambda (x) s) -- n)))
+
+(defsub (str-pad n s)
+  "Add spaces to the left side of `s` until it is `n` characters long."
+  (with l (str-len s)
+    (if (>=? l n)
+        s
+      (str+ (str* (- n l) " ") s))))
+
+(defsub (str-padr n s)
+  "Add spaces to the right side of `s` until it is `n` characters long."
+  (with l (str-len s)
+    (if (>=? l n)
+        s
+      (str+ s (str* (- n l) " ")))))
+
 (defsub (chr-skip ignore consume)
   "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
   (with loop (lambda ()
@@ -597,6 +615,9 @@ This can be useful for passing to higher order functions."
 (alias every? all?)
 (alias for-each each)
 (alias str-contains? str-pos?)
+(alias str-padl str-pad)
+(alias str-pad-left str-pad)
+(alias str-pad-right str-padr)
 
 ;;;; Implementation information
 

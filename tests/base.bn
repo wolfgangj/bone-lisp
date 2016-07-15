@@ -218,3 +218,15 @@
 
 (test "str-select"
   (str=? "de" (str-select 3 5 "abcdefghi")))
+
+(test "str*"
+  (str=? "foofoofoo" (str* 3 "foo"))
+  (str-empty? (str* 0 "foo")))
+
+(test "`str-pad` and str-padr"
+  (str=? " foobar" (str-pad 7 "foobar"))
+  (str=? "foobar" (str-pad 6 "foobar"))
+  (str=? "foobar" (str-pad 3 "foobar"))
+  (str=? "foobar " (str-padr 7 "foobar"))
+  (str=? "foobar" (str-padr 6 "foobar"))
+  (str=? "foobar" (str-padr 3 "foobar")))
