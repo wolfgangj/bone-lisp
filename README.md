@@ -216,7 +216,6 @@ Always feel free to ask for details on any of those.
   I currently use a quick&dirty hacked version of Scheme mode.
 * Handle symbols with special characters;
   could use the notation `#"symbol with spaces"`.
-* Dynamically resize exception stack and region stack.
 * If you want to add a fancy feature, try doing a reader macro for string interpolation
   (and here documents with string interpolation.)
 
