@@ -2505,21 +2505,21 @@ my any copy(any x) {
 }
 
 my void bone_init_thread() {
-  call_stack_allocated = 16; // FIXME
+  call_stack_allocated = 64;
   call_stack = malloc(call_stack_allocated * sizeof(*call_stack));
   call_stack_pos = 0;
   call_stack->subr = NULL; // FIXME: dummy entry
   call_stack->tail_calls = 0;
-  locals_allocated = 16; // FIXME
+  locals_allocated = 256;
   locals_stack = malloc(locals_allocated * sizeof(any));
   locals_pos = 0;
-  upcoming_calls_allocated = 16; // FIXME
+  upcoming_calls_allocated = 64;
   upcoming_calls = malloc(upcoming_calls_allocated * sizeof(struct upcoming_call));
   next_call_pos = 0;
-  exc_allocated = 2; // FIXME
+  exc_allocated = 8;
   exc_bufs = malloc(exc_allocated * sizeof(struct exc_buf));
   exc_num = 0;
-  reg_allocated = 2; // FIXME
+  reg_allocated = 8;
   reg_stack = malloc(reg_allocated * sizeof(struct reg));
   permanent_reg = reg_new();
   reg_stack[0] = permanent_reg;
