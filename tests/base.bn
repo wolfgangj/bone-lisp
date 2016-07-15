@@ -188,3 +188,23 @@
   (=? (bit-or 3 4) 7)
   (=? (bit-xor 7 4) 3))
 
+(test "str basics"
+  (str? (str '(65)))
+  (cons? (unstr "abc"))
+  (nil? (unstr ""))
+  (str=? "foo" "foo")
+  (not (str=? "f" "foo"))
+  (not (str=? "foo" "f"))
+  (str<>? "f" "foo")
+  (str<>? "foo" "f")
+  (not (str<>? "foo" "foo"))
+  (=? 1 (str-len "a"))
+  (str-empty? "")
+  (str-empty? (str+))
+  (str=? "foobar" (str+ "foo" "bar"))
+  (str=? "foobar" (str+ "fo" "ob" "ar"))
+  (str=? "foo" (str+ "foo"))
+  (=? #chr "f" (str-nth 0 "foo")))
+
+(test "sym interning"
+  (str=? "abc" (sym->str (intern "abc"))))
