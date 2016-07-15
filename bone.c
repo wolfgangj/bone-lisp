@@ -213,21 +213,26 @@ my any copy_back(any x) {
 
 //////////////// exceptions ////////////////
 
-// FIXME: thread-local, dynamic resize
-my struct {
+// FIXME: thread-local
+my struct exc_buf {
   jmp_buf buf;
   reg *reg_sp;
-} exc_bufs[32];
+} *exc_bufs;
 
-my int exc_num = 0;
+my int exc_num;
+my int exc_allocated;
 
 jmp_buf *begin_try_() {
+  if(exc_allocated == exc_num) {
+    exc_allocated *= 2;
+    exc_bufs = realloc(exc_bufs, exc_allocated * sizeof(struct exc_buf));
+  }
   exc_bufs[exc_num].reg_sp = reg_sp;
   return &exc_bufs[exc_num++].buf;
 }
 
 my void exc_buf_nonempty() {
-  if(!exc_num)
+ if(!exc_num)
     fail("internal error: throw/catch mismatch");
 }
 
@@ -2503,6 +2508,9 @@ my void bone_init_thread() {
   upcoming_calls_allocated = 16; // FIXME
   upcoming_calls = malloc(upcoming_calls_allocated * sizeof(struct upcoming_call));
   next_call_pos = 0;
+  exc_allocated = 2; // FIXME
+  exc_bufs = malloc(exc_allocated * sizeof(struct exc_buf));
+  exc_num = 0;
 }
 
 void bone_info_entry(const char *name, int n) {
