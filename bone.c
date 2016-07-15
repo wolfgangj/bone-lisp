@@ -157,7 +157,7 @@ my any blockmask; // to get the block an `any` belongs to; is not actually an ob
 my any **free_block;
 // A block begins with a pointer to the previous block that belongs to the region.
 // The metadata of a region (i.e. this struct) is stored in its first block.
-typedef struct { any **current_block, **allocp; } * reg;
+typedef struct reg { any **current_block, **allocp; } *reg;
 
 // This code is in FORTH-style.
 my any **block(any *x) { return (any **)(blockmask & (any)x); } // get ptr to start of block that x belongs to.
@@ -173,19 +173,27 @@ my void reg_free(reg r) { block((any *)r)[0] = (any *)free_block; free_block = r
 my void blocks_sysfree(any **b) { if(!b) return; any **next = (any **)b[0]; munmap(b, blocksize); blocks_sysfree(next); }
 my void reg_sysfree(reg r) { blocks_sysfree(r->current_block); }
 
-my reg permanent_reg;
-my reg reg_stack[64];
-my reg *reg_sp = reg_stack;       // points to tos!
+my reg permanent_reg; // FIXME: thread-local
+my reg *reg_stack;
+my int reg_pos, reg_allocated;
 my any **allocp, **current_block; // from currently used reg.
 my void load_reg(reg r)  { allocp = r->allocp; current_block = r->current_block; }
 my void store_reg(reg r) { r->allocp = allocp; r->current_block = current_block; }
-my void reg_push(reg r) { store_reg(*reg_sp);                  reg_sp++; *reg_sp = r; load_reg(*reg_sp); }
-my reg reg_pop()        { store_reg(*reg_sp); reg r = *reg_sp; reg_sp--;              load_reg(*reg_sp); return r; }
-
+my void inc_regs() {
+  if(reg_pos == reg_allocated) {
+    reg_allocated *= 2;
+    reg_stack = realloc(reg_stack, reg_allocated * sizeof(struct reg));
+  }
+  reg_pos++;
+}
+#define curr_reg reg_stack[reg_pos]
+my void reg_push(reg r) { store_reg(curr_reg);                   inc_regs(); curr_reg = r; load_reg(curr_reg); }
+my reg reg_pop()        { store_reg(curr_reg); reg r = curr_reg; reg_pos--;                load_reg(curr_reg); return r; }
+#undef curr_reg
 my void reg_permanent() { reg_push(permanent_reg); }
 
-my void rollback_reg_sp(reg *p) {
-  while(reg_sp != p)
+my void rollback_reg_sp(int pos) {
+  while(pos != reg_pos)
     reg_free(reg_pop());
 }
 
@@ -205,7 +213,7 @@ my reg any2reg(any x) { return (reg)untag_check(x, t_reg); }
 my any copy(any x);
 
 my any copy_back(any x) {
-  reg_push(reg_sp[-1]);
+  reg_push(reg_stack[reg_pos-1]);
   any y = copy(x);
   reg_pop();
   return y;
@@ -216,7 +224,7 @@ my any copy_back(any x) {
 // FIXME: thread-local
 my struct exc_buf {
   jmp_buf buf;
-  reg *reg_sp;
+  int reg_pos;
 } *exc_bufs;
 
 my int exc_num;
@@ -227,19 +235,19 @@ jmp_buf *begin_try_() {
     exc_allocated *= 2;
     exc_bufs = realloc(exc_bufs, exc_allocated * sizeof(struct exc_buf));
   }
-  exc_bufs[exc_num].reg_sp = reg_sp;
+  exc_bufs[exc_num].reg_pos = reg_pos;
   return &exc_bufs[exc_num++].buf;
 }
 
 my void exc_buf_nonempty() {
  if(!exc_num)
-    fail("internal error: throw/catch mismatch");
+   fail("internal error: throw/catch mismatch");
 }
 
 jmp_buf *throw_() {
   exc_buf_nonempty();
   exc_num--;
-  rollback_reg_sp(exc_bufs[exc_num].reg_sp);
+  rollback_reg_sp(exc_bufs[exc_num].reg_pos);
   return &exc_bufs[exc_num].buf;
 }
 
@@ -2511,6 +2519,12 @@ my void bone_init_thread() {
   exc_allocated = 2; // FIXME
   exc_bufs = malloc(exc_allocated * sizeof(struct exc_buf));
   exc_num = 0;
+  reg_allocated = 2; // FIXME
+  reg_stack = malloc(reg_allocated * sizeof(struct reg));
+  permanent_reg = reg_new();
+  reg_stack[0] = permanent_reg;
+  load_reg(permanent_reg);
+  reg_pos = 0; // refers to TOS
 }
 
 void bone_info_entry(const char *name, int n) {
@@ -2522,9 +2536,7 @@ void bone_init(int argc, char **argv) {
   blockmask = ~(blocksize - 1);
   blockwords = blocksize / sizeof(any);
   free_block = fresh_blocks();
-  permanent_reg = reg_new();
-  reg_stack[0] = permanent_reg;
-  load_reg(permanent_reg);
+  bone_init_thread();
 
   sym_ht = hash_new(997, (any)NULL);
   init_syms();
@@ -2555,8 +2567,6 @@ void bone_init(int argc, char **argv) {
   while(argc--)
     args = cons(charp2str(argv[argc]), args);
   create_dyn(intern("*program-args*"), args);
-
-  bone_init_thread();
 }
 
 my char *mod2file(const char *mod) {
