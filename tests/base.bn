@@ -208,3 +208,10 @@
 
 (test "sym interning"
   (str=? "abc" (sym->str (intern "abc"))))
+
+(test "acond"
+  (=? -2 (acond ((str-pos? "ob" "foobar") (- 0 it))))
+  (0? (acond ((not #f) 0) ("abc" (str+ it "xyz"))))
+  (str=? "abcxyz" (acond ((not #t) 0) ("abc" (str+ it "xyz"))))
+  (not (acond (#f #t) (#f #t)))
+  (not (acond)))

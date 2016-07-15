@@ -176,6 +176,16 @@ The `bindings` are of the form `(name value)`."
   "Anamorphic `when`: Bind `it` to the result of `expr`."
   `(with it ,expr (when it ,@body)))
 
+(defmac (acond . clauses)
+  "Anamorphic version of `cond`: Bind `it` to the result of the condition."
+  (if (nil? clauses)
+      #f
+    (if (eq? #t (caar clauses))
+        `(do ,@(cdar clauses))
+      `(aif ,(caar clauses)
+           (do ,@(cdar clauses))
+         (acond ,@(cdr clauses))))))
+
 (defmac (with-gensyms names . body)
   "Bind all of `names` to `gensym`s and evaluate `body`."
   `(let ,(map (lambda (name)
