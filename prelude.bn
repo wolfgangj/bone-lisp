@@ -498,6 +498,15 @@ This can be useful for passing to higher order functions."
                            ()
                            strs))))
 
+;; FIXME: this is not very efficient
+(defsub (str-pos? needle haystack)
+  "Return the position (zero-based) of `needle` in `haystack` (or `#f` if not found)."
+  (with loop (lambda (pos s)
+               (cond ((str-empty? s) #f)
+                     ((str-prefix? needle s) pos)
+                     (#t (loop (++ pos) (str (cdr (unstr s)))))))
+    (loop 0 haystack)))
+
 (defsub (chr-skip ignore consume)
   "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
   (with loop (lambda ()
@@ -572,6 +581,7 @@ This can be useful for passing to higher order functions."
 (alias str-take-right str-taker)
 (alias every? all?)
 (alias for-each each)
+(alias str-contains? str-pos?)
 
 ;;;; Implementation information
 
