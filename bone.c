@@ -25,6 +25,9 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
 
 #include "bone.h"
 
@@ -373,7 +376,7 @@ my any move_last_to_rest_x(any xs) {
   return xs;
 }
 
-my any mergesort(any bigger_p, any hd) {
+my any merge_sort(any bigger_p, any hd) {
   if(is_nil(hd))
     return NIL;
   hd = duplist(hd);
@@ -2288,7 +2291,7 @@ DEFSUB(reload) {
   if(failed)
     throw();
 }
-DEFSUB(sort) { last_value = mergesort(args[0], args[1]); }
+DEFSUB(sort) { last_value = merge_sort(args[0], args[1]); }
 DEFSUB(num2str) { last_value = num2str(args[0]); }
 DEFSUB(sym2str) { last_value = sym2str(args[0]); }
 DEFSUB(src_line) { last_value = int2any(input_line(args[0])); }
