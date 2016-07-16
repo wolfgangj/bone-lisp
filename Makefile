@@ -1,4 +1,3 @@
-CC=clang
 FLAGS=-std=gnu99 -Wall -W -Wextra -Wno-unused -Wno-unused-parameter -g
 #FLAGS=-std=gnu99 -Wall -W -Wextra -Wno-unused -Wno-unused-parameter -O3
 EXTRA_MODULES=boneposix.o

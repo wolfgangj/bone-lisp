@@ -38,6 +38,8 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 
 ## Status
 
+[![Build Status](https://travis-ci.org/wolfgangj/bone-lisp.svg?branch=master)](https://travis-ci.org/wolfgangj/bone-lisp)
+
 ### What it does
 
 * Lexical scoping & closures
