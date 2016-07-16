@@ -230,3 +230,7 @@
   (str=? "foobar " (str-padr 7 "foobar"))
   (str=? "foobar" (str-padr 6 "foobar"))
   (str=? "foobar" (str-padr 3 "foobar")))
+
+(test "str-ascii-lower"
+  (str=? (str-ascii-lower "FooBÄR_Q12.Png")
+         "foobÄr_q12.png"))

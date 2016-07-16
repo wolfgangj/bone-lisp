@@ -563,6 +563,16 @@ This can be useful for passing to higher order functions."
         (err "chr reader requires a 1-character str")
       (car (unstr s)))))
 
+(defsub (str-ascii-lower s)
+  "Convert upper case characters in `s` to lower case.
+
+This is useful e.g. for checking file extensions case independently."
+  (str (map (lambda (c)
+              (if (not (<=? #chr "A" c #chr "Z"))
+                  c
+                (+ c (- #chr "a" #chr "A"))))
+            (unstr s))))
+
 ;;;; Aliases
 
 (defmac (alias new old)
