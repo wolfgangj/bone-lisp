@@ -264,7 +264,7 @@ empty.")
 When applied to the empty list (as in `(*)` or `(apply * ())`), the result is 1.")
 
   (defsub (/ dividend . divisors)
-    "Devide the `dividend` by the product of all `divisors`.")
+    "Divide the `dividend` by the product of all `divisors`.")
 
   (defsub (mod dividend divisor)
     "Return the remainder of dividing `dividend` by `divisor`.")

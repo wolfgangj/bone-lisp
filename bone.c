@@ -156,7 +156,7 @@ typedef union {
 } float_or_uint32;
 
 float any2float(any x) {
-  if (get_num_type(x) != t_num_float)
+  if(get_num_type(x) != t_num_float)
     generic_error("ERR: expected float type", x);
   float_or_uint32 u;
   u.ui32 = ((uint64_t)x) >> 32;
@@ -168,6 +168,14 @@ any float2any(float f) {
   u.f = f;
   any r = t_num | (t_num_float << 3) | (((uint64_t)u.ui32) << 32);
   return r;
+}
+
+my float anynum2float(any x) {
+  switch (get_num_type(x)) {
+  case t_num_int: return (float)any2int(x);
+  case t_num_float: return any2float(x);
+  default: abort();
+  }
 }
 
 //////////////// regions ////////////////
@@ -463,6 +471,21 @@ my any merge_sort(any bigger_p, any hd) {
     if(merge_cnt <= 1)
       return hd;
     area *= 2;
+  }
+}
+
+my bool is_list_of_ints(any xs) {
+  foreach(x, xs)
+    if(get_num_type(x) != t_num_int)
+      return false;
+  return true;
+}
+
+my bool is_zero(any x) {
+  switch (get_num_type(x)) {
+  case t_num_int: return any2int(x) == 0;
+  case t_num_float: return any2float(x) == 0.0;
+  default: abort();
   }
 }
 
@@ -1276,8 +1299,8 @@ my any chars2num(any chrs) {
     ires *= 10;
     ires += dig;
   }
-  if (is_num) {
-    if (decimal_point_pos < 0) {
+  if(is_num) {
+    if(decimal_point_pos < 0) {
       return int2any(is_positive ? ires : -ires);
     } else {
       float f = is_positive ? ires : -ires;
@@ -2085,12 +2108,23 @@ my any quasiquote(any x) {
 
 //////////////// library ////////////////
 
-DEFSUB(fastplus) { last_value = int2any(any2int(args[0]) + any2int(args[1])); }
+DEFSUB(fastplus) {
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? int2any(any2int(args[0]) + any2int(args[1]))
+      : float2any(anynum2float(args[0]) + anynum2float(args[1]));
+}
 DEFSUB(fullplus) {
-  int64_t ires = 0;
-  foreach(n, args[0])
-    ires += any2int(n);
-  last_value = int2any(ires);
+  if(is_list_of_ints(args[0])) {
+    int64_t ires = 0;
+    foreach(n, args[0])
+      ires += any2int(n);
+    last_value = int2any(ires);
+  } else {
+    float fres = 0.0;
+    foreach(n, args[0])
+      fres += anynum2float(n);
+    last_value = float2any(fres);
+  }
 }
 DEFSUB(cons) { last_value = cons(args[0], args[1]); }
 DEFSUB(print) {
@@ -2122,15 +2156,30 @@ DEFSUB(say) {
     say(x);
   last_value = BTRUE;
 }
-DEFSUB(fastminus) { last_value = int2any(any2int(args[0]) - any2int(args[1])); }
+DEFSUB(fastminus) {
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? int2any(any2int(args[0]) - any2int(args[1]))
+      : float2any(anynum2float(args[0]) - anynum2float(args[1]));
+}
 DEFSUB(fullminus) {
-  int64_t res = any2int(args[0]);
-  foreach(x, args[1])
-    res -= any2int(x);
-  last_value = int2any(res);
+  if(get_num_type(args[0]) == t_num_int && is_list_of_ints(args[1])) {
+    int64_t res = any2int(args[0]);
+    foreach(x, args[1])
+      res -= any2int(x);
+    last_value = int2any(res);
+  } else {
+    float fres = anynum2float(args[0]);
+    foreach(f, args[1])
+      fres -= anynum2float(f);
+    last_value = float2any(fres);
+  }
 }
 DEFSUB(fast_num_eqp) {
-  last_value = to_bool(any2int(args[0]) == any2int(args[1]));
+  if(get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int) {
+    last_value = to_bool(any2int(args[0]) == any2int(args[1]));
+    return;
+  }
+  last_value = to_bool(anynum2float(args[0]) == anynum2float(args[1]));
 }
 DEFSUB(fast_num_neqp) {
   last_value = to_bool(any2int(args[0]) != any2int(args[1]));
@@ -2152,23 +2201,38 @@ DEFSUB(each) {
   foreach(x, args[1])
     call1(args[0], x);
 }
-DEFSUB(fastmult) { last_value = int2any(any2int(args[0]) * any2int(args[1])); }
+DEFSUB(fastmult) {
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? int2any(any2int(args[0]) * any2int(args[1]))
+      : float2any(anynum2float(args[0]) * anynum2float(args[1]));
+}
 DEFSUB(fullmult) {
-  int64_t ires = 1;
-  foreach(n, args[0])
-    ires *= any2int(n);
-  last_value = int2any(ires);
+  if(is_list_of_ints(args[0])) {
+    int64_t ires = 1;
+    foreach(n, args[0])
+      ires *= any2int(n);
+    last_value = int2any(ires);
+  } else {
+    float fres = 1.0;
+    foreach(n, args[0])
+      fres *= anynum2float(n);
+    last_value = float2any(fres);
+  }
 }
 DEFSUB(fastdiv) {
-  if(any2int(args[1]) == 0)
+  if(is_zero(args[1]))
     basic_error("division by zero");
-  last_value = int2any(any2int(args[0]) / any2int(args[1]));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? int2any(any2int(args[0]) / any2int(args[1]))
+      : float2any(anynum2float(args[0]) / anynum2float(args[1]));
 }
 DEFSUB(fulldiv) {
   CSUB_fullmult(&args[1]);
-  if(any2int(last_value) == 0)
+  if(is_zero(last_value))
     basic_error("division by zero");
-  last_value = int2any(any2int(args[0]) / any2int(last_value));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(last_value) == t_num_int)
+      ? int2any(any2int(args[0]) / any2int(last_value))
+      : float2any(anynum2float(args[0]) / anynum2float(last_value));
 }
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
