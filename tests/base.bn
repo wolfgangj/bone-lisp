@@ -375,3 +375,7 @@
   (=? -2 (trunc -2.9))
   (=? -3 (trunc -3))
   (int? (trunc 3.1)))
+
+(test "int->float"
+  (=? 3 (int->float 3))
+  (float? (int->float 3)))
