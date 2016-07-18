@@ -234,3 +234,7 @@
 (test "str-ascii-lower"
   (str=? (str-ascii-lower "FooBÄR_Q12.Png")
          "foobÄr_q12.png"))
+
+(test-error "`defsub` does not allow empty body or missing docstring"
+  (defsub (foo) "oops")
+  (defsub (bar) #t #t))

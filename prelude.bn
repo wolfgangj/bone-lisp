@@ -47,11 +47,15 @@
 ;; FIXME: defmac has no docstring...
 (_mac-bind 'defmac #f
   (lambda (spec doc . body)
-    (_make-binder '_mac-bind spec body #f)))
+    (if (not (str? doc))
+        (err "`defmac` requires a docstring - " (car spec))
+      (_make-binder '_mac-bind spec body #f))))
 
 (defmac (defsub spec doc . body)
   "Define a sub with name/args as in `spec`, docstring `doc` and code `body`."
-  (_make-binder '_bind spec body #f))
+  (if (not (str? doc))
+      (err "`defsub` requires a docstring - " (car spec))
+    (_make-binder '_bind spec body #f)))
 
 (defmac (internmac spec . body)
   "Define an internal macro."
@@ -566,7 +570,8 @@ This can be useful for passing to higher order functions."
 (defsub (str-ascii-lower s)
   "Convert upper case characters in `s` to lower case.
 
-This is useful e.g. for checking file extensions case independently."
+This is useful e.g. for checking file extensions case independently.
+Note that there is no corresponding `str-ascii-upper`."
   (str (map (lambda (c)
               (if (not (<=? #chr "A" c #chr "Z"))
                   c

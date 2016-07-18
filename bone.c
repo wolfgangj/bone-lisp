@@ -2281,8 +2281,15 @@ DEFSUB(reg_loop) {
   reg_free(reg_pop());
 }
 DEFSUB(err) {
-  CSUB_say(args); // FIXME use stderr
-  backtrace();
+  if(!silence_errors) {
+    any old = dynamic_vals[dyn_dst];
+    dynamic_vals[dyn_dst] = get_dyn_val(intern("*stderr*"));
+    eprintf("ERR: ");
+    say(*args);
+    eprintf("\n");
+    dynamic_vals[dyn_dst] = old;
+    backtrace();
+  }
   throw();
 }
 DEFSUB(singlep) { last_value = to_bool(is_single(args[0])); }
