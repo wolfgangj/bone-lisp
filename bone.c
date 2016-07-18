@@ -683,15 +683,18 @@ typedef struct sub_code { // fields are in the order in which we access them.
 my char *sub_allocp;
 my size_t sub_alloc_left; // in bytes!
 
-my sub_code sub_alloc(size_t codeword_cnt) {
-  size_t size = (codeword_cnt-1)*sizeof(any) + sizeof(struct sub_code);
+my void ensure_sub_alloc(size_t size) {
   if(size > sub_alloc_left) {
     int additional_blocks = size / blocksize; // to allow extremely large subs
     int blocks = ALLOC_BLOCKS_AT_ONCE + additional_blocks;
     sub_allocp = (char*)blocks_alloc(blocks);
     sub_alloc_left = blocks * blocksize;
-    printf("sub_alloc size:%d additional-blocks:%d\n", (int)size, additional_blocks);
   }
+}
+
+my sub_code sub_alloc(size_t codeword_cnt) {
+  size_t size = (codeword_cnt-1)*sizeof(any) + sizeof(struct sub_code);
+  ensure_sub_alloc(size);
   sub_code res = (sub_code)sub_allocp;
   sub_allocp += size;
   sub_alloc_left -= size;
