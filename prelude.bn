@@ -653,6 +653,7 @@ Note that there is no corresponding `str-ascii-upper`."
 (alias str-padl str-pad)
 (alias str-pad-left str-pad)
 (alias str-pad-right str-padr)
+(alias float->int trunc)
 
 ;;;; Implementation information
 

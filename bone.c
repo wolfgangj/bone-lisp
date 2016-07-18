@@ -17,6 +17,7 @@
 #define _GNU_SOURCE 1 // for mmap()s MAP_ANONYMOUS
 #include <assert.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -2144,6 +2145,34 @@ DEFSUB(subp) { last_value = to_bool(is_tagged(args[0], t_sub)); }
 DEFSUB(nump) { last_value = to_bool(is_tagged(args[0], t_num)); }
 DEFSUB(intp) { last_value = to_bool(is_tagged(args[0], t_num) && get_num_type(args[0]) == t_num_int); }
 DEFSUB(floatp) { last_value = to_bool(is_tagged(args[0], t_num) && get_num_type(args[0]) == t_num_float); }
+DEFSUB(round) {
+  switch (get_num_type(args[0])) {
+  case t_num_int: last_value = args[0]; break;
+  case t_num_float: last_value = int2any(llroundf(any2float(args[0]))); break;
+  default: abort();
+  }
+}
+DEFSUB(ceil) {
+  switch (get_num_type(args[0])) {
+  case t_num_int: last_value = args[0]; break;
+  case t_num_float: last_value = int2any((int64_t)ceilf(any2float(args[0]))); break;
+  default: abort();
+  }
+}
+DEFSUB(floor) {
+  switch (get_num_type(args[0])) {
+  case t_num_int: last_value = args[0]; break;
+  case t_num_float: last_value = int2any((int64_t)floorf(any2float(args[0]))); break;
+  default: abort();
+  }
+}
+DEFSUB(trunc) {
+  switch (get_num_type(args[0])) {
+  case t_num_int: last_value = args[0]; break;
+  case t_num_float: last_value = int2any((int64_t)truncf(any2float(args[0]))); break;
+  default: abort();
+  }
+}
 DEFSUB(strp) { last_value = to_bool(is_tagged(args[0], t_str)); }
 DEFSUB(str) { last_value = str(args[0]); }
 DEFSUB(unstr) { last_value = unstr(args[0]); }
@@ -2607,6 +2636,10 @@ my void init_csubs() {
   bone_register_csub(CSUB_nump, "num?", 1, 0);
   bone_register_csub(CSUB_intp, "int?", 1, 0);
   bone_register_csub(CSUB_floatp, "float?", 1, 0);
+  bone_register_csub(CSUB_round, "round", 1, 0);
+  bone_register_csub(CSUB_ceil, "ceil", 1, 0);
+  bone_register_csub(CSUB_floor, "floor", 1, 0);
+  bone_register_csub(CSUB_trunc, "trunc", 1, 0);
   bone_register_csub(CSUB_strp, "str?", 1, 0);
   bone_register_csub(CSUB_str, "str", 1, 0);
   bone_register_csub(CSUB_unstr, "unstr", 1, 0);
