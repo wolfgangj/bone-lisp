@@ -678,10 +678,28 @@ typedef struct sub_code { // fields are in the order in which we access them.
   any name;               // sym for backtraces
   int size_of_env;        // so that we can copy subs
   any ops[1];             // can be longer
-} * sub_code;
-#define sub_code_header_size (bytes2words(sizeof(struct sub_code)) - 1)
+} *sub_code;
+
+my char *sub_allocp;
+my size_t sub_alloc_left; // in bytes!
+
+my sub_code sub_alloc(size_t codeword_cnt) {
+  size_t size = (codeword_cnt-1)*sizeof(any) + sizeof(struct sub_code);
+  if(size > sub_alloc_left) {
+    int additional_blocks = size / blocksize; // to allow extremely large subs
+    int blocks = ALLOC_BLOCKS_AT_ONCE + additional_blocks;
+    sub_allocp = (char*)blocks_alloc(blocks);
+    sub_alloc_left = blocks * blocksize;
+    printf("sub_alloc size:%d additional-blocks:%d\n", (int)size, additional_blocks);
+  }
+  sub_code res = (sub_code)sub_allocp;
+  sub_allocp += size;
+  sub_alloc_left -= size;
+  return res;
+}
+
 my sub_code make_sub_code(int argc, int take_rest, int extra_localc, int size_of_env, int code_size) {
-  sub_code code = (sub_code)reg_alloc(sub_code_header_size + code_size);
+  sub_code code = sub_alloc(code_size);
   code->argc = argc;
   code->take_rest = take_rest;
   code->extra_localc = extra_localc;
@@ -2540,6 +2558,9 @@ void bone_init(int argc, char **argv) {
   blockwords = blocksize / sizeof(any);
   free_block = fresh_blocks();
   bone_init_thread();
+
+  sub_allocp = NULL;
+  sub_alloc_left = 0;
 
   sym_ht = hash_new(997, (any)NULL);
   init_syms();
