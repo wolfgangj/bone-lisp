@@ -2175,26 +2175,34 @@ DEFSUB(fullminus) {
   }
 }
 DEFSUB(fast_num_eqp) {
-  if(get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int) {
-    last_value = to_bool(any2int(args[0]) == any2int(args[1]));
-    return;
-  }
-  last_value = to_bool(anynum2float(args[0]) == anynum2float(args[1]));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? to_bool(any2int(args[0]) == any2int(args[1]))
+      : to_bool(anynum2float(args[0]) == anynum2float(args[1]));
 }
 DEFSUB(fast_num_neqp) {
-  last_value = to_bool(any2int(args[0]) != any2int(args[1]));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? to_bool(any2int(args[0]) != any2int(args[1]))
+      : to_bool(anynum2float(args[0]) != anynum2float(args[1]));
 }
 DEFSUB(fast_num_gtp) {
-  last_value = to_bool(any2int(args[0]) > any2int(args[1]));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? to_bool(any2int(args[0]) > any2int(args[1]))
+      : to_bool(anynum2float(args[0]) > anynum2float(args[1]));
 }
 DEFSUB(fast_num_ltp) {
-  last_value = to_bool(any2int(args[0]) < any2int(args[1]));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? to_bool(any2int(args[0]) < any2int(args[1]))
+      : to_bool(anynum2float(args[0]) < anynum2float(args[1]));
 }
 DEFSUB(fast_num_geqp) {
-  last_value = to_bool(any2int(args[0]) >= any2int(args[1]));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? to_bool(any2int(args[0]) >= any2int(args[1]))
+      : to_bool(anynum2float(args[0]) >= anynum2float(args[1]));
 }
 DEFSUB(fast_num_leqp) {
-  last_value = to_bool(any2int(args[0]) <= any2int(args[1]));
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
+      ? to_bool(any2int(args[0]) <= any2int(args[1]))
+      : to_bool(anynum2float(args[0]) <= anynum2float(args[1]));
 }
 DEFSUB(each) {
   check(args[0], t_sub);
@@ -2254,67 +2262,124 @@ DEFSUB(full_num_eqp) {
   last_value = BTRUE;
   if(is_nil(args[0]))
     return;
-  int64_t n = any2int(far(args[0]));
-  foreach(x, fdr(args[0]))
-    if(n != any2int(x)) {
-      last_value = BFALSE;
-      return;
-    }
+  if(is_list_of_ints(args[0])) {
+    int64_t n = any2int(far(args[0]));
+    foreach(x, fdr(args[0]))
+      if(n != any2int(x)) {
+        last_value = BFALSE;
+        return;
+      }
+  } else {
+    float f = anynum2float(far(args[0]));
+    foreach(x, fdr(args[0]))
+      if(f != anynum2float(x)) {
+        last_value = BFALSE;
+        return;
+      }
+  }
 }
 DEFSUB(full_num_gtp) {
   last_value = BTRUE;
   if(is_nil(args[0]))
     return;
-  int64_t n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) {
-    int64_t m = any2int(x);
-    if(n <= m) {
-      last_value = BFALSE;
-      return;
+  if(is_list_of_ints(args[0])) {
+    int64_t n = any2int(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      int64_t m = any2int(x);
+      if(n <= m) {
+        last_value = BFALSE;
+        return;
+      }
+      n = m;
     }
-    n = m;
+  } else {
+    float f = anynum2float(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      float g = anynum2float(x);
+      if(f <= g) {
+        last_value = BFALSE;
+        return;
+      }
+      f = g;
+    }
   }
 }
 DEFSUB(full_num_ltp) {
   last_value = BTRUE;
   if(is_nil(args[0]))
     return;
-  int64_t n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) {
-    int64_t m = any2int(x);
-    if(n >= m) {
-      last_value = BFALSE;
-      return;
+  if(is_list_of_ints(args[0])) {
+    int64_t n = any2int(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      int64_t m = any2int(x);
+      if(n >= m) {
+        last_value = BFALSE;
+        return;
+      }
+      n = m;
     }
-    n = m;
+  } else {
+    float f = anynum2float(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      float g = anynum2float(x);
+      if(f >= g) {
+        last_value = BFALSE;
+        return;
+      }
+      f = g;
+    }
   }
 }
 DEFSUB(full_num_geqp) {
   last_value = BTRUE;
   if(is_nil(args[0]))
     return;
-  int64_t n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) {
-    int64_t m = any2int(x);
-    if(n < m) {
-      last_value = BFALSE;
-      return;
+  if(is_list_of_ints(args[0])) {
+    int64_t n = any2int(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      int64_t m = any2int(x);
+      if(n < m) {
+        last_value = BFALSE;
+        return;
+      }
+      n = m;
     }
-    n = m;
+  } else {
+    float f = anynum2float(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      float g = anynum2float(x);
+      if(f < g) {
+        last_value = BFALSE;
+        return;
+      }
+      f = g;
+    }
   }
 }
 DEFSUB(full_num_leqp) {
   last_value = BTRUE;
   if(is_nil(args[0]))
     return;
-  int64_t n = any2int(far(args[0]));
-  foreach(x, fdr(args[0])) {
-    int64_t m = any2int(x);
-    if(n > m) {
-      last_value = BFALSE;
-      return;
+  if(is_list_of_ints(args[0])) {
+    int64_t n = any2int(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      int64_t m = any2int(x);
+      if(n > m) {
+        last_value = BFALSE;
+        return;
+      }
+      n = m;
     }
-    n = m;
+  } else {
+    float f = anynum2float(far(args[0]));
+    foreach(x, fdr(args[0])) {
+      float g = anynum2float(x);
+      if(f > g) {
+        last_value = BFALSE;
+        return;
+      }
+      f = g;
+    }
   }
 }
 DEFSUB(bit_not) { last_value = int2any(~any2int(args[0])); }
