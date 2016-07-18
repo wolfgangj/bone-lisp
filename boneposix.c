@@ -141,14 +141,12 @@ DEFSUB(getcwd) {
   bone_result((r == d) ? charp2str(d) : BFALSE);
 }
 
-// FIXME: not Y2038-safe w/ 32bit-fixnums
 DEFSUB(time) {
   time_t t = time(NULL);
   ses();
   bone_result((t != -1) ? int2any(t) : BFALSE);
 }
 
-// FIXME: not Y2038-safe w/ 32bit-fixnums
 DEFSUB(gettimeofday) {
   struct timeval tv;
   int res = gettimeofday(&tv, NULL);
