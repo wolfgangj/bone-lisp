@@ -17,24 +17,26 @@
 
 (defmac (with-log file . body)
   "Evaluate `body` while writing log entries to `file`."
-  (with-gensyms (x)
-    `(with ,x *dst*   ; backup
+  (with-gensyms (backup)
+    `(with ,backup *dst*
        (with-file-dst ,file
          (with-var _*log-dst* *dst*
-           (with-var *dst* ,x   ; restore
+           (with-var *dst* ,backup   ; restore
              ,@body))))))
 
 (mysub (_log-timestamp)
   (when (lisp-info 'posix)
     (say (sys.time?) " "))) ; FIXME: print it readable
 
-(defsub (log msg val)
-  "Log `msg` (a description str) and `val`; return `val`."
-  (with-var *dst* _*log-dst*
-    (_log-timestamp)
-    (say msg ": ")
-    (print val)
-    (say "\n"))
-  val)
+(defsub (log . data)
+  "The last value in `data` will be logged with `print`, the others with `say`.
 
-
+Returns the last value."
+  (let ((val (last data))
+        (msg (drop-right 1 data)))
+    (with-var *dst* _*log-dst*
+      (_log-timestamp)
+      (say msg ": ")
+      (print val)
+      (say "\n"))
+    val))

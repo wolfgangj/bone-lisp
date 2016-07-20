@@ -409,6 +409,10 @@ This can be useful for passing to higher order functions."
         xs
       (drop cnt xs))))
 
+(defsub (last xs)
+  "Return the last value in the list `xs`."
+  (car (taker 1 xs)))
+
 (defsub (find? is? xs)
   "Return the first element in `xs` that satisfies predicate `is?`."
   (with loop (lambda (xs)
