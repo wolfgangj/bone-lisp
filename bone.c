@@ -1056,12 +1056,15 @@ my void print(any x) {
   case t_cons: {
     any a = far(x);
     if(is_sym(a)) {
-      if(a == s_quote)            { bputc('\'');  print(fdr(x)); break; }
-      if(a == s_quasiquote)       { bputc('`');  print(fdr(x)); break; }
-      if(a == s_unquote)          { bputc(',');  print(fdr(x)); break; }
+      if(a == s_quote)            { bputc('\'');   print(fdr(x)); break; }
+      if(a == s_unquote)          { bputc(',');    print(fdr(x)); break; }
       if(a == s_unquote_splicing) { bprintf(",@"); print(fdr(x)); break; }
-      if(a == s_lambda && is_cons(fdr(x)) && is_arglist(far(fdr(x))) &&
-          is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
+      if(a == s_quasiquote && is_cons(fdr(x)) && is_nil(fdr(fdr(x)))) {
+        bputc('`');
+        print(far(fdr(x)));
+        break;
+      }
+      if(a == s_lambda  && is_cons(fdr(x)) && is_arglist(far(fdr(x))) && is_single(fdr(fdr(x))) && is_cons(far(fdr(fdr(x))))) {
         bprintf("| ");
         print_sub_args(far(fdr(x)));
         print(far(fdr(fdr(x))));
@@ -1335,7 +1338,7 @@ my any reader() {
   case '(': return read_list();
   case '|': return read_lambda_short_form();
   case '\'': return cons(s_quote, reader());
-  case '`': return cons(s_quasiquote, reader());
+  case '`': return cons(s_quasiquote, single(reader()));
   case ',': return read_unquote();
   case '"': return read_str();
   case '#': {
@@ -2019,7 +2022,7 @@ my any qq_list(any x) {
   if(far(x) == s_unquote_splicing)
     return fdr(x);
   if(far(x) == s_quasiquote)
-    return qq_list(quasiquote(fdr(x)));
+    return qq_list(quasiquote(car(fdr(x))));
   return list2(s_list, list3(s_cat, qq_list(far(x)), quasiquote(fdr(x))));
 }
 
@@ -2033,7 +2036,7 @@ my any quasiquote(any x) {
   if(far(x) == s_unquote_splicing)
     generic_error("invalid quasiquote form", x);
   if(far(x) == s_quasiquote)
-    return quasiquote(quasiquote(fdr(x)));
+    return quasiquote(quasiquote(car(fdr(x))));
   return list3(s_cat, qq_list(far(x)), quasiquote(fdr(x)));
 }
 
@@ -2469,7 +2472,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_bit_and, "bit-and", 2, 0);
   bone_register_csub(CSUB_bit_or, "bit-or", 2, 0);
   bone_register_csub(CSUB_bit_xor, "bit-xor", 2, 0);
-  register_cmac(CSUB_quasiquote, "quasiquote", 0, 1);
+  register_cmac(CSUB_quasiquote, "quasiquote", 1, 0);
   bone_register_csub(CSUB_mac_expand_1, "mac-expand-1", 1, 0);
   bone_register_csub(CSUB_mac_bind, "_mac-bind", 3, 0);
   bone_register_csub(CSUB_mac_expand, "mac-expand", 1, 0);
