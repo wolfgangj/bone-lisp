@@ -56,7 +56,6 @@ my const char *type_name(type_tag tag) {
   case t_cons: return "cons";
   case t_sym: return "sym";
   case t_str: return "str";
-  case t_reg: return "reg";
   case t_sub: return "sub";
   case t_num: return "num";
   case t_other: default: abort(); // never called with t_other
@@ -212,9 +211,6 @@ my any *reg_alloc(int n) {
   allocp = (any **)&current_block[1];
   return reg_alloc(n);
 }
-
-my any reg2any(reg r) { return tag((any)r, t_reg); }
-my reg any2reg(any x) { return (reg)untag_check(x, t_reg); }
 
 my any copy(any x);
 
@@ -1118,9 +1114,6 @@ my void print(any x) {
       }
     bputc('"');
     break;
-  case t_reg:
-    bprintf("#reg(%p)", (void *)x);
-    break;
   case t_sub:
     bprintf("#sub(id=%p name=", (void *)x);
     sub_code code = any2sub(x)->code;
@@ -1923,7 +1916,6 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   case t_str:
   case t_sub:
   case t_other:
-  case t_reg:
     emit(OP_CONST, state);
     emit(pcopy(e), state);
     break;
