@@ -767,9 +767,7 @@ my void add_name(hash namespace, any name, bool overwritable, any val) {
   if(is_sub(val))
     name_sub(any2sub(val), name);
 
-  reg_permanent();
-  hash_set(namespace, name, cons(overwritable ? BINDING_EXISTS : BINDING_DEFINED, copy(val)));
-  reg_pop();
+  hash_set(namespace, name, pcons(overwritable ? BINDING_EXISTS : BINDING_DEFINED, pcopy(val)));
 }
 
 my hash bindings; // FIXME: does it need mutex protection? -> yes, but we use it only at compile-time anyway
@@ -781,9 +779,7 @@ my bool is_bound(any name) { return get_binding(name) != BFALSE; }
 
 my void declare_binding(any name) {
   check_overwrite(bindings, name);
-  reg_permanent();
-  hash_set(bindings, name, cons(BINDING_DECLARED, BFALSE));
-  reg_pop();
+  hash_set(bindings, name, pcons(BINDING_DECLARED, BFALSE));
 }
 
 my hash macros; // FIXME: needs mutex protection, see above
@@ -1991,13 +1987,10 @@ my any compile2list(any expr, any env, int extra_offset, int *extra_locals) {
   return fdr(res);
 }
 
-// result is in permanent region.
 my sub_code compile2sub_code(any expr, any env, int argc, int take_rest, int env_size) {
   int extra;
   any raw = compile2list(expr, env, argc + take_rest, &extra);
-  reg_permanent();
   sub_code code = make_sub_code(argc, take_rest, extra, env_size, len(raw));
-  reg_pop();
   any *p = code->ops;
   foreach(x, raw)
     *p++ = x;
