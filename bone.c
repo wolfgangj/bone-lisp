@@ -2115,17 +2115,25 @@ DEFSUB(fastplus) {
       : float2any(anynum2float(args[0]) + anynum2float(args[1]));
 }
 DEFSUB(fullplus) {
-  if(is_list_of_ints(args[0])) {
-    int64_t ires = 0;
-    foreach(n, args[0])
+  int64_t ires = 0; // as long as we encounter only ints, we operate in "int mode"
+  foreach_cons(c, args[0]) {
+    any n = far(c);
+    switch (get_num_type(n)) {
+    case t_num_int:
       ires += any2int(n);
-    last_value = int2any(ires);
-  } else {
-    float fres = 0.0;
-    foreach(n, args[0])
-      fres += anynum2float(n);
-    last_value = float2any(fres);
+      break;
+    case t_num_float: { // switching to "float mode"
+      float fres = ires;
+      foreach(x, c)
+        fres += anynum2float(x);
+      last_value = float2any(fres);
+      return;   // end of code for "float mode"
+    }
+    default:
+      abort();
+    }
   }
+  last_value = int2any(ires);
 }
 DEFSUB(cons) { last_value = cons(args[0], args[1]); }
 DEFSUB(print) {
@@ -2191,16 +2199,38 @@ DEFSUB(fastminus) {
       : float2any(anynum2float(args[0]) - anynum2float(args[1]));
 }
 DEFSUB(fullminus) {
-  if(get_num_type(args[0]) == t_num_int && is_list_of_ints(args[1])) {
-    int64_t res = any2int(args[0]);
+  switch (get_num_type(args[0])) {
+  case t_num_int: {
+    int64_t ires = any2int(args[0]);
+    foreach_cons(c, args[1]) {
+      any n = far(c);
+      switch (get_num_type(n)) {
+      case t_num_int:
+        ires -= any2int(n);
+        break;
+      case t_num_float: { // switching to "float mode"
+        float fres = ires;
+        foreach(x, c)
+          fres -= anynum2float(x);
+        last_value = float2any(fres);
+        return;   // end of code for "float mode"
+      }
+      default:
+        abort();
+      }
+    }
+    last_value = int2any(ires);
+    break;
+  }
+  case t_num_float: { // start at "float mode"
+    float fres = any2float(args[0]);
     foreach(x, args[1])
-      res -= any2int(x);
-    last_value = int2any(res);
-  } else {
-    float fres = anynum2float(args[0]);
-    foreach(f, args[1])
-      fres -= anynum2float(f);
+      fres -= anynum2float(x);
     last_value = float2any(fres);
+    break;
+  }
+  default:
+    abort();
   }
 }
 DEFSUB(fast_num_eqp) {
@@ -2244,17 +2274,25 @@ DEFSUB(fastmult) {
       : float2any(anynum2float(args[0]) * anynum2float(args[1]));
 }
 DEFSUB(fullmult) {
-  if(is_list_of_ints(args[0])) {
-    int64_t ires = 1;
-    foreach(n, args[0])
+  int64_t ires = 1; // as long as we encounter only ints, we operate in "int mode"
+  foreach_cons(c, args[0]) {
+    any n = far(c);
+    switch (get_num_type(n)) {
+    case t_num_int:
       ires *= any2int(n);
-    last_value = int2any(ires);
-  } else {
-    float fres = 1.0;
-    foreach(n, args[0])
-      fres *= anynum2float(n);
-    last_value = float2any(fres);
+      break;
+    case t_num_float: { // switching to "float mode"
+      float fres = ires;
+      foreach(x, c)
+        fres *= anynum2float(x);
+      last_value = float2any(fres);
+      return;   // end of code for "float mode"
+    }
+    default:
+      abort();
+    }
   }
+  last_value = int2any(ires);
 }
 DEFSUB(fastdiv) {
   if(is_zero(args[1]))
