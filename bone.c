@@ -43,7 +43,7 @@ my void eprintf(const char *fmt, ...) {
   }
 }
 
-// my any L(any x) { print(x); puts(""); return x; } // for debugging
+//my void eprint(any); my any L(any x) { eprint(x); puts(""); return x; } // for debugging
 my void fail(const char *msg) {
   eprintf("%s\n", msg);
   exit(1);
@@ -195,6 +195,9 @@ my reg reg_pop()        { store_reg(curr_reg); reg r = curr_reg; reg_pos--;     
 #undef curr_reg
 my void reg_permanent() { reg_push(permanent_reg); }
 
+my void in_reg() { reg_push(reg_new()); }
+my void end_in_reg() { reg_free(reg_pop()); }
+
 my void rollback_reg_sp(int pos) {
   while(pos != reg_pos)
     reg_free(reg_pop());
@@ -290,6 +293,20 @@ bool is_single(any x) { return is_cons(x) && is_nil(fdr(x)); }
 any single(any x) { return cons(x, NIL); }
 any list2(any a, any b) { return cons(a, single(b)); }
 any list3(any a, any b, any c) { return cons(a, cons(b, single(c))); }
+
+my any pcons(any a, any d) {
+  reg_permanent();
+  any res = cons(a, d);
+  reg_pop();
+  return res;
+}
+
+my any pcopy(any x) {
+  reg_permanent();
+  any res = copy(x);
+  reg_pop();
+  return res;
+}
 
 listgen listgen_new() { listgen res = {NIL, NIL}; return res; }
 
@@ -727,11 +744,12 @@ my sub any2sub(any x) { return (sub)untag_check(x, t_sub); }
 my any copy_sub(any x) {
   sub s = any2sub(x);
   int envsize = s->code->size_of_env;
-  any *res = reg_alloc(1 + envsize), *p = res;
+  any *p = reg_alloc(1 + envsize);
+  any res = tag((any)p, t_sub);
   *p++ = (any)s->code;
   for(int i = 0; i != envsize; i++)
-    *p++ = copy(s->env[i]);
-  return tag((any)res, t_sub);
+    *p++ = s->env[i] == x ? res : copy(s->env[i]); // allow recursive subs
+  return res;
 }
 
 my void name_sub(sub subr, any name) {
@@ -754,7 +772,7 @@ my void add_name(hash namespace, any name, bool overwritable, any val) {
     name_sub(any2sub(val), name);
 
   reg_permanent();
-  hash_set(namespace, name, cons(overwritable ? BINDING_EXISTS : BINDING_DEFINED, val));
+  hash_set(namespace, name, cons(overwritable ? BINDING_EXISTS : BINDING_DEFINED, copy(val)));
   reg_pop();
 }
 
@@ -1907,16 +1925,16 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
   case t_other:
   case t_reg:
     emit(OP_CONST, state);
-    emit(e, state);
+    emit(pcopy(e), state);
     break;
   case t_cons: {
     any first = far(e);
     any rest = fdr(e);
     if(first == s_quote) {
       emit(OP_CONST, state);
-      emit(rest, state);
+      emit(pcopy(rest), state);
       break;
-    } // FIXME: copy() to permanent?
+    }
     if(first == s_do) {
       compile_do(rest, env, tail_context, state);
       break;
@@ -2122,10 +2140,10 @@ DEFSUB(fulldiv) {
 DEFSUB(listp) { last_value = to_bool(is_cons(args[0]) || is_nil(args[0])); }
 DEFSUB(cat2) { last_value = cat2(args[0], args[1]); }
 DEFSUB(in_reg) {
-  reg_push(reg_new());
+  in_reg();
   call0(args[0]);
   last_value = copy_back(last_value);
-  reg_free(reg_pop());
+  end_in_reg();
 }
 DEFSUB(bind) { bind(args[0], is(args[1]), args[2]); }
 DEFSUB(assoc_entry) { last_value = assoc_entry(args[0], args[1]); }
@@ -2385,6 +2403,8 @@ DEFSUB(protect) {
 
 DEFSUB(dup) { last_value = duplist(args[0]); }
 
+DEFSUB(pcons) { last_value = pcons(args[0], args[1]); }
+
 my any make_csub(csub cptr, int argc, int take_rest) {
   sub_code code = make_sub_code(argc, take_rest, 0, 0, 2);
   code->ops[0] = OP_WRAP;
@@ -2505,6 +2525,7 @@ my void init_csubs() {
   bone_register_csub(CSUB_declare, "_declare", 1, 0);
   bone_register_csub(CSUB_protect, "_protect", 1, 0);
   bone_register_csub(CSUB_dup, "dup", 1, 0);
+  bone_register_csub(CSUB_pcons, "_pcons", 2, 0);
 }
 
 //////////////// misc ////////////////
@@ -2624,6 +2645,7 @@ void bone_load(const char *mod) {
   free(fn);
 
   bool fail = false;
+  in_reg();
   try {
     if(look() == '#')
       skip_until('\n');
@@ -2633,6 +2655,8 @@ void bone_load(const char *mod) {
   } catch {
     fail = true;
   }
+  last_value = to_bool(!fail);
+  end_in_reg();
   fclose(src);
   dynamic_vals[dyn_src] = old;
   if(fail)

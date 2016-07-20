@@ -657,10 +657,10 @@ Note that there is no corresponding `str-ascii-upper`."
          (err "ERR: recursive module inclusion\n"))
         (#t (with-var _*incomplete-mods* (cons mod _*incomplete-mods*)
               (_load mod))
-            (_var! '_*complete-mods* (cons mod _*complete-mods*)))))
+            (_var! '_*complete-mods* (_pcons mod _*complete-mods*)))))
 
 (defmac (use . mods)
-  "Use the modules listed in `mods`.  Don't call this inside of the dynamic extent of `in-reg`." ; FIXME. :-/
+  "Use the modules listed in `mods`."
   `(each _use-mod ',mods))
 
 (defmac (reload mod)
