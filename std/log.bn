@@ -15,9 +15,14 @@
 
 (defvar _*log-dst* *stderr*)
 
-(defsub (log-dst! dst)
-  "Initialize the logging library by instructing it to log to `dst`."
-  (_var! '_*log-dst* dst))
+(defmac (with-log file . body)
+  "Evaluate `body` while writing log entries to `file`."
+  (with-gensyms (x)
+    `(with ,x *dst*   ; backup
+       (with-file-dst ,file
+         (with-var _*log-dst* *dst*
+           (with-var *dst* ,x   ; restore
+             ,@body))))))
 
 (mysub (_log-timestamp)
   (when (lisp-info 'posix)
