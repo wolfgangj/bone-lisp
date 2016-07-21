@@ -147,6 +147,14 @@ DEFSUB(time) {
   bone_result((t != -1) ? int2any(t) : BFALSE);
 }
 
+DEFSUB(ctime) {
+  char buf[32]; // ctime_r(3) says it should be "at least 26"
+  time_t t = any2int(args[0]);
+  char *ok = ctime_r(&t, buf);
+  ses();
+  bone_result(ok ? charp2str(buf) : BFALSE);
+}
+
 DEFSUB(gettimeofday) {
   struct timeval tv;
   int res = gettimeofday(&tv, NULL);
@@ -340,6 +348,7 @@ void bone_posix_init() {
   bone_register_csub(CSUB_src_close, "sys.src-close?", 1, 0);
   bone_register_csub(CSUB_dst_open, "sys.dst-open?", 1, 0);
   bone_register_csub(CSUB_dst_close, "sys.dst-close?", 1, 0);
+  bone_register_csub(CSUB_ctime, "sys.ctime?", 1, 0);
 
   srandom(time(NULL));
   bone_info_entry("posix", 0);

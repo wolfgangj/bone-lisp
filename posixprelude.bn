@@ -27,3 +27,10 @@ two-element lists of the form `(sec usec)` (as returned from `gettimeofday`)."
         (t2-sec  (car t2))
         (t2-usec (cadr t2)))
     (+ (* 1000000 (- t2-sec t1-sec)) (- t2-usec t1-usec))))
+
+(defsub (now)
+  "Return a str describung the current time."
+  (with t (sys.time?)
+    (aif (and t (sys.ctime? t))
+        (str-dropr 1 it)
+      (err "Error during POSIX time or ctime, errno=" (sys.errno)))))
