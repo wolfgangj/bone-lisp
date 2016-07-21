@@ -286,6 +286,22 @@ This will increment the three values until their sum is larger than
   "Evaluate `body` while printing output to the file specified by `fname`."
   `(_with-file-dst ,fname (lambda () ,@body)))
 
+(defmac (with-src src . body)
+  "Evaluate `body` while reading input from `src`."
+  `(with-var *src* ,src ,@body))
+
+(defmac (with-dst dst . body)
+  "Evaluate `body` while writing output to `dst`."
+  `(with-var *dst* ,dst ,@body))
+
+(defmac (with-stdin . body)
+  "Evaluate `body` while reading input from stdin."
+  `(with-var *src* *stdin* ,@body))
+
+(defmac (with-stdout . body)
+  "Evaluate `body` while printing output to stdout."
+  `(with-var *dst* *stdout* ,@body))
+
 (defmac (with-stderr . body)
   "Evaluate `body` while printing output to stderr."
   `(with-var *dst* *stderr* ,@body))
