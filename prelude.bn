@@ -89,6 +89,19 @@ definition, but it has to be defined before that code is being run.
 This is intended for making mutual recursion of subs possible."
   `(_declare ',name))
 
+(internsub (_every-pair? compare? xs)
+  (with loop (lambda (xs)
+               (if (single? xs)
+                 #t
+                 (if (compare? (car xs) (car (cdr xs))) (loop (cdr xs)))))
+    (if (nil? xs) #t (loop xs))))
+
+(internsub (_full=? . xs) (_every-pair? _fast=? xs))
+(internsub (_full>? . xs) (_every-pair? _fast>? xs))
+(internsub (_full<? . xs) (_every-pair? _fast<? xs))
+(internsub (_full>=? . xs) (_every-pair? _fast>=? xs))
+(internsub (_full<=? . xs) (_every-pair? _fast<=? xs))
+
 (internmac (_optimize name binary n-ary)
   `(internmac (,name . args)
      (cons (if (_fast=? 2 (len args)) ',binary ',n-ary) args)))
