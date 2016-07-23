@@ -475,13 +475,6 @@ my any merge_sort(any bigger_p, any hd) {
   }
 }
 
-my bool is_list_of_ints(any xs) {
-  foreach(x, xs)
-    if(get_num_type(x) != t_num_int)
-      return false;
-  return true;
-}
-
 my bool is_zero(any x) {
   switch (get_num_type(x)) {
   case t_num_int: return any2int(x) == 0;
@@ -2199,39 +2192,10 @@ DEFSUB(fastminus) {
       : float2any(anynum2float(args[0]) - anynum2float(args[1]));
 }
 DEFSUB(fullminus) {
-  switch (get_num_type(args[0])) {
-  case t_num_int: {
-    int64_t ires = any2int(args[0]);
-    foreach_cons(c, args[1]) {
-      any n = far(c);
-      switch (get_num_type(n)) {
-      case t_num_int:
-        ires -= any2int(n);
-        break;
-      case t_num_float: { // switching to "float mode"
-        float fres = ires;
-        foreach(x, c)
-          fres -= anynum2float(x);
-        last_value = float2any(fres);
-        return;   // end of code for "float mode"
-      }
-      default:
-        abort();
-      }
-    }
-    last_value = int2any(ires);
-    break;
-  }
-  case t_num_float: { // start at "float mode"
-    float fres = any2float(args[0]);
-    foreach(x, args[1])
-      fres -= anynum2float(x);
-    last_value = float2any(fres);
-    break;
-  }
-  default:
-    abort();
-  }
+  CSUB_fullplus(&args[1]);
+  last_value = (get_num_type(args[0]) == t_num_int && get_num_type(last_value) == t_num_int)
+      ? int2any(any2int(args[0]) - any2int(last_value))
+      : float2any(anynum2float(args[0]) - anynum2float(last_value));
 }
 DEFSUB(fast_num_eqp) {
   last_value = (get_num_type(args[0]) == t_num_int && get_num_type(args[1]) == t_num_int)
