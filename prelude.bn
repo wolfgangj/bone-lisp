@@ -89,6 +89,19 @@ definition, but it has to be defined before that code is being run.
 This is intended for making mutual recursion of subs possible."
   `(_declare ',name))
 
+(internsub (_every-pair? compare? xs)
+  (with loop (lambda (xs)
+               (if (single? xs)
+                 #t
+                 (if (compare? (car xs) (car (cdr xs))) (loop (cdr xs)))))
+    (if (nil? xs) #t (loop xs))))
+
+(internsub (_full=? . xs) (_every-pair? _fast=? xs))
+(internsub (_full>? . xs) (_every-pair? _fast>? xs))
+(internsub (_full<? . xs) (_every-pair? _fast<? xs))
+(internsub (_full>=? . xs) (_every-pair? _fast>=? xs))
+(internsub (_full<=? . xs) (_every-pair? _fast<=? xs))
+
 (internmac (_optimize name binary n-ary)
   `(internmac (,name . args)
      (cons (if (_fast=? 2 (len args)) ',binary ',n-ary) args)))
@@ -378,6 +391,10 @@ infix?) and thus was rejected in favor of the C notation."
 See `++` for background information."
   (- n 1))
 
+(defsub (int->float n)
+  "Return a floating-point number equal to integer `n`."
+  (+ 0.0 n))
+
 (defsub (xcons d a)
   "Like `cons`, but order of arguments is reversed.
 
@@ -653,6 +670,7 @@ Note that there is no corresponding `str-ascii-upper`."
 (alias str-padl str-pad)
 (alias str-pad-left str-pad)
 (alias str-pad-right str-padr)
+(alias float->int trunc)
 
 ;;;; Implementation information
 

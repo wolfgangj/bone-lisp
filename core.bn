@@ -235,10 +235,28 @@ This sub will return the `cdr` where the `car` is `x`.")
 
 );end of section
 (defsection "Numbers"
-  "Currently, only Fixnums (integers of limited range) are supported."
+  "Currently, only Fixnums (integers in range -2^59..2^59-1) are supported."
 
   (defsub (num? x)
     "Return whether `x` is a number.")
+
+  (defsub (integer? x)
+    "Return whether `x` is an integer number.")
+
+  (defsub (float? x)
+    "Return whether `x` is a floating-point number.")
+
+  (defsub (round x)
+    "Round `x` to the nearest integer number.")
+
+  (defsub (floor x)
+    "Round `x` to the nearest integer number smaller than `x`.")
+
+  (defsub (ceil x)
+    "Round `x` to the nearest integer number greater than `x`.")
+
+  (defsub (trunc x)
+    "Round `x` towards zero to the nearest integer number.")
 
   (defsub (+ . nums)
     "Return the sum of the numbers in `nums` (which may not contain anything but numbers).")
@@ -258,7 +276,7 @@ empty.")
 When applied to the empty list (as in `(*)` or `(apply * ())`), the result is 1.")
 
   (defsub (/ dividend . divisors)
-    "Devide the `dividend` by the product of all `divisors`.")
+    "Divide the `dividend` by the product of all `divisors`.")
 
   (defsub (mod dividend divisor)
     "Return the remainder of dividing `dividend` by `divisor`.")

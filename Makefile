@@ -8,7 +8,7 @@ MODULES=bone.o main.o $(EXTRA_MODULES)
 	$(CC) $(FLAGS) -c $< -o $@
 
 bone: $(MODULES)
-	$(CC) $(MODULES) -o bone
+	$(CC) $(MODULES) -lm -o bone
 
 clean:
 	rm -f bone *.o
