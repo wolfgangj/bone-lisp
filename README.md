@@ -12,10 +12,6 @@
 
 ## What?
 
-*Note: If you were looking for the great [Bones Scheme Compiler](http://www.call-with-current-continuation.org/bones/), that's a different project.*
-
-*Note: This software is currently in alpha status (but getting closer to beta).*
-
 Bone is an interpreter for a lexically scoped Lisp-1.
 It is based on immutable values and does tail-call elimination.
 The special feature that distinguishes it from other Lisps is the *semi-automatic memory management*: 
@@ -25,6 +21,10 @@ It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp, Erlang and Ruby.
 
 It is currently written for 64 bit systems.
 It runs on GNU/Linux and should also work on other Unices (with minimal porting).
+
+*Note: If you were looking for the great [Bones Scheme Compiler](http://www.call-with-current-continuation.org/bones/), that's a different project.*
+
+*Note: This software is currently in alpha status (but getting closer to beta).*
 
 ## Why?
 
@@ -46,7 +46,7 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Optional dynamic scoping
 * Tail call elimination
 * Explicit regions memory management
-* Lists, strings, fixnums, symbols
+* Lists, symbols, strings, fixnums, floats
 * Classic Lisp Macros
 * Reader macros
 * I/O streams
@@ -57,7 +57,6 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 ### What it does not (yet)
 
 * Multithreading
-* Floating point numbers (coming soon)
 * Networking
 
 ### What it does not (unsure whether it ever will)
@@ -214,10 +213,13 @@ Always feel free to ask for details on any of those.
   You could e.g. take a look at Schemes SRFI-1 and SRFI-13 for ideas.
 * The documentation generator (`gendoc.bn`) needs a lot of improvements.
 * POSIX binding for `strerror_l()` (and lots of other stuff, actually).
+* Make the existing POSIX bindings thread-safe
+  (many POSIX functions have thread safe variants; use them.)
 * If you know Emacs Lisp, it would be great to have a major mode;
   I currently use a quick&dirty hacked version of Scheme mode.
 * Handle symbols with special characters;
   could use the notation `#"symbol with spaces"`.
+  This would be easy for the reader.
 * If you want to add a fancy feature, try doing a reader macro for string interpolation
   (and here documents with string interpolation.)
 
