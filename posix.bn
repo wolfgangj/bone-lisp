@@ -146,3 +146,13 @@ pass `0`.")
 
 (defsub (sys.dst-close? dst)
   "Close the `src`.")
+
+(defsub (sys.execvp? prog args)
+  "Replace current process with a call to `prog` with `args`.
+
+Note that `args` needs to contain at least the program name.
+
+This sub will search for `prog` in the `$PATH`.")
+
+(defsub (sys.strerror num)
+  "Return a string describing system error `n`.")
