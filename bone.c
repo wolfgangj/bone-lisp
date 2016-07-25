@@ -1483,6 +1483,7 @@ my void eprint_arg(any x) {
 }
 
 my void backtrace() {
+  if(silence_errors) return;
   eprintf("BACKTRACE:\n");
   for(size_t pos = call_stack_pos; pos != 0; pos--) {
     eprintf("(");
