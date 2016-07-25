@@ -13,11 +13,14 @@
 ;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 ;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+(internsub (_posix-err name)
+  (err "Error calling POSIX " name ", errno=" (sys.errno)))
+
 (defsub (gettimeofday)
   "Return a list `(seconds microseconds)` of the time since epoch."
   (aif (sys.gettimeofday?)
        it
-    (err "Error calling POSIX gettimeofday, errno=" (sys.errno))))
+    (_posix-err "gettimeofday")))
 
 (defsub (timeofday-diff t2 t1)
   "Return the number of microseconds between `t1` and `t2`, which are both
@@ -33,4 +36,33 @@ two-element lists of the form `(sec usec)` (as returned from `gettimeofday`)."
   (with t (sys.time?)
     (aif (and t (sys.ctime? t))
         (str-dropr 1 it)
-      (err "Error during POSIX time or ctime, errno=" (sys.errno)))))
+      (_posix-err "time or ctime"))))
+
+(defsub (wait-for pid)
+  "Wait for child `pid` to terminate.
+
+Returns a negative number for termination by signals, otherwise the exit status."
+  (with loop (lambda ()
+               (with status (cadr? (sys.waitpid? pid 0))
+                 (acond ((not status) (_posix-err "waitpid"))
+                        ((sys.exitstatus? status) it)
+                        ((sys.termsig? status) (- 0 it))
+                        (#t (loop)))))
+    (loop)))
+
+(defsub (exec prog . args)
+  "Replace current program by calling `prog` with `args`."
+  (or (sys.execvp? prog (cons prog args))
+      (err "Error during POSIX execvp, errno=" (sys.errno))))
+
+(defsub (call prog . args)
+  "Call the program `prog` with `args` and returns its exit status or (negative) termination signal."
+  (aif (sys.fork?)
+      (if (0? it)
+          (apply exec prog args)
+        (wait-for it))
+    (_posix-err "fork")))
+
+(defsub (system cmd)
+  "Start the shell command `cmd` and return its exit status."
+  (call "/bin/sh" "-c" cmd))
