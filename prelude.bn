@@ -486,6 +486,11 @@ This can be useful for passing to higher order functions."
   "If `x` is a cons, return its cdr, otherwise return `#f`."
   (and (cons? x) (cdr x)))
 
+(defsub (caar? x) "The `car?` of the `car?` of `x`." (car? (car? x)))
+(defsub (cadr? x) "The `car?` of the `cdr?` of `x`." (car? (cdr? x)))
+(defsub (cdar? x) "The `cdr?` of the `car?` of `x`." (cdr? (car? x)))
+(defsub (cddr? x) "The `cdr?` of the `cdr?` of `x`." (cdr? (cdr? x)))
+
 (defsub (car* x)
   "If `x` is a cons, return its car; otherwise, return nil."
   (if (cons? x) (car x) ()))
@@ -493,6 +498,11 @@ This can be useful for passing to higher order functions."
 (defsub (cdr* x)
   "If `x` is a cons, return its cdr; otherwise, return nil."
   (if (cons? x) (cdr x) ()))
+
+(defsub (caar* x) "The `car*` of the `car*` of `x`." (car* (car* x)))
+(defsub (cadr* x) "The `car*` of the `cdr*` of `x`." (car* (cdr* x)))
+(defsub (cdar* x) "The `cdr*` of the `car*` of `x`." (cdr* (car* x)))
+(defsub (cddr* x) "The `cdr*` of the `cdr*` of `x`." (cdr* (cdr* x)))
 
 (defsub (assocar? key alist)
   "Get the first value of the list associated with `key` in `alist` (or `#f` if `key` not in `alist`)."
