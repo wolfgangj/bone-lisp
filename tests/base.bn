@@ -435,3 +435,28 @@
   (all? sym? '(a b c))
   (all? (compose not sym?) '(1 2 3))
   (all? sym? ()))
+
+(test "drop"
+  (equal? '(3) (drop 2 '(1 2 3)))
+  (nil? (drop 3 '(1 2 3)))
+  (nil? (drop 5 '(1 2 3)))
+  (equal? '(1 2 3) (drop 0 '(1 2 3))))
+
+(test "dropr"
+  (equal? '(1) (dropr 2 '(1 2 3)))
+  (nil? (dropr 3 '(1 2 3)))
+  (nil? (dropr 5 '(1 2 3)))
+  (equal? '(1 2 3) (dropr 0 '(1 2 3))))
+
+(test "take"
+  (equal? '(1 2) (take 2 '(1 2 3)))
+  (equal? '(1 2 3) (take 3 '(1 2 3)))
+  (equal? '(1 2 3)  (take 5 '(1 2 3)))
+  (nil? (take 0 '(1 2 3))))
+
+(test "taker"
+  (equal? '(2 3) (taker 2 '(1 2 3)))
+  (equal? '(1 2 3) (taker 3 '(1 2 3)))
+  (equal? '(1 2 3)  (taker 5 '(1 2 3)))
+  (nil? (taker 0 '(1 2 3))))
+
