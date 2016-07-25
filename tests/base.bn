@@ -375,3 +375,41 @@
 (test "int->float"
   (=? 3 (int->float 3))
   (float? (int->float 3)))
+
+;;; Most of the (un)folding tests are adapted from the examples in SRFI-1.
+
+(test "fold"
+  (=? 6 (fold + 0 '(1 2 3)))
+  (equal? '(3 2 1) (fold cons () '(1 2 3)))
+  (=? 2 (fold | x count (if (sym? x) (++ count) count)
+              0
+              '(1 2 a 4 5 b 7)))
+  (=? 4 (fold (lambda (s max-len)
+                (if (>? max-len (str-len s))
+                    max-len
+                  (str-len s)))
+              0
+              '("ab" "c" "defg" "hi"))))
+
+(test "foldr"
+  (equal? '(1 2 3) (foldr cons '() '(1 2 3)))
+  (equal? '(a b) (foldr (lambda (x l)
+                          (if (sym? x)
+                              (cons x l)
+                            l))
+                        ()
+                        '(1 2 a 4 5 b 7))))
+
+(test "unfold"
+  (equal? '(1 4 9 16 25 36 49 64 81 100)
+          (unfold | x (>? x 10)
+                  | x (* x x)
+                  | x (+ x 1)
+                  1))
+  (equal? '(1 2 a 4 5 b 7)
+          (unfold nil? car cdr '(1 2 a 4 5 b 7))))
+
+(test "unfoldr"
+  (equal? '(1 4 9 16 25 36 49 64 81 100)
+          (unfold-right 0? | x (* x x) | x (- x 1) 10))
+  (equal? '(3 2 1) (unfold-right nil? car cdr '(1 2 3))))
