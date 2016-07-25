@@ -54,9 +54,10 @@ void bone_register_csub(csub cptr, const char *name, int argc, int take_rest);
 
 bool is_nil(any x);
 bool is(any x);
-any to_bool(int x);
+any to_bool(bool x);
 
 type_other_tag get_other_type(any x);
+void check(any x, type_tag t);
 
 int64_t any2int(any x);
 any int2any(int64_t n);
@@ -72,6 +73,7 @@ void set_fdr(any cell, any x);
 bool is_cons(any x);
 bool is_single(any x);
 any single(any x);
+int64_t len(any x);
 any list2(any a, any b);
 any list3(any a, any b, any c);
 #define foreach(var, lst) for(any p_ = (lst), var; is_cons(p_) && (var = far(p_), 1); p_ = fdr(p_))

@@ -71,7 +71,7 @@ my const char *type_name(type_tag tag) {
 #define BINDING_DECLARED UNIQ(105)
 bool is_nil(any x) { return x == NIL; }
 bool is(any x) { return x != BFALSE; }
-any to_bool(int x) { return x ? BTRUE : BFALSE; }
+any to_bool(bool x) { return x ? BTRUE : BFALSE; }
 
 my void eprint(any x);
 my void backtrace();
@@ -108,7 +108,7 @@ my void type_error(any x, type_tag t) {
 my type_tag tag_of(any x) { return x & 7; }
 my bool is_tagged(any x, type_tag t) { return tag_of(x) == t; }
 
-my void check(any x, type_tag t) {
+void check(any x, type_tag t) {
   if(!is_tagged(x, t))
     type_error(x, t);
 }
@@ -363,8 +363,8 @@ my any duplist(any xs) {
   return lg.xs;
 }
 
-my int len(any x) {
-  int n = 0;
+int64_t len(any x) {
+  int64_t n = 0;
   foreach_cons(e, x) n++;
   return n;
 }
@@ -422,23 +422,23 @@ my any merge_sort(any bigger_p, any hd) {
   if(is_nil(hd))
     return NIL;
   hd = duplist(hd);
-  int area = 1; // size of a part we currently process
+  int64_t area = 1; // size of a part we currently process
   while(1) {
     any p = hd;
     hd = NIL;
     any tl = NIL;
-    int merge_cnt = 0;
+    int64_t merge_cnt = 0;
     while(!is_nil(p)) {
       merge_cnt++;
       any q = p;
-      int len_of_p = 0;
-      for(int i = 0; i < area; i++) {
+      int64_t len_of_p = 0;
+      for(int64_t i = 0; i < area; i++) {
         len_of_p++;
         q = fdr(q);
         if(is_nil(q))
           break;
       }
-      int len_of_q = area;
+      int64_t len_of_q = area;
       while(len_of_p > 0 || (len_of_q > 0 && !is_nil(q))) {
         // determine source of next element:
         bool from_p;

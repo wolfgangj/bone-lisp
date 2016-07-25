@@ -312,6 +312,24 @@ DEFSUB(dst_close) {
   bone_result(to_bool(res));
 }
 
+DEFSUB(execvp) {
+  char *prog = str2charp(args[0]);
+  check(args[1], t_cons); // avoid invalid syscall
+  int64_t argc = len(args[1]);
+  char **argv = malloc((argc+1) * sizeof(char *));
+  int64_t i = 0;
+  foreach(arg, args[1])
+    argv[i++] = str2charp(arg);
+  argv[i] = NULL;
+  execvp(prog, argv);
+  ses();
+  free(prog);
+  while(i--)
+    free(argv[i]);
+  free(argv);
+  bone_result(BFALSE);
+}
+
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
   bone_register_csub(CSUB_errname, "sys.errname?", 0, 0);
@@ -349,6 +367,7 @@ void bone_posix_init() {
   bone_register_csub(CSUB_dst_open, "sys.dst-open?", 1, 0);
   bone_register_csub(CSUB_dst_close, "sys.dst-close?", 1, 0);
   bone_register_csub(CSUB_ctime, "sys.ctime?", 1, 0);
+  bone_register_csub(CSUB_execvp, "sys.execvp?", 2, 0);
 
   srandom(time(NULL));
   bone_info_entry("posix", 0);
