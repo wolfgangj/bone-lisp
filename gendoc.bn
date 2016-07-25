@@ -14,7 +14,7 @@
 ;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 ;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-(version 0 4)
+(version 0 5)
 
 (mysub (document type spec docstr)
   (say "### " type ": `")
@@ -43,5 +43,5 @@
        (each-expr look-at-expr)))
    ()))
 
-(each (drop 2 *program-args*)
-      document-file)
+(each document-file
+      (drop 2 *program-args*))
