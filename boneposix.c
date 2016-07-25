@@ -14,17 +14,19 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <dirent.h>
-#include <errno.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <errno.h>
+#include <signal.h>
+#include <locale.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <time.h>
-#include <unistd.h>
 
 #include "bone.h"
 
@@ -330,6 +332,14 @@ DEFSUB(execvp) {
   bone_result(BFALSE);
 }
 
+DEFSUB(strerror) {
+  locale_t loc = newlocale(LC_MESSAGES_MASK, "", NULL);
+  char *msg = strerror_l(any2int(args[0]), loc);
+  freelocale(loc);
+  any res = charp2str(msg);
+  bone_result(res);
+}
+
 void bone_posix_init() {
   bone_register_csub(CSUB_errno, "sys.errno", 0, 0);
   bone_register_csub(CSUB_errname, "sys.errname?", 0, 0);
@@ -368,6 +378,7 @@ void bone_posix_init() {
   bone_register_csub(CSUB_dst_close, "sys.dst-close?", 1, 0);
   bone_register_csub(CSUB_ctime, "sys.ctime?", 1, 0);
   bone_register_csub(CSUB_execvp, "sys.execvp?", 2, 0);
+  bone_register_csub(CSUB_strerror, "sys.strerror", 1, 0);
 
   srandom(time(NULL));
   bone_info_entry("posix", 0);
