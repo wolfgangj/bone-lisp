@@ -14,7 +14,7 @@
 ;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 (internsub (_posix-err name)
-  (err "Error calling POSIX " name ", errno=" (sys.errno)))
+  (err "Error calling POSIX " name ": " (sys.strerror (sys.errno))))
 
 (defsub (gettimeofday)
   "Return a list `(seconds microseconds)` of the time since epoch."
@@ -53,7 +53,7 @@ Returns a negative number for termination by signals, otherwise the exit status.
 (defsub (exec prog . args)
   "Replace current program by calling `prog` with `args`."
   (or (sys.execvp? prog (cons prog args))
-      (err "Error during POSIX execvp, errno=" (sys.errno))))
+      (_posix-err "execvp")))
 
 (defsub (call prog . args)
   "Call the program `prog` with `args` and returns its exit status or (negative) termination signal."
