@@ -29,7 +29,7 @@ It runs on GNU/Linux and should also work on other Unices (with minimal porting)
 ## Why?
 
 Garbage collection is not a solved problem.
-It becomes extremely complex internally if you want to support multi-threading, avoid pause-times and handle large heaps well.
+It becomes extremely complex if you want to support multi-threading, avoid pause-times and handle large heaps well.
 But doing manual memory management is time-consuming for the programmer - and usually also error-prone.
 Explicit regions are both very simple and very fast, but how far can one get with them?
 I want to find out, so I am developing this interpreter.
@@ -49,10 +49,9 @@ Bone Lisp could maybe become useful for soft real-time systems (e.g. as a script
 * Lists, symbols, strings, fixnums, floats
 * Classic Lisp Macros
 * Reader macros
-* I/O streams
+* I/O streams with UTF-8 support
 * TAS conforming testing library
 * POSIX bindings (but not many yet...)
-* Basic Unicode (UTF-8 I/O)
 
 ### What it does not (yet)
 
