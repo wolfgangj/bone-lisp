@@ -1483,7 +1483,6 @@ my void eprint_arg(any x) {
 }
 
 my void backtrace() {
-  if(silence_errors) return;
   eprintf("BACKTRACE:\n");
   for(size_t pos = call_stack_pos; pos != 0; pos--) {
     eprintf("(");
@@ -2463,11 +2462,13 @@ DEFSUB(declare) { declare_binding(args[0]); }
 
 DEFSUB(protect) {
   silence_errors = true;
+  size_t csp_backup = call_stack_pos;
   try {
     call0(args[0]);
   } catch {
     last_value = BFALSE;
   }
+  call_stack_pos = csp_backup;
   silence_errors = false;
 }
 
