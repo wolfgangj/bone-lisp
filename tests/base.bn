@@ -460,3 +460,9 @@
   (equal? '(1 2 3)  (taker 5 '(1 2 3)))
   (nil? (taker 0 '(1 2 3))))
 
+(test "rlambda"
+  (=? 7 ((rlambda re (xs)
+           (if (nil? xs)
+               0
+             (++ (re (cdr xs)))))
+         '(1 2 3 4 a b c))))

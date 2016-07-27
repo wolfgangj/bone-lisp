@@ -259,6 +259,10 @@ of the value list, in which case the branch is always taken."
     (lambda more-args
       (apply sub (cat args more-args)))))
 
+(defmac (rlambda name args . body)
+  "Like `lambda`, but also binds `name` to the sub itself."
+  `(with ,name (lambda ,args ,@body) ,name))
+
 (defmac (in-reg . body)
   "Evaluate `body` while using a new memory region; copy back the result."
   `(_in-reg (lambda () ,@body)))
