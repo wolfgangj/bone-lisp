@@ -185,9 +185,9 @@ The `bindings` are of the form `(name value)`."
       (cons 'do body)
     `(with ,(caar bindings) ,(cadar bindings) (let ,(cdr bindings) . ,body))))
 
-(defmac (aif expr then else)
+(defmac (aif expr then . else)
   "Anamorphic `if`: Bind `it` to the result of `expr`."
-  `(with it ,expr (if it ,then ,else)))
+  `(with it ,expr (if it ,then ,@else)))
 
 (defmac (awhen expr . body)
   "Anamorphic `when`: Bind `it` to the result of `expr`."
