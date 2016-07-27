@@ -24,7 +24,11 @@ int main(int argc, char **argv) {
   bone_load("prelude");
   bone_load("posixprelude");
   if (argc > 1) {
-    bone_load(argv[1]);
+    try {
+      bone_load(argv[1]);
+    } catch {
+      return 1;
+    }
     return 0;
   }
   printf("Bone Lisp " BONE_VERSION);
