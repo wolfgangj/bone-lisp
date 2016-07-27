@@ -107,7 +107,7 @@ Keeping with the times, we reserve the term "function" for pure functions withou
 Since Bone Lisp allows some side-effects (like I/O), we mostly speak about using subroutines in our code.
 Usually, we abbreviate "subroutine" as "sub", like it is done in modern BASIC dialects.
 
-To the usual syntactic sugar (like `'x` for quoting) we only add a shortcut for anonymous subs with a single expression in the body:
+To the usual syntactic sugar (like `'x` for quoting) we only add a shortcut for subs with a single expression in the body:
 
     | a b c (foo)   ; => (lambda (a b c) (foo))
 
@@ -207,11 +207,12 @@ If you don't understand something, feel free to ask.
 Here are some ideas on how you can start contributing.
 Always feel free to ask for details on any of those.
 
+* Play around with it, report bugs and send tell me what needs improvement.
 * You can add lots of library stuff.
   This is always a good thing.
   You could e.g. take a look at Schemes SRFI-1 and SRFI-13 for ideas.
-* The documentation generator (`gendoc.bn`) needs a lot of improvements.
-* POSIX binding for `strerror_l()` (and lots of other stuff, actually).
+  Or the Ruby standard library etc.
+* The documentation generator (`gendoc.bn`) needs a lot of improvement.
 * Make the existing POSIX bindings thread-safe
   (many POSIX functions have thread safe variants; use them.)
 * If you know Emacs Lisp, it would be great to have a major mode;
