@@ -466,3 +466,11 @@
                0
              (++ (re (cdr xs)))))
          '(1 2 3 4 a b c))))
+
+(test "aif"
+  (eq? 2 (aif 2 it #f))
+  (aif #f #f #t)
+  (not (aif #f #t))
+  (eq? 2 (aif #f #f #f 2))
+  (not (aif #f #t it)))
+
