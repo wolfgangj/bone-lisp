@@ -605,7 +605,6 @@ This can be useful for passing to higher order functions."
                      (loop))))
     (loop)))
 
-
 (defreader eval
   "Evaluate the next expression at read-time."
   (eval (read)))
@@ -617,6 +616,13 @@ This can be useful for passing to higher order functions."
             (<>? 1 (str-len s)))
         (err "chr reader requires a 1-character str")
       (car (unstr s)))))
+
+(defsub (read-line)
+  "Read a line; the returned str will not contain the newline."
+  (str (unfold | c (=? c #chr "\n")
+               id
+               | c (chr-read)
+               (chr-read))))
 
 (defsub (str-ascii-lower s)
   "Convert upper case characters in `s` to lower case.
