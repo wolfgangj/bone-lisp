@@ -16,6 +16,36 @@
 
 (version 0 5)
 
+;;; Program options
+
+(use std/prog-arg)
+
+(defvar *options-spec*
+  '((help ((flag #t)
+           (short #chr "h")
+           (desc "Show this usage message.")))
+    (version ((flag #t)
+              (short #chr "v")
+              (desc "Show version information.")))))
+
+
+(destructure (options files)
+    (parse-prog-args (drop 2 *program-args*) *options-spec*)
+  (defvar *options* options)
+  (defvar *files* files))
+
+(cond ((assocar? 'help *options*)
+       (say-prog-args-help "gendoc" *options-spec* "FILE...")
+       (sys.exit 0))
+      ((assocar? 'version *options*)
+       (say "gendoc " ; as part of the distribution, we just use the Bone Lisp version:
+            (lisp-info 'major-version) "."
+            (lisp-info 'minor-version) "."
+            (lisp-info 'patch-version) "\n")
+       (sys.exit 0)))
+
+;;; Main program
+
 (mysub (document type spec docstr)
   (say "### " type ": `")
   (print spec)
@@ -43,5 +73,4 @@
        (each-expr look-at-expr)))
    ()))
 
-(each document-file
-      (drop 2 *program-args*))
+(each document-file *files*)

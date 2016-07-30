@@ -15,7 +15,6 @@
 
 ;; Example:
 ;;  (parse-prog-args '("-v" "-o" "foo" "bar")
-;;                   "FILE"
 ;;                   '((verbose ((flag #t)
 ;;                               (desc "Display more information.")
 ;;                               (short #chr "v")))
