@@ -403,7 +403,7 @@ my any cat2(any a, any b) {
   listgen lg = listgen_new();
   foreach(x, a)
     listgen_add(&lg, x);
-  set_fdr(lg.last, b);
+  listgen_set_tail(&lg, b);
   return lg.xs;
 }
 
