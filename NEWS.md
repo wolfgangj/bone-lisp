@@ -1,5 +1,56 @@
 # Release information
 
+## 0.5.0
+
+* Support for floating point numbers.
+* Basic Unicode support:
+  I/O is done in UTF-8.
+* New builtin subs/macros:
+  `acond`
+  `caar?`
+  `caar*`
+  `cadr?`
+  `cadr*`
+  `case`
+  `cdar?`
+  `cdar*`
+  `cddr?`
+  `cddr*`
+  `last`
+  `read-line`
+  `str*`
+  `str-ascii-lower`
+  `str-pad`
+  `str-padr`
+  `str-pos?`
+  `str-select`
+  `with-dst`
+  `with-gensyms`
+  `with-src`
+  `with-stderr`
+  `with-stdin`
+  `with-stdout`
+* New standard library module `std/prog-args` for parsing program arguments.
+  It contains the subs:
+  `parse-prog-args`
+  `say-prog-args-help`
+* New standard library module `std/log` for logging.
+  It contains the subs/macros:
+  `log`
+  `with-log`
+* `(lisp-info 'posix)` returns `0` if POSIX module is used (`#f` otherwise).
+* New POSIX bindings:
+  `call`
+  `exec`
+  `str-now`
+  `sys.ctime?`
+  `sys.execvp?`
+  `system`
+  `wait-for`
+* All internal structures are resized dynamically, so there are no arbitrary limits anymore.
+* The interpreter takes up less permanent memory space.
+* The documentation generator understands basic command line options now.
+
 ## 0.4.0
 
 * New standard library module `std/tap` which implements incomplete, but TAP-conformant testing.
