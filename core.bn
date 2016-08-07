@@ -19,11 +19,8 @@
 ;;;; documentation generator. This file uses `defspecial` to document
 ;;;; special forms.
 
-(defsection "Special forms"
-  "Special forms are built-in forms with special evaluation rules."
-
-  (defspecial (if test then . else)
-    "If `test` yields true, evaluate `then`, otherwise all expressions in `else`.
+(defspecial (if test then . else)
+  "If `test` yields true, evaluate `then`, otherwise all expressions in `else`.
 
 If `else` is empty and `test` is false, returns false.
 
@@ -32,17 +29,17 @@ value.  This means that the empty list as well as the number zero are
 considered to be true values.  See `nil?` and `zero?` if you want to
 check for those values.")
 
-  (defspecial (quote . obj)
-    "Returns `obj`, unevaluated.")
+(defspecial (quote . obj)
+  "Returns `obj`, unevaluated.")
 
-  (defspecial (do . exprs)
-    "Evaluate the `exprs` in order.")
+(defspecial (do . exprs)
+  "Evaluate the `exprs` in order.")
 
-  (defspecial (with name value . exprs)
-    "Bind `name` to `value`, then evaluate the `exprs` in order.")
+(defspecial (with name value . exprs)
+  "Bind `name` to `value`, then evaluate the `exprs` in order.")
 
-  (defspecial (lambda args . body)
-    "Create an anonymous sub with arguments `args` and code `body` (which may not be empty).
+(defspecial (lambda args . body)
+  "Create an anonymous sub with arguments `args` and code `body` (which may not be empty).
 
 `args` can be either a `sym` or a list of `sym`s; if it is a list, it
 may be improper, but only if it has a `sym` as rest.  This means:
@@ -58,10 +55,10 @@ The anonymous sub that is created will be lexically scoped,
 i.e. bindings defined in an outer scope may be used and are
 encapsulated if the sub is passed back as a return value.")
 
-  (defmac (quasiquote . form)
-    "Quote `form`, except for unquoted parts.
+(defmac (quasiquote . form)
+  "Quote `form`, except for unquoted parts.
 
-This macro is generally used via its short form `\`form`.  It works
+This macro is generally used via its short form `\\`form`.  It works
 like `quote`, but may contain `(unquote x)` forms which will cause x`
 to appear unquoted in the result.  For `unquote` the abbreviation
 `,` (comma) is available.  `(unquote-splicing x)` or `,@x` forms
@@ -71,62 +68,51 @@ resulting list, i.e.:
     `(a b c ,@(list 1 2 3) d e f)
     ; => (a b c 1 2 3 d e f)")
 
-);end of section
-(defsection "Development utilities and reflection"
+(defsub (mac-expand-1 form)
+  "Expand macros in `form` once, i.e. show the immediate result of macro expansion.")
 
-  (defsub (mac-expand-1 form)
-    "Expand macros in `form` once, i.e. show the immediate result of macro expansion.")
+(defsub (mac-expand form)
+  "Expand macros in `form` repeatedly until there are no macros anymore.")
 
-  (defsub (mac-expand form)
-    "Expand macros in `form` repeatedly until there are no macros anymore.")
+(defsub (bound? sym)
+  "Check whether `sym` is bound.")
 
-  (defsub (bound? sym)
-    "Check whether `sym` is bound.")
+(defsub (mac-bound? sym)
+  "Check whether `sym` is bound in the macro namespace.")
 
-  (defsub (mac-bound? sym)
-    "Check whether `sym` is bound in the macro namespace.")
+(defsub (var-bound? sym)
+  "Check whether `sym` is bound in the dynamic variable namespace.")
 
-  (defsub (var-bound? sym)
-    "Check whether `sym` is bound in the dynamic variable namespace.")
+(defsub (reader-bound? sym)
+  "Check whether `sym` is bound in the reader macro namespace.")
 
-  (defsub (reader-bound? sym)
-    "Check whether `sym` is bound in the reader macro namespace.")
+(defsub (eval x)
+  "Evaluate `x`; this allows to generate code at runtime.")
 
-  (defsub (eval x)
-    "Evaluate `x`; this allows to generate code at runtime.")
-
-);end of section
-(defsection "General utilities"
-  "This section defines basic operations on all objects."
-
-  (defsub (id x)
-    "This is the identity sub; it simply returns `x`.
+(defsub (id x)
+  "This is the identity sub; it simply returns `x`.
 
 This is sometimes useful in higher order programming.")
 
-  (defsub (eq? a b)
-    "Returns whether `a` and `b` are the same object.
+(defsub (eq? a b)
+  "Returns whether `a` and `b` are the same object.
 
 Don't use this for comparing numbers, use `=?` instead.  The most
 important use of `eq?` is as a quick way to compare `sym`s.")
 
-  (defsub (copy x)
-    "Return a newly allocated copy of `x`.")
+(defsub (copy x)
+  "Return a newly allocated copy of `x`.")
 
-  (defsub (not x)
-    "Boolean negation: Return whether `x` is false.
+(defsub (not x)
+  "Boolean negation: Return whether `x` is false.
 
 Do not confuse this with `no` or `nil?`, which test for the empty list.")
 
-);end of section
-(defsection "Subroutines (`sub`s)"
-  "A `sub` is created with the special form `lambda`."
+(defsub (sub? x)
+  "Return whether `x` is a sub.")
 
-  (defsub (sub? x)
-    "Return whether `x` is a sub.")
-
-  (defsub (apply sub . args)
-    "Apply `sub` to the given arguments, the last value in `args` must be a list.
+(defsub (apply sub . args)
+  "Apply `sub` to the given arguments, the last value in `args` must be a list.
 
 The exact behaviour is best explained with examples:
 * `(apply f)` is `(f)`
@@ -137,132 +123,110 @@ This allows to use a list as the arguments to a sub, while also having
 fixed arguments at the same time (without a need for consing them to
 the front of the list manually).  See also `list*`.")
 
-);end of section
-(defsection "Cons Cells and Lists"
-  "A `cons` is the building block of a list: It consists of the first
-element in the `car` field and the remaining list after the first
-element in the `cdr` field.  The names are Lisp tradition."
+(defsub (cons a d)
+  "Create a cons cell containing `a` as car and `d` as cdr.")
 
-  (defsub (cons a d)
-    "Create a cons cell containing `a` as car and `d` as cdr.")
-
-  (defsub (car x)
-    "Return the car (first element) of the cons cell `x`.
+(defsub (car x)
+  "Return the car (first element) of the cons cell `x`.
 
 Note that `car` and `cdr` are low-level operations which usually
 should not appear in application code.  Instead, higher-level list
 operations should be used (which may be implemented in terms of `car`
 and `cdr`).")
 
-  (defsub (cdr x)
-    "Return the cdr (second element) of the cons cell `x`.
+(defsub (cdr x)
+  "Return the cdr (second element) of the cons cell `x`.
 
 See `car` for additional usage information.")
 
-  (defsub (cons? x)
-    "Return whether `x` is a `cons` cell.")
+(defsub (cons? x)
+  "Return whether `x` is a `cons` cell.")
 
-  (defsub (nil? x)
-    "Return whether `x` is the empty list.
+(defsub (nil? x)
+  "Return whether `x` is the empty list.")
 
-This is the same as `no`, but `no` often reads more naturally, as in:
-
-    (if (no xs) ... ...)")
-
-  (defsub (single? x)
-    "Check whether `x` is a list of exactly one element.
+(defsub (single? x)
+  "Check whether `x` is a list of exactly one element.
 
 `x` may be any object, it does not have to be a list.")
 
+(defsub (list? x)
+  "Return whether `x` is a list (i.e. either a `cons` or nil).")
 
-  (defsub (list? x)
-    "Return whether `x` is a list (i.e. either a `cons` or nil).")
-
-  (defsub (list . xs)
-    "Returns `xs`.
+(defsub (list . xs)
+  "Returns `xs`.
 
 This is a basic list constructor; it's more convenient (and faster)
 than nested `cons` calls.")
 
-  (defsub (list* . xs)
-    "Create a list consisting of the elements of `xs`, but using the last element as rest.
+(defsub (list* . xs)
+  "Create a list consisting of the elements of `xs`, but using the last element as rest.
 
 This means that `(list* 1 2 3)` returns `(1 2 . 3)`.")
 
-  (defsub (len xs)
-    "Return the number of elements in `xs`.")
+(defsub (len xs)
+  "Return the number of elements in `xs`.")
 
-  (defsub (dup xs)
-    "Duplicate the list `xs`; the elements will not be duplicated.")
+(defsub (dup xs)
+  "Duplicate the list `xs`; the elements will not be duplicated.")
 
-  (defsub (cat . lists)
-    "Concatenate the `lists` into a single list.")
+(defsub (cat . lists)
+  "Concatenate the `lists` into a single list.")
 
-  (defsub (reverse xs)
-    "Return a list with the elements of `xs`, but in opposite order.")
+(defsub (reverse xs)
+  "Return a list with the elements of `xs`, but in opposite order.")
 
-  (defsub (member? x xs)
-    "Return whether `x` is in the list `xs`.")
+(defsub (member? x xs)
+  "Return whether `x` is in the list `xs`.")
 
-  (defsub (each sub xs)
-    "Apply `sub` to every element of the list `xs` in sequence.
+(defsub (each sub xs)
+  "Apply `sub` to every element of the list `xs` in sequence.
 
 The result should be ignored, but will be the result of the last call to `sub`.")
 
-  (defsub (map sub xs)
-    "Call `sub` for each element in `xs` and return a list of the results.")
+(defsub (map sub xs)
+  "Call `sub` for each element in `xs` and return a list of the results.")
 
-  (defsub (filter keep? xs)
-    "Call `keep?` for each element in `xs` and return a list of the elements where the result was true.")
+(defsub (filter keep? xs)
+  "Call `keep?` for each element in `xs` and return a list of the elements where the result was true.")
 
-  (defsub (sort is>? xs)
-    "Sort `xs` according to the predicate `is>?`.")
+(defsub (sort is>? xs)
+  "Sort `xs` according to the predicate `is>?`.")
 
-);end of section
-(defsection "Association Lists (`alists`)"
-  "An `alist` is an 'association list': Each of it elements is a cons
-cell with a key in its `car` and a corresponding value in the
-`cdr` (sometimes also the `cadr` - this is useful if you want to
-distinguish between a value being `#f` and no value being found)."
-
-  (defsub (assoc? x alist)
-    "Get the value corresponding to the key `x` in `alist` (`#f` if not found).
+(defsub (assoc? x alist)
+  "Get the value corresponding to the key `x` in `alist` (`#f` if not found).
 
 This sub will return the `cdr` where the `car` is `x`.")
 
-  (defsub (assoc-entry? x alist)
-    "Returns the key/value entry from `alist` with the key `x` (`#f` if not found).")
+(defsub (assoc-entry? x alist)
+  "Returns the key/value entry from `alist` with the key `x` (`#f` if not found).")
 
-);end of section
-(defsection "Numbers"
-  "Currently, only Fixnums (integers in range -2^59..2^59-1) are supported."
+(defsub (num? x)
+  "Return whether `x` is a number.")
 
-  (defsub (num? x)
-    "Return whether `x` is a number.")
+(defsub (integer? x)
+  "Return whether `x` is an integer number.")
 
-  (defsub (integer? x)
-    "Return whether `x` is an integer number.")
+(defsub (float? x)
+  "Return whether `x` is a floating-point number.")
 
-  (defsub (float? x)
-    "Return whether `x` is a floating-point number.")
+(defsub (round x)
+  "Round `x` to the nearest integer number.")
 
-  (defsub (round x)
-    "Round `x` to the nearest integer number.")
+(defsub (floor x)
+  "Round `x` to the nearest integer number smaller than `x`.")
 
-  (defsub (floor x)
-    "Round `x` to the nearest integer number smaller than `x`.")
+(defsub (ceil x)
+  "Round `x` to the nearest integer number greater than `x`.")
 
-  (defsub (ceil x)
-    "Round `x` to the nearest integer number greater than `x`.")
+(defsub (trunc x)
+  "Round `x` towards zero to the nearest integer number.")
 
-  (defsub (trunc x)
-    "Round `x` towards zero to the nearest integer number.")
+(defsub (+ . nums)
+  "Return the sum of the numbers in `nums` (which may not contain anything but numbers).")
 
-  (defsub (+ . nums)
-    "Return the sum of the numbers in `nums` (which may not contain anything but numbers).")
-
-  (defsub (- n . nums)
-    "Arithmetic minus: The sum of `nums` will be subtracted from `n`.
+(defsub (- n . nums)
+  "Arithmetic minus: The sum of `nums` will be subtracted from `n`.
 
 This is not the traditional behaviour of `-` in Lisp, which did allow
 the unary minus `(- x)` as an alias for `(- 0 x)`.  This was removed
@@ -270,83 +234,70 @@ from Bone Lisp because it would cause trouble with constructs
 like `(apply - num xs)` giving unexpected results when `xs` is
 empty.")
 
-  (defsub (* . nums)
-    "Return the product of the numbers in `nums` (which may not contain anything but numbers).
+(defsub (* . nums)
+  "Return the product of the numbers in `nums` (which may not contain anything but numbers).
 
 When applied to the empty list (as in `(*)` or `(apply * ())`), the result is 1.")
 
-  (defsub (/ dividend . divisors)
-    "Divide the `dividend` by the product of all `divisors`.")
+(defsub (/ dividend . divisors)
+  "Divide the `dividend` by the product of all `divisors`.")
 
-  (defsub (mod dividend divisor)
-    "Return the remainder of dividing `dividend` by `divisor`.")
+(defsub (mod dividend divisor)
+  "Return the remainder of dividing `dividend` by `divisor`.")
 
-  (defsub (=? . nums)
-    "Return whether the numbers in `nums` are all equal.")
+(defsub (=? . nums)
+  "Return whether the numbers in `nums` are all equal.")
 
-  (defsub (<>? a b)
-    "Return whether the numbers `a` and `b` are different.
+(defsub (<>? a b)
+  "Return whether the numbers `a` and `b` are different.
 
 Note that this sub accepts only two arguments, while similar subs like
 `=?` accept an arbitrary number of args.")
 
-  (defsub (>? . nums)
-    "Return whether each number in `nums` is greater than the next.")
+(defsub (>? . nums)
+  "Return whether each number in `nums` is greater than the next.")
 
-  (defsub (<? . nums)
-    "Return whether each number in `nums` is less than the next.")
+(defsub (<? . nums)
+  "Return whether each number in `nums` is less than the next.")
 
-  (defsub (>=? . nums)
-    "Return whether each number in `nums` is greater than or equal to the next.")
+(defsub (>=? . nums)
+  "Return whether each number in `nums` is greater than or equal to the next.")
 
-  (defsub (<=? . nums)
-    "Return whether each number in `nums` is less than or equal to the next.")
+(defsub (<=? . nums)
+  "Return whether each number in `nums` is less than or equal to the next.")
 
-  (defsub (bit-not n)
-    "Return the bitwise negation of `n` (i.e. flip each bit).")
+(defsub (bit-not n)
+  "Return the bitwise negation of `n` (i.e. flip each bit).")
 
-  (defsub (bit-and n1 n2)
-    "Return the bitwise AND of `n1` and `n2`.")
+(defsub (bit-and n1 n2)
+  "Return the bitwise AND of `n1` and `n2`.")
 
-  (defsub (bit-or n1 n2)
-    "Return the bitwise OR (inclusive or) of `n1` and `n2`.")
+(defsub (bit-or n1 n2)
+  "Return the bitwise OR (inclusive or) of `n1` and `n2`.")
 
-  (defsub (bit-xor n1 n2)
-    "Return the bitwise XOR (exclusive or) of `n1` and `n2`.")
+(defsub (bit-xor n1 n2)
+  "Return the bitwise XOR (exclusive or) of `n1` and `n2`.")
 
-);end of section
-(defsection "Strings (`str`s)"
-  "A `str` is a sequence of characters representing a text.  A
-character may either be an integer specifying an UCS code points, or a
-list of UCS code points which represents a longer grapheme cluster (a
-'user-perceived character' that may be combined from several code
-points).  A grapheme cluster always starts with a base code point,
-followed by zero or more continuing code points."
+(defsub (str? x)
+  "Return whether `x` is a string (a `str`).")
 
-  (defsub (str? x)
-    "Return whether `x` is a string (a `str`).")
+(defsub (str chrs)
+  "Return a new `str` with the characters from the list `chrs`.")
 
-  (defsub (str chrs)
-    "Return a new `str` with the characters from the list `chrs`.")
+(defsub (unstr s)
+  "Return the list of characters in `s`.")
 
-  (defsub (unstr s)
-    "Return the list of characters in `s`.")
+(defsub (str=? s1 s2)
+  "Return whether `str1` and `str2` consist of the same characters.")
 
-  (defsub (str=? s1 s2)
-    "Return whether `str1` and `str2` consist of the same characters.")
+(defsub (str<>? s1 s2)
+  "Return whether `str1` and `str2` consist of different characters.")
 
-  (defsub (str<>? s1 s2)
-    "Return whether `str1` and `str2` consist of different characters.")
+(defsub (num->str n)
+  "Return a representation of `n` as a str.")
 
-  (defsub (num->str n)
-    "Return a representation of `n` as a str.")
-
-);end of section
-(defsection "Input/Output"
-  "Currently, the I/O facilities are rather limited."
-
-  (defsub (print x)
-    "Print `x` as an extended symbolic expression.
+(defsub (print x)
+  "Print `x` as an extended symbolic expression.
 
 This will print the object so that it can be read by humans and also
 read back by the Lisp reader, except if it contains objects which
@@ -356,8 +307,8 @@ for `quote`, `quasiquote`, `unquote`, `unquote-splicing` and `lambda`
 will be printed to keep the output short and as human-readable as
 possible.")
 
-  (defsub (say . xs)
-    "Print all `xs`.
+(defsub (say . xs)
+  "Print all `xs`.
 
 The differences to the `print` sub are:
 * A `str` is printed without the quote signs and without escape sequences.
@@ -366,53 +317,45 @@ The differences to the `print` sub are:
 
 Always returns `#t`.")
 
-  (defsub (err . xs)
-    "Print all of `xs` as with `say`, then raise an error.")
+(defsub (err . xs)
+  "Print all of `xs` as with `say`, then raise an error.")
 
-  (defsub (read)
-    "Read a symbolic expression from the current src.")
+(defsub (read)
+  "Read a symbolic expression from the current src.")
 
-  (defsub (chr-read)
-    "Read a single character from the current src.")
+(defsub (chr-read)
+  "Read a single character from the current src.")
 
-  (defsub (chr-look)
-    "Look ahead at the next character from the current src without reading it.")
+(defsub (chr-look)
+  "Look ahead at the next character from the current src without reading it.")
 
-  (defsub (src-line src)
-    "The current line number of `src`.")
+(defsub (src-line src)
+  "The current line number of `src`.")
 
-  (defsub (file-name src-or-dst)
-    "The file name associated with `src-or-dst`.")
+(defsub (file-name src-or-dst)
+  "The file name associated with `src-or-dst`.")
 
-  (defsub (src? x)
-    "Check whether `x` is a src.")
+(defsub (src? x)
+  "Check whether `x` is a src.")
 
-  (defsub (dst? x)
-    "Check whether `x` is a dst.")
+(defsub (dst? x)
+  "Check whether `x` is a dst.")
 
-  (defsub (eof? x)
-    "Check whether `x` is the end of file object.")
+(defsub (eof? x)
+  "Check whether `x` is the end of file object.")
 
-);end of section
-(defsection "Symbols (`sym`s)"
-  "A `sym` is similar to a `str`, but only a single `sym` object
-exists for each text.  This means that `sym`s can be effectively
-compared for equality with `eq?`."
+(defsub (sym? x)
+  "Return whether `x` is a sym.")
 
-  (defsub (sym? x)
-    "Return whether `x` is a sym.")
-
-  (defsub (intern s)
-    "Return the `sym` with the text of `str`.
+(defsub (intern s)
+  "Return the `sym` with the text of `str`.
 
 If it does not exist yet, it will be created.")
 
-  (defsub (sym->str symbol)
-    "Return the name of the sym `symbol` as a str.")
+(defsub (sym->str symbol)
+  "Return the name of the sym `symbol` as a str.")
 
-  (defsub (gensym)
-    "Return a new non-interned sym.
+(defsub (gensym)
+  "Return a new non-interned sym.
 
 This is especially useful to avoid naming conflicts in macros.")
-
-);end of section
