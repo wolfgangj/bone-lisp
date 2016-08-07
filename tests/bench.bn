@@ -1,4 +1,4 @@
-;;;; tests/posix.bn -- std/bench library tests.   -*- bone -*-
+;;;; tests/bench.bn -- std/bench library tests.   -*- bone -*-
 ;;;; Copyright (C) 2016 Dov Murik
 ;;;;
 ;;;; Permission to use, copy, modify, and/or distribute this software for any

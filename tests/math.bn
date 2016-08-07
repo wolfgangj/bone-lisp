@@ -1,4 +1,4 @@
-;;;; tests/base.bn -- Base language tests.   -*- bone -*-
+;;;; tests/math.bn -- Base language tests.   -*- bone -*-
 ;;;; Copyright (C) 2016 Wolfgang Jaehrling
 ;;;;
 ;;;; Permission to use, copy, modify, and/or distribute this software for any
