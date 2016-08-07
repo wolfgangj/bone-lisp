@@ -18,7 +18,7 @@
 #define BONE_H
 
 #define BONE_MAJOR 0
-#define BONE_MINOR 5
+#define BONE_MINOR 6
 #define BONE_PATCH 0
 #define BONE_VERSION_EXTRA "-pre"
 
