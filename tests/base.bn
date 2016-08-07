@@ -475,6 +475,13 @@
   (not (aif #f #t it)))
 
 (test "str-subst"
+  (str=? "fobar" (str-subst "o" "" "foobar"))
   (str=? "fo<>ar" (str-subst "ob" "<>" "foobar"))
   (str=? "foiiiar" (str-subst "ob" "iii" "foobar"))
   (str=? "foxar" (str-subst "ob" "x" "foobar")))
+
+(test "str-gsubst"
+  (str=? "f**bar" (str-gsubst "o" "*" "foobar"))
+  (str=? "f-bar" (str-gsubst "oo" "-" "foobar"))
+  (str=? "&amp;" (str-gsubst "&" "&amp;" "&"))
+  (str=? "yes &amp; no &amp; void" (str-gsubst "&" "&amp;" "yes & no & void")))

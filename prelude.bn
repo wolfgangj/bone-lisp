@@ -596,15 +596,29 @@ This can be useful for passing to higher order functions."
       (str+ s (str* (- n l) " ")))))
 
 (defsub (str-subst old-needle new-needle haystack)
-  "Replace `old-needle` with `new-needle` in `haystack` (all strs).
+  "Replace `old-needle` with `new-needle` in `haystack` (all of them are strs).
 
-If `old-needle` is not in `haystack`, just returns `haystack` unmodified."
+If `old-needle` is not in `haystack`, just returns `haystack`
+unmodified.  Note that only one occurrence of `old-needle` will be
+replaced.  If you want to replace all occurrences, use `str-gsubst`
+instead."
   (aif (str-pos? old-needle haystack)
       (str+ (str-take it haystack)
             new-needle
             (str-drop (+ (str-len old-needle) it)
                       haystack))
     haystack))
+
+(defsub (str-gsubst old-needle new-needle haystack)
+  "Replace all occurrences of `old-needle` with `new-needle` in `haystack` (all strs)."
+  (with loop (lambda (remain)
+               (aif (str-pos? old-needle remain)
+                   (str+ (str-take it remain)
+                         new-needle
+                         (loop (str-drop (+ (str-len old-needle) it)
+                                         remain)))
+                 remain))
+    (loop haystack)))
 
 (defsub (chr-skip ignore consume)
   "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
