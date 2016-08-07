@@ -15,3 +15,9 @@ clean:
 
 test: bone
 	prove -e ./bone tests/*.bn
+
+docs: bone
+	./bone gendoc.bn -i core.bn prelude.bn posix.bn posixprelude.bn std/*.bn
+	mkdir -p doc/std
+	for f in index.md *.bn.md std/*.bn.md; do markdown "$$f" >"doc/`echo $$f | sed 's/.md$$/.html/'`"; done
+	rm index.md; find . -name '*.bn.md' | xargs rm

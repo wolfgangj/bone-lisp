@@ -14,14 +14,18 @@
 ;;;; ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 ;;;; OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-(version 0 5)
+(version 0 6)
 
 ;;; Program options
 
-(use std/prog-arg)
+(use std/prog-arg
+     std/html)
 
 (defvar *options-spec*
-  '((help ((flag #t)
+  '((index ((flag #t)
+            (short #chr "i")
+            (desc "Generate index.md file.")))
+    (help ((flag #t)
            (short #chr "h")
            (desc "Show this usage message.")))
     (version ((flag #t)
@@ -34,22 +38,46 @@
   (defvar *options* options)
   (defvar *files* files))
 
+(mysub (bone-version)
+  (str+ (num->str (lisp-info 'major-version)) "."
+        (num->str (lisp-info 'minor-version)) "."
+        (num->str (lisp-info 'patch-version))))
+
 (cond ((assocar? 'help *options*)
        (say-prog-args-help "gendoc" *options-spec* "FILE...")
        (sys.exit 0))
       ((assocar? 'version *options*)
-       (say "gendoc " ; as part of the distribution, we just use the Bone Lisp version:
-            (lisp-info 'major-version) "."
-            (lisp-info 'minor-version) "."
-            (lisp-info 'patch-version) "\n")
+       (say "gendoc " (bone-version) "\n")
        (sys.exit 0)))
 
 ;;; Main program
 
+(defvar *index-dst* (when (assocar? 'index *options*)
+                      (sys.dst-open? "index.md")))   ; TODO: abort on error
+(defvar *current-file* #f)
+
+(mymac (to-index-dst . body)
+  `(when *index-dst*
+     (with-dst *index-dst*
+       ,@body)))
+
+(mysub (spec->name spec)
+  (or (car? spec) spec))
+
+(mysub (markdownize-name name)
+  (str-gsubst "*" "\\*" ; to prevent markdown emphasize
+              (htmlize (sym->str name))))
+
+(mysub (index-entry name)
+  (to-index-dst
+   (say "[" (markdownize-name name) "](" *current-file* "#" name ") ")))
+
 (mysub (document type spec docstr)
+  (index-entry (spec->name spec))
+  (say "<a name=\"" (spec->name spec) "\">\n")
   (say "### " type ": `")
   (print spec)
-  (say "`\n\n" docstr "\n\n"))
+  (say "`\n</a>\n\n" docstr "\n\n"))
 
 (mysub (look-at-expr x)
   (with head (car? x)
@@ -67,10 +95,16 @@
 
 (mysub (document-file fname)
   (in-reg
-   (with-file-dst (str+ fname ".md")
-     (say "# " fname "\n\n")
-     (with-file-src fname
-       (each-expr look-at-expr)))
-   ()))
+   (with-var *current-file* (str+ fname ".html")
+     (to-index-dst
+      (say "\n\n## " fname "\n\n"))
+     (with-file-dst (str+ fname ".md")
+       (say "# " fname "\n\n")
+       (with-file-src fname
+         (each-expr look-at-expr)))
+     ())))
+
+(to-index-dst
+ (say "# Bone Lisp " (bone-version)))
 
 (each document-file *files*)
