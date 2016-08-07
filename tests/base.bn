@@ -474,3 +474,7 @@
   (eq? 2 (aif #f #f #f 2))
   (not (aif #f #t it)))
 
+(test "str-subst"
+  (str=? "fo<>ar" (str-subst "ob" "<>" "foobar"))
+  (str=? "foiiiar" (str-subst "ob" "iii" "foobar"))
+  (str=? "foxar" (str-subst "ob" "x" "foobar")))

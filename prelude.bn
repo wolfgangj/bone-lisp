@@ -595,6 +595,17 @@ This can be useful for passing to higher order functions."
         s
       (str+ s (str* (- n l) " ")))))
 
+(defsub (str-subst old-needle new-needle haystack)
+  "Replace `old-needle` with `new-needle` in `haystack` (all strs).
+
+If `old-needle` is not in `haystack`, just returns `haystack` unmodified."
+  (aif (str-pos? old-needle haystack)
+      (str+ (str-take it haystack)
+            new-needle
+            (str-drop (+ (str-len old-needle) it)
+                      haystack))
+    haystack))
+
 (defsub (chr-skip ignore consume)
   "Read up to a character not in `ignore`, return that character (via `chr-look` if `consume` is false)."
   (with loop (lambda ()
@@ -691,6 +702,7 @@ Note that there is no corresponding `str-ascii-upper`."
 (alias str-pad-left str-pad)
 (alias str-pad-right str-padr)
 (alias float->int trunc)
+(alias str-replace str-subst)
 
 ;;;; Implementation information
 
