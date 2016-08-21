@@ -1729,7 +1729,21 @@ my void apply(any s, any xs) {
 
 void call0(any subr) { apply(subr, NIL); }
 
-void call1(any subr, any x) { apply(subr, single(x)); }
+//void call1(any subr, any x) { apply(subr, single(x)); }
+void call1(any s, any x) {
+  sub subr = any2sub(s);
+  sub_code sc = subr->code;
+  int locals_cnt = count_locals(sc);
+  size_t args_pos = alloc_locals(locals_cnt);
+  any *args = &locals_stack[args_pos];
+  if(sc->argc == 1)
+    *args = x;
+  else if(sc->argc == 0 && sc->take_rest)
+    *args = single(x);
+  else
+    args_error(sc, single(x));
+  call(subr, args_pos, locals_cnt);
+}
 
 void call2(any subr, any x, any y) { apply(subr, list2(x, y)); }
 
