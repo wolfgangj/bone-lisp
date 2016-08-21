@@ -1434,6 +1434,7 @@ typedef enum {
   OP_SET_LOCAL,
   OP_WRAP,
   OP_PREPARE_CALL,
+  OP_PREPARE_DIRECT_CALL,
   OP_CALL,
   OP_TAILCALL,
   OP_ADD_ARG,
@@ -1584,8 +1585,11 @@ start:;
     case OP_GET_ARG: last_value = locals_stack[args_pos + *ip++]; break; // args+locals
     case OP_SET_LOCAL: locals_stack[args_pos + *ip++] = last_value; break;
     case OP_WRAP: ((csub)*ip)(&locals_stack[args_pos]); goto cleanup;
-    case OP_PREPARE_CALL: {
-      sub to_be_called = any2sub(last_value);
+    case OP_PREPARE_CALL:
+      last_value = (any)any2sub(last_value);
+      // fall through
+    case OP_PREPARE_DIRECT_CALL: {
+      sub to_be_called = (sub)last_value;
       sub_code sc = to_be_called->code;
       add_upcoming_call();
       next_call()->to_be_called = to_be_called;
@@ -2040,14 +2044,16 @@ my any compile_expr(any e, any env, bool tail_context, compile_state *state) {
       break;
     }
     any known_sub = compile_expr(first, env, false, state);
-    emit(OP_PREPARE_CALL, state);
-    if(!is(known_sub))
+    if(!is(known_sub)) {
+      emit(OP_PREPARE_CALL, state);
       // we don't know which sub it is, so we use the generic ADD_ARG:
       foreach(arg, rest) {
         compile_expr(arg, env, false, state);
         emit(OP_ADD_ARG, state);
       }
-    else {
+    } else {
+      set_far(state->dst, (any)any2sub(known_sub)); // fix up
+      emit(OP_PREPARE_DIRECT_CALL, state);
       sub_code sc = any2sub(known_sub)->code;
       int argpos_indicator = sc->argc;
       int take_rest = sc->take_rest;
