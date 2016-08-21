@@ -1437,6 +1437,9 @@ typedef enum {
   OP_CALL,
   OP_TAILCALL,
   OP_ADD_ARG,
+  OP_ADD_NONREST_ARG,
+  OP_ADD_FIRST_REST_ARG,
+  OP_ADD_ANOTHER_REST_ARG,
   OP_JMP_IFN,
   OP_JMP,
   OP_RET,
@@ -1536,17 +1539,23 @@ my void args_error_unspecific(sub_code sc) {
 
 my void add_nonrest_arg() { locals_stack[next_call()->next_arg_pos++] = last_value; }
 
+my void add_first_rest_arg() {
+  sub_code sc = next_call()->to_be_called->code;
+  next_call()->rest_constructor = locals_stack[next_call()->args_pos + sc->argc] = single(last_value);
+}
+my void add_another_rest_arg() {
+  any next = single(last_value);
+  set_fdr(next_call()->rest_constructor, next);
+  next_call()->rest_constructor = next;
+}
 my void add_rest_arg() {
   sub_code sc = next_call()->to_be_called->code;
   if(!sc->take_rest)
     args_error_unspecific(sc);
-  if(next_call()->rest_constructor == NIL) // first rest arg
-    next_call()->rest_constructor = locals_stack[next_call()->args_pos + sc->argc] = single(last_value);
-  else { // adding another rest arg
-    any next = single(last_value);
-    set_fdr(next_call()->rest_constructor, next);
-    next_call()->rest_constructor = next;
-  }
+  if(next_call()->rest_constructor == NIL)
+    add_first_rest_arg();
+  else
+    add_another_rest_arg();
 }
 
 my void verify_argc(struct upcoming_call *the_call) {
@@ -1613,6 +1622,16 @@ start:;
         add_nonrest_arg();
       } else
         add_rest_arg();
+      break;
+    case OP_ADD_NONREST_ARG:
+      next_call()->nonrest_args_left--;
+      add_nonrest_arg();
+      break;
+    case OP_ADD_FIRST_REST_ARG:
+      add_first_rest_arg();
+      break;
+    case OP_ADD_ANOTHER_REST_ARG:
+      add_another_rest_arg();
       break;
     case OP_JMP_IFN:
       if(is(last_value)) {
@@ -1772,7 +1791,7 @@ my void emit(any x, compile_state *state) {
 }
 
 // decl for mutual recursion
-my void compile_expr(any e, any env, bool tail_context, compile_state *state);
+my any compile_expr(any e, any env, bool tail_context, compile_state *state);
 
 my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   compile_expr(car(e), env, false, state);
@@ -1968,7 +1987,8 @@ my void compile_with(any name, any expr, any body, any env, bool tail_context, c
   state->curr_locals--;
 }
 
-my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
+// if `e` is a defined sym, return the value bound to it; false otherwise.
+my any compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch (tag_of(e)) {
   case t_num:
   case t_uniq:
@@ -2002,11 +2022,26 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
       compile_with(car(rest), car(cdr(rest)), cdr(cdr(rest)), env, tail_context, state);
       break;
     }
-    compile_expr(first, env, false, state);
+    any known_sub = compile_expr(first, env, false, state);
     emit(OP_PREPARE_CALL, state);
-    foreach(arg, rest) {
-      compile_expr(arg, env, false, state);
-      emit(OP_ADD_ARG, state);
+    if(!is(known_sub))
+      // we don't know which sub it is, so we use the generic ADD_ARG:
+      foreach(arg, rest) {
+        compile_expr(arg, env, false, state);
+        emit(OP_ADD_ARG, state);
+      }
+    else {
+      sub_code sc = any2sub(known_sub)->code;
+      int argpos_indicator = sc->argc;
+      int take_rest = sc->take_rest;
+      foreach(arg, rest) {
+        if(!take_rest && argpos_indicator == 0)
+          args_error_unspecific(sc);
+        compile_expr(arg, env, false, state);
+        emit(argpos_indicator > 0 ? OP_ADD_NONREST_ARG : (argpos_indicator == 0 ? OP_ADD_FIRST_REST_ARG : OP_ADD_ANOTHER_REST_ARG),
+             state);
+        argpos_indicator--;
+      }
     }
     emit(tail_context ? OP_TAILCALL : OP_CALL, state);
     break;
@@ -2023,6 +2058,7 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
       if(far(global) != BINDING_DECLARED) {
 	emit(OP_CONST, state);
 	emit(fdr(global), state);
+        return fdr(global);
       } else {
 	emit(OP_INSERT_DECLARED, state);
 	emit(e, state);
@@ -2039,6 +2075,7 @@ my void compile_expr(any e, any env, bool tail_context, compile_state *state) {
     break;
   }
   }
+  return BFALSE;
 }
 
 my any compile2list(any expr, any env, int extra_offset, int *extra_locals) {
