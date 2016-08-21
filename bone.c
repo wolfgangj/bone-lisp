@@ -838,7 +838,7 @@ my any get_reader(any name) { return hash_get(readers, name); }
 my bool is_reader_bound(any name) { return get_reader(name) != BFALSE; }
 
 my hash dynamics; // this is shared by threads, it just contains numbers as values
-my any dynamic_vals[256]; // FIXME: thread-local
+my any dynamic_vals[256]; // FIXME: thread-local, resize
 my int dyn_cnt = 0;
 my any get_dyn(any name) { return hash_get(dynamics, name); }
 my bool is_dyn_bound(any name) { return is(get_dyn(name)); }
@@ -1580,9 +1580,9 @@ start:;
   while(1)
     switch (*ip++) {
     case OP_CONST: last_value = *ip++; break;
-    case OP_GET_ENV: last_value = env[any2int(*ip++)]; break;
-    case OP_GET_ARG: last_value = locals_stack[args_pos + any2int(*ip++)]; break; // args+locals
-    case OP_SET_LOCAL: locals_stack[args_pos + any2int(*ip++)] = last_value; break;
+    case OP_GET_ENV: last_value = env[*ip++]; break;
+    case OP_GET_ARG: last_value = locals_stack[args_pos + *ip++]; break; // args+locals
+    case OP_SET_LOCAL: locals_stack[args_pos + *ip++] = last_value; break;
     case OP_WRAP: ((csub)*ip)(&locals_stack[args_pos]); goto cleanup;
     case OP_PREPARE_CALL: {
       sub to_be_called = any2sub(last_value);
@@ -1639,7 +1639,7 @@ start:;
         break;
       } // else fall through
     case OP_JMP:
-      ip += any2int(*ip);
+      ip += *ip;
       break;
     case OP_RET:
       goto cleanup;
@@ -1672,7 +1672,7 @@ start:;
       any2sub(last_value)->env[0] = last_value;
       break;
     case OP_DYN:
-      last_value = dynamic_vals[any2int(*ip++)];
+      last_value = dynamic_vals[*ip++];
       break;
     case OP_INSERT_DECLARED: {
       any binding = get_binding(*ip);
@@ -1804,11 +1804,11 @@ my void compile_if(any e, any env, bool tail_context, compile_state *state) {
   emit(OP_JMP, state);
   emit(0, state);
   e = fdr(e);
-  set_far(to_else_jmp.dst, int2any(state->pos + 1 - to_else_jmp.pos));
+  set_far(to_else_jmp.dst, state->pos + 1 - to_else_jmp.pos);
   compile_state after_then_jmp = *state;
 
   compile_expr(cons(s_do, e), env, tail_context, state);
-  set_far(after_then_jmp.dst, int2any(state->pos + 1 - after_then_jmp.pos));
+  set_far(after_then_jmp.dst, state->pos + 1 - after_then_jmp.pos);
 }
 
 my any lambda_ignore_list(any old, any args) {
@@ -1875,7 +1875,7 @@ my any collect_locals(any code, any locals, any ignore, int *cnt) {
 }
 
 my any add_local(any env, any name, any kind, int num) {
-  return cons(cons(name, cons(kind, int2any(num))), env);
+  return cons(cons(name, cons(kind, num)), env);
 }
 
 my any locals_for_lambda(any env, any args) {
@@ -1979,7 +1979,7 @@ my void compile_with(any name, any expr, any body, any env, bool tail_context, c
   env = add_local(env, name, s_arg, extra_pos(state));
   compile_expr(expr, env, false, state);
   emit(OP_SET_LOCAL, state);
-  emit(int2any(extra_pos(state)), state);
+  emit(extra_pos(state), state);
 
   if(refers_to(expr, name))
     emit(OP_MAKE_RECURSIVE, state);
@@ -2068,7 +2068,7 @@ my any compile_expr(any e, any env, bool tail_context, compile_state *state) {
     any dyn = get_dyn(e);
     if(is(dyn)) {
       emit(OP_DYN, state);
-      emit(dyn, state);
+      emit(any2int(dyn), state);
       break;
     }
     generic_error("unbound sym", e);

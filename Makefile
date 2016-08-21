@@ -1,14 +1,17 @@
-FLAGS=-std=gnu99 -Wall -W -Wextra -Wno-unused -Wno-unused-parameter -g
-#FLAGS=-std=gnu99 -Wall -W -Wextra -Wno-unused -Wno-unused-parameter -O3
+COMPILE_FLAGS=-std=gnu99 -Wall -W -Wextra -Wno-unused -Wno-unused-parameter
+FLAGS=-g
+#FLAGS=-g -pg
+#FLAGS=-O3
+
 EXTRA_MODULES=boneposix.o
 
 MODULES=bone.o main.o $(EXTRA_MODULES)
 
 %.o: %.c bone.h
-	$(CC) $(FLAGS) -c $< -o $@
+	$(CC) $(FLAGS) $(COMPILE_FLAGS) -c $< -o $@
 
 bone: $(MODULES)
-	$(CC) $(MODULES) -lm -o bone
+	$(CC) $(FLAGS) $(MODULES) -lm -o bone
 
 clean:
 	rm -f bone *.o
