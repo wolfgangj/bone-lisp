@@ -18,8 +18,7 @@
 
 ;;; Program options
 
-(use std/prog-arg
-     std/html)
+(use std/prog-arg)
 
 (defvar *options-spec*
   '((index ((flag #t)
@@ -64,20 +63,15 @@
 (mysub (spec->name spec)
   (or (car? spec) spec))
 
-(mysub (markdownize-name name)
-  (str-gsubst "*" "\\*" ; to prevent markdown emphasize
-              (htmlize (sym->str name))))
-
 (mysub (index-entry name)
   (to-index-dst
-   (say "[" (markdownize-name name) "](" *current-file* "#" name ") ")))
+   (say "[`" name "`](" *current-file* "#" name ") ")))
 
 (mysub (document type spec docstr)
   (index-entry (spec->name spec))
-  (say "<a name=\"" (spec->name spec) "\">\n")
-  (say "### " type ": `")
+  (say "### <a name=\"" (spec->name spec) "\"> " type ": `")
   (print spec)
-  (say "`\n</a>\n\n" docstr "\n\n"))
+  (say "` </a>\n\n" docstr "\n\n"))
 
 (mysub (look-at-expr x)
   (with head (car? x)
