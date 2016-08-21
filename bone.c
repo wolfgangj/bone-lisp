@@ -1736,8 +1736,11 @@ void call1(any s, any x) {
   int locals_cnt = count_locals(sc);
   size_t args_pos = alloc_locals(locals_cnt);
   any *args = &locals_stack[args_pos];
-  if(sc->argc == 1)
-    *args = x;
+  if(sc->argc == 1) {
+    args[0] = x;
+    if(sc->take_rest)
+      args[1] = NIL;
+  }
   else if(sc->argc == 0 && sc->take_rest)
     *args = single(x);
   else
