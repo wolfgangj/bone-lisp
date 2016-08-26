@@ -2521,6 +2521,7 @@ DEFSUB(dstp) { last_value = to_bool(tag_of(args[0]) == t_other && *((type_other_
 DEFSUB(declare) { declare_binding(args[0]); }
 
 DEFSUB(protect) {
+  bool old = silence_errors;
   silence_errors = true;
   size_t csp_backup = call_stack_pos;
   try {
@@ -2529,7 +2530,7 @@ DEFSUB(protect) {
     last_value = BFALSE;
   }
   call_stack_pos = csp_backup;
-  silence_errors = false;
+  silence_errors = old;
 }
 
 DEFSUB(dup) { last_value = duplist(args[0]); }
