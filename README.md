@@ -17,10 +17,10 @@ It is based on immutable values and does tail-call elimination.
 The special feature that distinguishes it from other Lisps is the *semi-automatic memory management*: 
 It uses explicit regions instead of garbage collection.
 
-It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp, Erlang and Ruby.
+It is inspired by Pico Lisp, R5RS Scheme, Forth, Common Lisp and Ruby.
 
-It is currently written for 64 bit systems.
-It runs on GNU/Linux and should also work on other Unices (with minimal porting).
+It is written for 64 bit systems and runs on GNU/Linux,
+  though it should also work on other Unices (with minimal porting).
 
 *Note: If you were looking for the great [Bones Scheme Compiler](http://www.call-with-current-continuation.org/bones/), that's a different project.*
 
@@ -34,7 +34,7 @@ But doing manual memory management is time-consuming for the programmer - and us
 Explicit regions are both very simple and very fast, but how far can one get with them?
 I want to find out, so I am developing this interpreter.
 
-Bone Lisp could maybe become useful for soft real-time systems (e.g. as a scripting language for games), some kinds of multi-threaded servers and embedded systems.
+A language like Bone Lisp could maybe become useful for soft real-time systems (e.g. as a scripting language for games), some kinds of multi-threaded servers and maybe even embedded systems with enough memory.
 
 ## Status
 
@@ -95,7 +95,6 @@ Optional modules have their own C files (currently only `boneposix.c` for the PO
 The `main` function is in `main.c`;
 it just initializes everything and calls the REPL.
 You can compile it all with `make`.
-The `Makefile` is really, really simple.
 
 ## Quick Intro
 
@@ -212,7 +211,7 @@ Always feel free to ask for details on any of those.
   This is always a good thing.
   You could e.g. take a look at Schemes SRFI-1 and SRFI-13 for ideas.
   Or the Ruby standard library etc.
-* The documentation generator (`gendoc.bn`) needs a lot of improvement.
+* The documentation generator (`gendoc.bn`) coukd still use some improvement.
 * Make the existing POSIX bindings thread-safe
   (many POSIX functions have thread safe variants; use them.)
 * If you know Emacs Lisp, it would be great to have a major mode;
@@ -221,7 +220,7 @@ Always feel free to ask for details on any of those.
   could use the notation `#"symbol with spaces"`.
   This would be easy for the reader.
 * If you want to add a fancy feature, try doing a reader macro for string interpolation
-  (and here documents with string interpolation.)
+  (and/and here documents with string interpolation.)
 
 ## License
 
@@ -241,7 +240,6 @@ Bone Lisp is influenced by:
 * [R5RS Scheme](http://www.schemers.org/Documents/Standards/R5RS/) is a beautiful Lisp dialect
 * [Forth](https://en.wikipedia.org/wiki/Forth_%28programming_language%29) is a deep lesson in simplicity
 * [Common Lisp](https://common-lisp.net/) is a full-featured traditional Lisp
-* [Erlang](http://www.erlang.org/) is a functional language for building scalable real-time systems
 * [Ruby](https://www.ruby-lang.org/) is a scripting language with great usability
 
 Somewhat related Free Software projects:
