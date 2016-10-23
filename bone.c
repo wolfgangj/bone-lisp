@@ -231,7 +231,7 @@ my void rollback_reg_sp(int pos) {
     reg_free(reg_pop());
 }
 
-my any *reg_alloc(int n) {
+any *reg_alloc(int n) {
   any *res = (any *)allocp;
   allocp += n;
   if(block((any *)allocp) == current_block)
@@ -544,11 +544,11 @@ my any num2str(any n) {
 //////////////// hash tables ////////////////
 
 #define MAXLOAD 175 // value between 0 and 255
-typedef struct {
+typedef struct hash {
   size_t size, taken_slots;
   any *keys, *vals;
   any default_value;
-} * hash;
+} *hash;
 
 my hash hash_new(size_t initsize, any default_val) {
   hash h = malloc(sizeof(*h));
@@ -769,10 +769,10 @@ my int count_locals(sub_code sc) {
   return sc->argc + sc->take_rest + sc->extra_localc;
 }
 
-typedef struct {
+typedef struct sub {
   sub_code code;
   any env[0];
-} * sub;
+} *sub;
 
 my bool is_sub(any x) { return is_tagged(x, t_sub); }
 my any sub2any(sub s) { return tag((any)s, t_sub); }
@@ -982,7 +982,7 @@ my void utf8putc(int c, FILE *fp) {
 
 //////////////// srcs and dsts ////////////////
 
-typedef struct {
+typedef struct io {
   type_other_tag t;
   FILE *fp;
   any name;
@@ -1240,9 +1240,9 @@ my bool is_symchar(int c) {
 
 my void skip_until(char end) {
   int c;
-  do {
+  do
     c = nextc();
-  } while(c != end && c != EOF);
+  while(c != end && c != EOF);
 }
 
 my int find_token() {
@@ -1293,18 +1293,17 @@ my any chars2num(any chrs) {
     ires *= 10;
     ires += dig;
   }
-  if(is_num) {
-    if(decimal_point_pos < 0) {
+  if(is_num)
+    if(decimal_point_pos < 0)
       return int2any(is_positive ? ires : -ires);
-    } else {
+    else {
       float f = is_positive ? ires : -ires;
       for(; decimal_point_pos < pos; decimal_point_pos++)
         f /= 10.0;
       return float2any(f);
     }
-  } else {
+  else
     return BFALSE;
-  }
 }
 
 my any chars_to_num_or_sym(any cs) {
@@ -1792,7 +1791,7 @@ my any mac_expand(any x) {
   }
 }
 
-typedef struct {
+typedef struct compile_state {
   any dst;
   int pos;
   int max_locals;
@@ -2008,7 +2007,7 @@ my void compile_with(any name, any expr, any body, any env, bool tail_context, c
   state->curr_locals--;
 }
 
-// if `e` is a defined sym, return the value bound to it; false otherwise.
+// if `e` is a sym that has is bound globally, return the value bound to it; false in all other cases.
 my any compile_expr(any e, any env, bool tail_context, compile_state *state) {
   switch (tag_of(e)) {
   case t_num:
@@ -2786,6 +2785,9 @@ void bone_load(const char *mod) {
     while((e = bone_read()) != ENDOFFILE)
       eval_toplevel_expr(e);
   } catch {
+    eprintf("-> failed to load before ");
+    eprint(dynamic_vals[dyn_src]);
+    eprintf("\n");
     fail = true;
   }
   last_value = to_bool(!fail);
