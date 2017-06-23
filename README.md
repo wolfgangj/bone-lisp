@@ -2,6 +2,8 @@
 
 # The Bone Lisp programming language
 
+Note: This software is in beta status and always will stay there as it has been superseded by [LogicHut](http://www.github.com/wolfgangj/LogicHut).
+
     (defsub (len xs)
       "Calculate the length of the list `xs`."
       (with loop (lambda (remain n)
@@ -23,8 +25,6 @@ It is written for 64 bit systems and runs on GNU/Linux,
   though it should also work on other Unices (with minimal porting).
 
 *Note: If you were looking for the great [Bones Scheme Compiler](http://www.call-with-current-continuation.org/bones/), that's a different project.*
-
-*Note: This software is currently in alpha status (but getting closer to beta).*
 
 ## Why?
 
@@ -53,14 +53,10 @@ A language like Bone Lisp could maybe become useful for soft real-time systems (
 * TAS conforming testing library
 * POSIX bindings (but not many yet...)
 
-### What it does not (yet)
+### What it does not
 
-* Multithreading
-* Networking
-
-### What it does not (unsure whether it ever will)
-
-These are open for discussion.
+* Multithreading (did not get around to implementing it)
+* Networking (likewise)
 
 * Arrays
   (don't fit too well into Bone)
@@ -75,10 +71,6 @@ These are open for discussion.
   (they are nice, but make things more complex)
 * Cross-cutting concerns
   (probably very useful for the memory region stuff)
-
-### What it does not (and won't)
-
-I have no interest at all in adding these features to Bone Lisp.
 
 * Garbage collection
   (obviously, since the whole point of Bone Lisp is to avoid it)
@@ -198,29 +190,6 @@ Recursive loading will be detected and reported as an error.
 
 There's much more, but currently you'll have to look into the source code.
 If you don't understand something, feel free to ask.
-
-## Contributing
-
-*Note: If you do not want to use GitHub because it's not an entirely free platform, just contact me and I'll also setup a repository elsewhere.*
-
-Here are some ideas on how you can start contributing.
-Always feel free to ask for details on any of those.
-
-* Play around with it, report bugs and send tell me what needs improvement.
-* You can add lots of library stuff.
-  This is always a good thing.
-  You could e.g. take a look at Schemes SRFI-1 and SRFI-13 for ideas.
-  Or the Ruby standard library etc.
-* The documentation generator (`gendoc.bn`) coukd still use some improvement.
-* Make the existing POSIX bindings thread-safe
-  (many POSIX functions have thread safe variants; use them.)
-* If you know Emacs Lisp, it would be great to have a major mode;
-  I currently use a quick&dirty hacked version of Scheme mode.
-* Handle symbols with special characters;
-  could use the notation `#"symbol with spaces"`.
-  This would be easy for the reader.
-* If you want to add a fancy feature, try doing a reader macro for string interpolation
-  (and/and here documents with string interpolation.)
 
 ## License
 
