@@ -3,7 +3,8 @@
 # The Bone Lisp programming language
 
 Note: This software seems to work pretty well, but it's neither full-featured nor battle-tested, so it should be considered beta-quality.
-Furthermore, it will probably will stay there forever as I have moved on to work on other projects for now.
+Furthermore, it will probably stay there forever as I have moved on to work on other projects.
+If you are interested in researching the approach of combining explicit regions and immutability, don't hesitate to contact me if you want to know what I would do differently today compared to what I did here.
 
     (defsub (len xs)
       "Calculate the length of the list `xs`."
