@@ -2,7 +2,8 @@
 
 # The Bone Lisp programming language
 
-Note: This software is in beta status and always will stay there as it has been superseded by [LogicHut](http://www.github.com/wolfgangj/LogicHut).
+Note: This software seems to work pretty well, but it's neither full-featured nor battle-tested, so it should be considered beta-quality.
+Furthermore, it will probably will stay there forever as I have moved on to work on other projects for now.
 
     (defsub (len xs)
       "Calculate the length of the list `xs`."
