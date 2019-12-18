@@ -117,7 +117,7 @@ Booleans and the empty list work almost like they do in Scheme:
 * While we still call the empty list "nil", it is not the symbol `nil` (which isn't special in any way).
 * You cannot take the `car` and `cdr` of the empty list.
 * Only the value `#f` is false.
-* The cannonical value for true is `#t`.
+* The canonical value for true is `#t`.
 
 The names of predicates end with a question mark (e.g. `nil?`).
 Subs which may return a useful value or `#f` (false) also follow this convention (eg. `assoc?`).
